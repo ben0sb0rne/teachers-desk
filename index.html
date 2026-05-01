@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>The Teacher's Desk</title>
+  <meta name="description" content="A small, growing suite of free classroom tools — math bingo, seating charts, and more." />
+  <link rel="stylesheet" href="shared/desk.css" />
+  <style>
+    /* Page-local layout only. No tokens here. */
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; }
+    main { flex: 1; }
+
+    .desk-frame {
+      min-height: 100%;
+      padding: var(--space-6) var(--space-5) var(--space-7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .desk-inner {
+      width: 100%;
+      max-width: 880px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: var(--space-6);
+      color: rgb(var(--paper-cream));
+    }
+    header h1 {
+      font-size: clamp(34px, 6vw, 64px);
+      letter-spacing: -0.01em;
+      margin: 0 0 var(--space-2);
+    }
+    header p {
+      font-style: italic;
+      font-size: var(--type-13);
+      opacity: 0.85;
+      margin: 0;
+    }
+
+    .placards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+    @media (max-width: 600px) {
+      .placards { grid-template-columns: 1fr; }
+    }
+
+    footer {
+      text-align: center;
+      padding: var(--space-5) 0 0;
+      color: rgb(var(--paper-cream));
+      font-size: var(--type-13);
+    }
+    footer a { color: rgb(var(--paper-cream)); }
+  </style>
+</head>
+<body class="wood-bg">
+  <main class="desk-frame">
+    <div class="desk-inner">
+      <header>
+        <h1>THE TEACHER'S DESK</h1>
+        <p>A small, growing suite of classroom tools. Free, private, no accounts.</p>
+      </header>
+
+      <div class="placards">
+        <a class="placard" href="bingo/index.html">
+          <span class="placard-num">01</span>
+          <span class="placard-title">Math Bingo</span>
+          <span class="placard-sub">live caller for problem-set practice</span>
+          <span class="placard-arrow">&rarr;</span>
+        </a>
+
+        <a class="placard" href="seating-chart/index.html">
+          <span class="placard-num">02</span>
+          <span class="placard-title">Seating Chart</span>
+          <span class="placard-sub">classroom layouts with keep-apart constraints</span>
+          <span class="placard-arrow">&rarr;</span>
+        </a>
+
+        <a class="placard is-disabled" aria-disabled="true">
+          <span class="placard-num">03</span>
+          <span class="placard-title">Name Picker</span>
+          <span class="placard-sub">coming soon</span>
+          <span class="placard-arrow">&rarr;</span>
+        </a>
+
+        <a class="placard is-disabled" aria-disabled="true">
+          <span class="placard-num">04</span>
+          <span class="placard-title">Future tool</span>
+          <span class="placard-sub">coming soon</span>
+          <span class="placard-arrow">&rarr;</span>
+        </a>
+      </div>
+
+      <footer>
+        <a href="about.html">About</a>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

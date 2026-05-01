@@ -1,0 +1,59 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install if needed",
+      "detail": "Runs `npm install` only if node_modules is missing.",
+      "type": "process",
+      "command": "node",
+      "args": [
+        "-e",
+        "if(!require('fs').existsSync('node_modules')){console.log('Installing dependencies...');require('child_process').execSync('npm install',{stdio:'inherit'})}else{console.log('Dependencies up to date.')}"
+      ],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "close": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start dev server",
+      "detail": "Starts the Vite dev server. Auto-runs when this folder is opened.",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "dependsOn": "Install if needed",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false,
+        "focus": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Run tests",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build for production",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": []
+    }
+  ]
+}

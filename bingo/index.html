@@ -1,0 +1,441 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Math Bingo Caller</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/alfa-slab-one@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/comic-neue@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/creepster@latest/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@latest/index.css">
+<link rel="stylesheet" href="../shared/desk.css">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="script.js"></script>
+</head>
+<body>
+
+<!-- Hidden SVG icon symbol defs (Feather Icons, MIT licence) -->
+<svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
+  <symbol id="icon-chevron-left"  viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="icon-chevron-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="icon-chevron-down"  viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="icon-download"      viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="icon-settings"      viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="icon-x"             viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="icon-rotate-ccw"    viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></symbol>
+  <symbol id="icon-refresh-cw"    viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-3.51"/></symbol>
+  <symbol id="icon-alert-triangle" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="icon-upload"         viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+  <symbol id="icon-file-plus"      viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></symbol>
+</svg>
+
+<!-- ═══════════════════════════════════════════════════
+     HOMEPAGE VIEW
+     ═══════════════════════════════════════════════════ -->
+<div id="homepage-view">
+  <div class="hp-inner">
+    <div id="hp-header">
+      <h1>Math Bingo</h1>
+      <p>Pick a set to play, or create your own.</p>
+    </div>
+
+    <div id="hp-tiles"><!-- rendered by renderHomepage() --></div>
+    <div id="hp-set-error" hidden></div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PRINT VIEW
+     ═══════════════════════════════════════════════════ -->
+<div id="print-view" hidden>
+  <div id="pv-topbar">
+    <button class="icon-btn" id="pv-back-btn"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg> Back</button>
+    <span id="pv-title"></span>
+    <span id="pv-host-error"></span>
+    <button class="hp-btn primary" id="pv-host-btn">Host Game <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg></button>
+  </div>
+  <div id="pv-body">
+    <!-- Left: options + download -->
+    <div id="pv-options">
+      <div class="pv-opt-group">
+        <label class="pv-opt-label">Number of cards</label>
+        <input id="pv-count" type="number" min="1" max="200" value="30">
+      </div>
+      <div class="pv-opt-group">
+        <label class="pv-opt-label">Card style</label>
+        <div id="pv-style-picker">
+          <label class="pv-style-card active" data-pv-style="full">
+            <!-- Full Page: portrait thumb (32×42) with one centered card (22×27, colW=4.4) -->
+            <svg class="pv-style-thumb" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="7" width="22" height="27" rx="1" fill="white" stroke="#bbb" stroke-width="0.6"/>
+              <clipPath id="cp-full"><rect x="5" y="7" width="22" height="27"/></clipPath>
+              <g clip-path="url(#cp-full)">
+                <rect x="5"    y="7" width="4.4" height="5" style="fill:var(--col-B)"/>
+                <rect x="9.4"  y="7" width="4.4" height="5" style="fill:var(--col-I)"/>
+                <rect x="13.8" y="7" width="4.4" height="5" style="fill:var(--col-N)"/>
+                <rect x="18.2" y="7" width="4.4" height="5" style="fill:var(--col-G)"/>
+                <rect x="22.6" y="7" width="4.4" height="5" style="fill:var(--col-O)"/>
+                <line x1="9.4"  y1="12" x2="9.4"  y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="13.8" y1="12" x2="13.8" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="18.2" y1="12" x2="18.2" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="22.6" y1="12" x2="22.6" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="5" y1="16.4" x2="27" y2="16.4" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="5" y1="20.8" x2="27" y2="20.8" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="5" y1="25.2" x2="27" y2="25.2" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="5" y1="29.6" x2="27" y2="29.6" stroke="#ddd" stroke-width="0.5"/>
+              </g>
+            </svg>
+            <div><span>Full Page</span><small>1 per page · portrait</small></div>
+          </label>
+          <label class="pv-style-card" data-pv-style="half">
+            <!-- Half-Page: two portrait cards side by side, square cells (colW=4.4) -->
+            <svg class="pv-style-thumb" viewBox="0 0 54 42" xmlns="http://www.w3.org/2000/svg">
+              <clipPath id="cp-h1"><rect x="2"  y="7" width="22" height="27" rx="1"/></clipPath>
+              <clipPath id="cp-h2"><rect x="30" y="7" width="22" height="27" rx="1"/></clipPath>
+              <rect x="2"  y="7" width="22" height="27" rx="1" fill="white" stroke="#ccc" stroke-width="0.6"/>
+              <rect x="30" y="7" width="22" height="27" rx="1" fill="white" stroke="#ccc" stroke-width="0.6"/>
+              <g clip-path="url(#cp-h1)">
+                <rect x="2"    y="7" width="4.4" height="5" style="fill:var(--col-B)"/>
+                <rect x="6.4"  y="7" width="4.4" height="5" style="fill:var(--col-I)"/>
+                <rect x="10.8" y="7" width="4.4" height="5" style="fill:var(--col-N)"/>
+                <rect x="15.2" y="7" width="4.4" height="5" style="fill:var(--col-G)"/>
+                <rect x="19.6" y="7" width="4.4" height="5" style="fill:var(--col-O)"/>
+                <line x1="6.4"  y1="12" x2="6.4"  y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="10.8" y1="12" x2="10.8" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="15.2" y1="12" x2="15.2" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="19.6" y1="12" x2="19.6" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="2" y1="16.4" x2="24" y2="16.4" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="2" y1="20.8" x2="24" y2="20.8" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="2" y1="25.2" x2="24" y2="25.2" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="2" y1="29.6" x2="24" y2="29.6" stroke="#ddd" stroke-width="0.5"/>
+              </g>
+              <g clip-path="url(#cp-h2)">
+                <rect x="30"   y="7" width="4.4" height="5" style="fill:var(--col-B)"/>
+                <rect x="34.4" y="7" width="4.4" height="5" style="fill:var(--col-I)"/>
+                <rect x="38.8" y="7" width="4.4" height="5" style="fill:var(--col-N)"/>
+                <rect x="43.2" y="7" width="4.4" height="5" style="fill:var(--col-G)"/>
+                <rect x="47.6" y="7" width="4.4" height="5" style="fill:var(--col-O)"/>
+                <line x1="34.4" y1="12" x2="34.4" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="38.8" y1="12" x2="38.8" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="43.2" y1="12" x2="43.2" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="47.6" y1="12" x2="47.6" y2="34" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="30" y1="16.4" x2="52" y2="16.4" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="30" y1="20.8" x2="52" y2="20.8" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="30" y1="25.2" x2="52" y2="25.2" stroke="#ddd" stroke-width="0.5"/>
+                <line x1="30" y1="29.6" x2="52" y2="29.6" stroke="#ddd" stroke-width="0.5"/>
+              </g>
+            </svg>
+            <div><span>Half-Page</span><small>2 per page · landscape</small></div>
+          </label>
+          <label class="pv-style-card" data-pv-style="work">
+            <!-- Work Area: canvas updated live by updateWorkThumb() -->
+            <canvas class="pv-style-thumb" id="pv-work-thumb"></canvas>
+            <div><span>Work Area</span><small>2 per page · work space</small></div>
+          </label>
+        </div>
+      </div>
+      <div class="pv-opt-group" id="pv-colors-group">
+        <label class="pv-opt-label">Card Colors</label>
+        <div class="seg-group" style="margin-bottom:8px">
+          <button class="seg-btn active" data-pv-color="color">Color</button>
+          <button class="seg-btn" data-pv-color="bw">Black &amp; White</button>
+        </div>
+        <div id="pv-color-pickers">
+          <div class="pv-color-row" data-col="B">
+            <span class="pv-color-col-label" style="background:#1565c0">B</span>
+            <input type="color" class="pv-color-input" id="pv-color-B" value="#1565c0">
+            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+          </div>
+          <div class="pv-color-row" data-col="I">
+            <span class="pv-color-col-label" style="background:#2e7d32">I</span>
+            <input type="color" class="pv-color-input" id="pv-color-I" value="#2e7d32">
+            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+          </div>
+          <div class="pv-color-row" data-col="N">
+            <span class="pv-color-col-label" style="background:#e65100">N</span>
+            <input type="color" class="pv-color-input" id="pv-color-N" value="#e65100">
+            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+          </div>
+          <div class="pv-color-row" data-col="G">
+            <span class="pv-color-col-label" style="background:#6a1b9a">G</span>
+            <input type="color" class="pv-color-input" id="pv-color-G" value="#6a1b9a">
+            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+          </div>
+          <div class="pv-color-row" data-col="O">
+            <span class="pv-color-col-label" style="background:#b71c1c">O</span>
+            <input type="color" class="pv-color-input" id="pv-color-O" value="#b71c1c">
+            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <details id="pv-advanced">
+        <summary class="pv-opt-label pv-advanced-summary">Advanced Options <svg class="icon pv-adv-arrow" aria-hidden="true"><use href="#icon-chevron-right"/></svg></summary>
+        <div class="pv-advanced-body">
+          <div>
+            <label class="pv-adv-sublabel">Card label</label>
+            <div class="settings-row">
+              <label for="pv-show-numbers" style="font-size:.9rem;cursor:pointer">Show card number at bottom</label>
+              <input type="checkbox" id="pv-show-numbers" checked>
+            </div>
+          </div>
+          <div>
+            <label class="pv-adv-sublabel">Font</label>
+            <select id="pv-font-select" class="pv-input" style="width:100%"></select>
+          </div>
+          <div>
+            <label class="pv-adv-sublabel">Work area style</label>
+            <div class="seg-group" id="pv-work-picker">
+              <button class="seg-btn active" data-pv-work="lined">Lined</button>
+              <button class="seg-btn" data-pv-work="grid">Grid</button>
+              <button class="seg-btn" data-pv-work="blank">Blank</button>
+            </div>
+          </div>
+          <div id="pv-work-scale-row">
+            <label class="pv-adv-sublabel">Line spacing</label>
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <div style="flex:1">
+                <input type="range" id="pv-work-scale" min="3" max="15" step="0.5" value="7"
+                  style="width:100%;accent-color:var(--primary);margin-bottom:2px">
+                <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted)">
+                  <span>Fine</span>
+                  <span id="pv-work-scale-val" style="font-weight:700;color:var(--text)">7 mm</span>
+                  <span>Wide</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+                <canvas id="pv-work-preview" width="96" height="68"
+                  style="border:1px solid var(--border);border-radius:4px;background:#fff"></canvas>
+                <button class="pv-color-reset icon-btn" id="pv-work-scale-reset" title="Reset to default" style="align-self:center"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg> Reset</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="pv-adv-sublabel">Caller sheet</label>
+            <div class="settings-row">
+              <label for="pv-caller-sheet" style="font-size:.9rem;cursor:pointer">Include caller sheet in PDF</label>
+              <input type="checkbox" id="pv-caller-sheet" checked>
+            </div>
+          </div>
+        </div>
+      </details>
+      <button class="hp-btn primary" id="pv-download-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Download Cards</button>
+      <div id="pv-dl-error" hidden></div>
+    </div>
+    <!-- Right: problem/answer preview (always-editable) -->
+    <div id="pv-preview">
+      <div id="pv-preview-topbar">
+        <div id="pv-col-counts"></div>
+        <span id="pv-topbar-msg"></span>
+        <button class="hp-btn" id="pv-save-csv-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Save as CSV</button>
+      </div>
+      <div id="pv-load-error" hidden></div>
+      <div id="pv-problems-table"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     CALLER VIEW
+     ═══════════════════════════════════════════════════ -->
+<div id="app" hidden>
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <button class="icon-btn" id="btn-back-home"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg> Sets</button>
+    <button class="icon-btn" id="btn-settings"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Settings</button>
+    <div class="spacer"></div>
+    <div class="center" id="progress-display"></div>
+    <div class="spacer"></div>
+    <div class="topbar-right">
+      <button class="icon-btn" id="btn-help" title="Keyboard shortcuts (?)">Help</button>
+      <button class="icon-btn" id="btn-fullscreen" title="Fullscreen (F)" aria-label="Enter fullscreen">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 5V1h4M9 1h4v4M1 9v4h4M13 9v4H9"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification banner -->
+  <div id="notification" hidden></div>
+
+  <!-- Main content -->
+  <div id="main">
+
+    <!-- Called numbers board -->
+    <div id="board-panel">
+      <div id="board-grid"></div>
+      <div id="recent-balls-strip" class="mode-hidden"></div>
+    </div>
+
+    <!-- Problem display -->
+    <div id="problem-area">
+      <div id="start-prompt">Press <kbd>Space</kbd> or click <strong>Next <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg></strong> to begin</div>
+
+      <div id="problem-card" hidden>
+        <div id="replay-badge" hidden><svg class="icon" aria-hidden="true"><use href="#icon-refresh-cw"/></svg> REPLAY</div>
+        <div id="col-chip"></div>
+        <div id="problem-text"></div>
+        <div id="answer-reveal" hidden>
+          <div id="answer-value"></div>
+        </div>
+        <div id="game-over-msg" hidden>All answers called! Press <kbd>R</kbd> to start a new game.</div>
+      </div>
+
+      <div id="timer-container" hidden>
+        <div id="timer-track"><div id="timer-fill"></div></div>
+        <div id="timer-label"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom nav -->
+  <div id="bottom-nav">
+    <button class="nav-btn" id="btn-prev"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg> Back</button>
+    <button class="nav-btn" id="btn-check-answers">Check Answers</button>
+    <button class="nav-btn primary" id="btn-next">Next <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg></button>
+  </div>
+
+</div>
+
+<!-- Check Answers overlay -->
+<div class="overlay" id="check-answers-overlay" hidden>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Check Answer</h2>
+      <button class="close-btn" id="btn-close-check-answers" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
+    </div>
+    <div class="panel-body">
+      <!-- Quick checker -->
+      <div id="ca-quick-checker">
+        <div id="ca-col-btns">
+          <button class="ca-col-btn active" data-col="B">B</button>
+          <button class="ca-col-btn" data-col="I">I</button>
+          <button class="ca-col-btn" data-col="N">N</button>
+          <button class="ca-col-btn" data-col="G">G</button>
+          <button class="ca-col-btn" data-col="O">O</button>
+        </div>
+        <div id="ca-input-row">
+          <input id="ca-answer-input" type="number" placeholder="Enter answer…" autocomplete="off" step="any">
+          <span id="ca-status"></span>
+        </div>
+        <div id="ca-btn-row">
+          <button id="ca-toggle-full-btn">
+            <span>Show full call sheet</span>
+            <span class="ca-toggle-arrow"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"/></svg></span>
+          </button>
+          <button id="btn-bingo">Bingo!</button>
+        </div>
+      </div>
+      <!-- Collapsible full call sheet -->
+      <div id="ca-full-sheet" hidden>
+        <div id="ca-columns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div class="overlay" id="settings-overlay" hidden>
+  <div class="panel">
+    <div class="panel-header">
+      <h2><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Settings</h2>
+      <button class="close-btn" id="btn-close-settings" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
+    </div>
+    <div class="panel-body" id="settings-body"></div>
+  </div>
+</div>
+
+<!-- Help overlay -->
+<div class="overlay" id="help-overlay" hidden>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>? Keyboard Shortcuts</h2>
+      <button class="close-btn" id="btn-close-help" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
+    </div>
+    <div class="panel-body">
+      <table class="shortcuts-table">
+        <tr><td><kbd>Space</kbd> / <kbd>→</kbd></td><td>Next problem</td></tr>
+        <tr><td><kbd>←</kbd></td><td>Previous problem (re-read)</td></tr>
+        <tr><td><kbd>↑</kbd></td><td>Toggle answer visibility</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Pause / resume auto-advance timer</td></tr>
+        <tr><td><kbd>B</kbd></td><td>Toggle called-numbers board</td></tr>
+        <tr><td><kbd>K</kbd></td><td>Toggle board style (Grid / Recent Balls)</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Reset game (with confirmation)</td></tr>
+        <tr><td><kbd>S</kbd></td><td>Open / close settings</td></tr>
+        <tr><td><kbd>A</kbd></td><td>View called answers</td></tr>
+        <tr><td><kbd>F</kbd></td><td>Toggle fullscreen</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Close panel / exit fullscreen</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="overlay" id="confirm-overlay" hidden>
+  <div class="panel confirm-panel">
+    <div class="panel-header"><h2>Reset Game?</h2></div>
+    <div class="panel-body">
+      <p>This will clear all called numbers and reshuffle. Are you sure?</p>
+      <div class="confirm-buttons">
+        <button id="confirm-yes" class="btn-danger">Yes, Reset</button>
+        <button id="confirm-no">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Format Help overlay -->
+<div class="overlay" id="csv-help-overlay" hidden>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>CSV Format Guide</h2>
+      <button class="close-btn" id="btn-close-csv-help" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
+    </div>
+    <div class="panel-body">
+      <p style="margin-bottom:12px;font-size:.93rem;">Your CSV file must have three columns with these exact headers:</p>
+      <table class="shortcuts-table" style="margin-bottom:16px;">
+        <tr><td><strong>column</strong></td><td>One of <kbd>B</kbd> <kbd>I</kbd> <kbd>N</kbd> <kbd>G</kbd> <kbd>O</kbd></td></tr>
+        <tr><td><strong>problem</strong></td><td>The problem text shown on screen (e.g. <em>-4 + 3</em>)</td></tr>
+        <tr><td><strong>answer</strong></td><td>A numeric answer students mark on their card (e.g. <em>-1</em>)</td></tr>
+      </table>
+      <p style="margin-bottom:8px;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Example</p>
+      <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:.85rem;overflow-x:auto;line-height:1.6;">column,problem,answer
+B,-10 + (-15),-25
+B,-8 + (-12),-20
+I,-7 + (-6),-13
+N,-4 + 3,-1
+G,4 + 5,9
+O,20 + (-3),17</pre>
+      <p style="margin-top:14px;font-size:.87rem;color:var(--text-muted);line-height:1.6;">
+        Each column needs at least <strong>5 distinct answer values</strong> for bingo cards to work.<br>
+        Answer ranges should not overlap between columns.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Topic roadmap overlay -->
+<div class="overlay" id="roadmap-overlay" hidden>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Topic Roadmap</h2>
+      <button class="close-btn" id="btn-close-roadmap" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
+    </div>
+    <div class="panel-body">
+      <p class="rm-legend"><span class="hp-tag tag-fluency">★</span> = CCSS fluency standard &nbsp; <span class="hp-tag tag-calc">[calc]</span> = calculator recommended</p>
+      <div id="roadmap-body"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".csv">
+</body>
+</html>

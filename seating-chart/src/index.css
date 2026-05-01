@@ -1,0 +1,24 @@
+/* Pull in the suite-wide design tokens. Must come before @tailwind directives
+   per CSS @import rules. */
+@import '../../shared/desk.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  /* body font/color/background are owned by ../../shared/desk.css */
+  button, input, select, textarea, optgroup { font-family: inherit; }
+  button { -webkit-tap-highlight-color: transparent; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition select-none; }
+  .btn-primary { @apply btn bg-accent-blue text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-secondary { @apply btn bg-white text-ink border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+  .input { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/30; }
+  .label { @apply block text-xs font-semibold uppercase tracking-wide text-ink-muted; }
+  .card { @apply rounded-md border border-slate-200 bg-white shadow-sm; }
+}

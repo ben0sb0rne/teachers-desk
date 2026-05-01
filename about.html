@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>About · The Teacher's Desk</title>
+  <link rel="stylesheet" href="shared/desk.css" />
+  <style>
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; }
+    main { flex: 1; }
+
+    .desk-frame {
+      min-height: 100%;
+      padding: var(--space-6) var(--space-5) var(--space-7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .desk-inner { width: 100%; max-width: 640px; }
+
+    header {
+      text-align: center;
+      margin-bottom: var(--space-5);
+      color: rgb(var(--paper-cream));
+    }
+    header h1 {
+      font-size: clamp(28px, 5vw, 48px);
+      margin: 0;
+    }
+
+    footer {
+      text-align: center;
+      padding: var(--space-5) 0 0;
+      color: rgb(var(--paper-cream));
+      font-size: var(--type-13);
+    }
+    footer a { color: rgb(var(--paper-cream)); }
+  </style>
+</head>
+<body class="wood-bg">
+  <main class="desk-frame">
+    <div class="desk-inner">
+      <header>
+        <h1>THE TEACHER'S DESK</h1>
+      </header>
+
+      <div class="print-paper">
+        <h2>About</h2>
+        <p class="muted">A proper about page is coming soon.</p>
+        <p>The Teacher's Desk is a small suite of free, private classroom tools. Everything runs in your browser — no accounts, no tracking, no backend. Your data stays in this device's local storage; export it to a JSON file any time.</p>
+        <p>Built with care, slowly.</p>
+      </div>
+
+      <footer>
+        <a href="index.html">&larr; Back</a>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>
