@@ -10,15 +10,26 @@ body { display: flex; flex-direction: column; }
 .picker-main {
   flex: 1;
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--space-5) var(--space-4) var(--space-7);
+  margin: 0;
+  padding: var(--space-5) var(--space-4) var(--space-3);
   display: flex;
   flex-direction: column;
 }
 
-.view { animation: view-fade-in 220ms ease-out both; }
-.view--wheel {
+/* The class-select view stays at a reading-comfortable width on big
+   screens. The wheel view, by contrast, gets the whole viewport so the
+   wheel can scale up on 4K and ultrawides. */
+#class-select-view {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* The :not([hidden]) gate matters — without it, .view--wheel { display: flex }
+   would override the user-agent's [hidden] { display: none } rule and the
+   wheel + pointer would render on the class-select view too. */
+.view:not([hidden]) { animation: view-fade-in 220ms ease-out both; }
+.view--wheel:not([hidden]) {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -172,8 +183,14 @@ body { display: flex; flex-direction: column; }
 }
 
 .wheel-frame {
-  width: min(82vmin, 720px);
+  /* The wheel always fits the smaller dimension (so it stays square and
+     never overflows) but otherwise grows to fill the screen — important
+     for 4K monitors where the previous fixed pixel cap left it tiny.
+     The 160px reservation keeps room for topstrip + header + status line
+     so the wheel never crowds them out on short viewports. */
+  width: min(85vmin, calc(100vh - 160px));
   aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -275,7 +292,7 @@ body { display: flex; flex-direction: column; }
 /* ── responsive ───────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .picker-main { padding: var(--space-3) var(--space-3) var(--space-5); }
+  .picker-main { padding: var(--space-3) var(--space-3) var(--space-3); }
   .view-header h1 { font-size: var(--type-22); }
-  .wheel-frame { width: min(92vmin, 600px); }
+  .wheel-frame { width: min(94vmin, 88vh); }
 }

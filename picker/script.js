@@ -219,17 +219,21 @@ const wheelSvg = document.getElementById('wheel-svg');
 // Wheel geometry (in viewBox units; viewBox is -100..100).
 const HUB_R = 14;
 const RIM_R = 96;
-const LABEL_OUTER_PAD = 10;
+const LABEL_OUTER_PAD = 8;
+const LABEL_INNER_PAD = 4;  // gap between text and the hub
 
 /**
  * Build sector + label markup for the visible roster.
  *
- * Labels are tangent to the rim (each name's baseline runs along the rim's
- * arc at its sector position), with a 180° flip for sectors whose midpoint
- * sits in the bottom half of the wheel — so at rest, every name reads
- * left-to-right with letters upright. There's a single "seam" near 9 and
- * 3 o'clock where adjacent flipped/un-flipped sectors face opposite ways,
- * which is the standard prize-wheel compromise.
+ * Labels are RADIAL: each name reads along its sector's centerline, from
+ * the outer rim toward the hub. We use the wheel's depth (RIM_R - HUB_R,
+ * about 80 viewBox units) for text length, which gives long names like
+ * "Helena Harper" room to fit even on a 17-name wheel.
+ *
+ * The left half of the wheel (sectors with midpoint angle in (180°, 360°))
+ * gets a 180° flip + anchor swap so letters stay upright on that side. The
+ * remaining seam is at the bottom (sector midpoint near 180°), where the
+ * two halves' rotation conventions differ by 180°.
  */
 function renderWheel() {
   const visible = visibleNames();
@@ -267,7 +271,7 @@ function renderWheel() {
 
   const sectorDeg = 360 / n;
   const fontSize = labelFontSize(n);
-  const labelR = RIM_R - LABEL_OUTER_PAD;
+  const outerR = RIM_R - LABEL_OUTER_PAD;
   const lastPickedIndex = state.lastPickedName != null
     ? visible.indexOf(state.lastPickedName)
     : -1;
@@ -290,15 +294,24 @@ function renderWheel() {
       'stroke-width': 0.6,
     });
 
+    // Radial label: anchor at the outer-rim end of the sector centerline,
+    // text grows inward toward the hub. Rotation is θ - 90 for the right
+    // half (so the baseline runs along the radial direction, outward) and
+    // θ + 90 for the left half (with anchor swapped to 'start') so the
+    // letters stay upright on that side instead of being mirrored.
     const θ = i * sectorDeg;
     const norm = ((θ % 360) + 360) % 360;
-    const flip = norm > 90 && norm < 270;
+    const flipForLeft = norm > 180 && norm < 360;
+    const θ_rad = θ * Math.PI / 180;
+    const ax = outerR * Math.sin(θ_rad);
+    const ay = -outerR * Math.cos(θ_rad);
+    const rotation = flipForLeft ? θ + 90 : θ - 90;
 
     const txt = appendSvg('text', {
-      transform: flip
-        ? `rotate(${θ + 180}) translate(0, ${labelR})`
-        : `rotate(${θ}) translate(0, ${-labelR})`,
-      'text-anchor': 'middle',
+      x: ax.toFixed(3),
+      y: ay.toFixed(3),
+      transform: `rotate(${rotation.toFixed(3)}, ${ax.toFixed(3)}, ${ay.toFixed(3)})`,
+      'text-anchor': flipForLeft ? 'start' : 'end',
       'dominant-baseline': 'central',
       'font-family': 'var(--font-slab)',
       'font-size': fontSize,
@@ -329,23 +342,31 @@ function sectorPath(r, startDeg, endDeg) {
 }
 
 /**
- * Pick a label font size and truncation based on roster size. Tangent
- * labels have only the rim arc per sector to fit, so for big rosters we
- * shrink the font and trim long names down.
+ * Pick a label font size based on roster size. Radial labels have the
+ * wheel's depth (~80 viewBox units) to fit, but they also have to clear
+ * the hub at the inner end and not overflow the rim at the outer end —
+ * so font shrinks gradually as roster size grows.
  */
 function labelFontSize(n) {
-  if (n <= 4) return 14;
-  if (n <= 8) return 11;
-  if (n <= 14) return 9;
-  if (n <= 20) return 7.5;
-  if (n <= 28) return 6.5;
-  return 5.5;
+  if (n <= 4) return 16;
+  if (n <= 8) return 13;
+  if (n <= 14) return 11;
+  if (n <= 22) return 9;
+  if (n <= 32) return 7.5;
+  return 6.5;
 }
 
+/**
+ * Truncate names that wouldn't fit along the radial. Radial layout uses the
+ * wheel's depth (~70 viewBox units after padding), so the cutoff scales with
+ * the chosen font size — bigger rosters use smaller fonts and need slightly
+ * tighter trimming to keep names from running into the hub.
+ */
 function truncateLabel(label, n) {
-  if (n > 24 && label.includes(' ')) return label.split(' ')[0];
-  if (n > 14 && label.length > 14) return label.slice(0, 12) + '…';
-  if (n > 8 && label.length > 18) return label.slice(0, 16) + '…';
+  if (n > 32 && label.includes(' ')) return label.split(' ')[0];
+  if (n > 22 && label.length > 14) return label.slice(0, 13) + '…';
+  if (n > 14 && label.length > 15) return label.slice(0, 14) + '…';
+  if (n > 8 && label.length > 22) return label.slice(0, 20) + '…';
   return label;
 }
 
@@ -392,7 +413,16 @@ function spin() {
 
   const n = eligible.length;
   const sectorDeg = 360 / n;
-  const finalOffset = -((visibleIndex + 0.5) * sectorDeg);
+  // Sector i's midpoint sits at world angle (i*sectorDeg + currentRotation),
+  // so to land its midpoint at the pointer (angle 0) we need rotation
+  // = -i*sectorDeg (mod 360). The previous (i + 0.5) factor used to be right
+  // when sectors were defined as [i*sectorDeg, (i+1)*sectorDeg]; the current
+  // layout centers sector i on i*sectorDeg, so the half-step shift was the
+  // bug that landed the pointer on every sector boundary.
+  // A small jitter inside the sector (±35% of half-width) keeps it from
+  // looking robotic without ever overlapping a neighbor.
+  const jitter = (Math.random() - 0.5) * sectorDeg * 0.7;
+  const finalOffset = -(visibleIndex * sectorDeg) + jitter;
   const turns = 6 + Math.floor(Math.random() * 4); // 6–9 full rotations
 
   const target =
