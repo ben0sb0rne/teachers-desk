@@ -486,6 +486,50 @@ export const useAppStore = create<AppStore>()(
   ),
 );
 
+// ─────────────────────────────────────────────────────────────
+// Phase B: mirror seating-chart classes into the suite's canonical
+// roster store (/shared/storage.js). Other tools (Picker, Rosters
+// page) read from canonical, so this is what makes seating-chart
+// classes show up there as if they were canonical, and stay in sync
+// when the seating chart edits a roster.
+//
+// One-way: seating chart → canonical. The reverse (canonical →
+// seating chart) is bigger work — picker/rosters-created classes
+// don't appear in the seating chart in v1. The seating chart
+// remains the only place rich Student metadata (needsFrontRow,
+// keepApart, notes) is edited.
+// ─────────────────────────────────────────────────────────────
+
+function mirrorClassToShared(c: ClassRoom) {
+  sharedStorage.setClassName(c.id, c.name);
+  sharedStorage.setRoster(c.id, c.students.map((s) => s.name));
+}
+
+// Initial sync after hydration so existing data shows canonically right away.
+{
+  const initial = useAppStore.getState().classes;
+  for (const c of initial) mirrorClassToShared(c);
+}
+
+let mirrorPrevClassIds = new Set(useAppStore.getState().classes.map((c) => c.id));
+
+useAppStore.subscribe((state, prev) => {
+  if (state.classes === prev.classes) return;
+
+  const nextIds = new Set(state.classes.map((c) => c.id));
+
+  // Class deletions: remove canonical entries.
+  for (const id of mirrorPrevClassIds) {
+    if (!nextIds.has(id)) sharedStorage.deleteClass(id);
+  }
+
+  // Re-mirror every class. Cheap on typical class sizes; the canonical
+  // setRoster doesn't dispatch any cascading events.
+  for (const c of state.classes) mirrorClassToShared(c);
+
+  mirrorPrevClassIds = nextIds;
+});
+
 export const selectClass = (id: ClassId | null) => (s: AppStore): ClassRoom | undefined =>
   id ? findClass(s, id) : undefined;
 
