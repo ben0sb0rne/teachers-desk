@@ -1,0 +1,349 @@
+/* =============================================================
+   picker/style.css
+   Tool-specific styling for the Name Picker. Builds on the suite
+   tokens defined in shared/desk.css.
+   ============================================================= */
+
+html, body { min-height: 100%; }
+body { display: flex; flex-direction: column; }
+
+.picker-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+}
+
+.view { animation: view-fade-in 220ms ease-out both; }
+@keyframes view-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── view header ───────────────────────────────────────────── */
+
+.view-header {
+  margin-bottom: var(--space-5);
+  color: rgb(var(--paper-cream));
+}
+.view-header h1 {
+  margin: 0 0 var(--space-2);
+  color: rgb(var(--paper-cream));
+}
+.view-header p {
+  margin: 0;
+  color: rgb(var(--paper-cream) / 0.78);
+  font-style: italic;
+}
+.view-header--wheel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.view-header--wheel h1 {
+  flex: 1;
+  font-size: var(--type-22);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: rgb(var(--paper-cream));
+  font: 700 var(--type-13) var(--font-slab);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-tight);
+}
+.link-button:hover { background: rgb(var(--paper-cream) / 0.08); }
+.link-button:focus-visible {
+  outline: 2px solid rgb(var(--paper-cream) / 0.7);
+  outline-offset: 2px;
+}
+
+.picker-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* ── class grid ───────────────────────────────────────────── */
+
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.class-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-slab);
+  box-shadow: var(--shadow-paper);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.class-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+.class-card:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+}
+.class-card-name {
+  font-size: var(--type-17);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+.class-card-meta {
+  font-size: var(--type-13);
+  color: var(--ink-muted);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.class-card-actions {
+  margin-top: var(--space-1);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+.class-card-actions button {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font: 700 var(--type-11) var(--font-slab);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-tight);
+}
+.class-card-actions button:hover {
+  background: rgb(var(--paper-edge) / 0.06);
+  color: rgb(var(--paper-edge));
+}
+.class-card-actions button.is-danger:hover {
+  color: #b71c1c;
+}
+
+/* ── wheel layout ──────────────────────────────────────────── */
+
+.wheel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (max-width: 880px) {
+  .wheel-layout { grid-template-columns: 1fr; }
+}
+
+.wheel-stage {
+  background: rgb(var(--paper-cream));
+  border: 1px solid rgb(var(--paper-edge) / 0.15);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  position: relative;
+}
+
+.wheel-frame {
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 1 / 1;
+  position: relative;
+}
+
+.wheel {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Spin animation. transform is set by JS to drive the rotation. */
+  transition: transform 4s cubic-bezier(0.17, 0.67, 0.21, 0.99);
+}
+
+.wheel-pointer {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: 36px;
+  height: 36px;
+  z-index: 5;
+  color: rgb(var(--accent-blue));
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.25));
+}
+.wheel-pointer svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.wheel-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.wheel-controls .desk-button { font-size: var(--type-17); padding: var(--space-2) var(--space-5); }
+
+.picked-card {
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+  border: 1px solid rgb(var(--accent-blue) / 0.45);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  background: rgb(var(--accent-yellow) / 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  animation: picked-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes picked-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.picked-name {
+  font-family: var(--font-slab);
+  font-weight: 700;
+  font-size: clamp(28px, 5vw, 48px);
+  letter-spacing: -0.005em;
+}
+
+/* ── sidebar ───────────────────────────────────────────────── */
+
+.wheel-sidebar {
+  background: rgb(var(--paper-cream));
+  border: 1px solid rgb(var(--paper-edge) / 0.15);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-paper);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sidebar-heading {
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-tight);
+  font-size: var(--type-13);
+  font-family: var(--font-slab);
+  gap: var(--space-2);
+}
+.roster-row.is-picked {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+.roster-row.is-just-picked {
+  background: rgb(var(--accent-yellow) / 0.32);
+  font-weight: 700;
+}
+.roster-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  font-size: var(--type-11);
+  font-weight: 700;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-13);
+  cursor: pointer;
+  user-select: none;
+}
+.option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ── empty state ───────────────────────────────────────────── */
+
+.print-paper p { margin: 0 0 var(--space-2); }
+.print-paper p:last-child { margin: 0; }
+
+/* ── modal-specific bits (overlay + panel come from desk.css) ─ */
+
+.modal-input,
+.modal-textarea {
+  width: 100%;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  color: rgb(var(--paper-edge));
+  background: rgb(var(--paper-cream));
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.modal-input:focus,
+.modal-textarea:focus {
+  outline: 2px solid rgb(var(--accent-blue) / 0.4);
+  outline-offset: 0;
+}
+.modal-textarea {
+  resize: vertical;
+  font-family: var(--font-slab);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.error-msg {
+  margin: 4px 0 0;
+  font-size: var(--type-11);
+  color: #b71c1c;
+}
+
+/* ── responsive ───────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .picker-main { padding: var(--space-4) var(--space-3) var(--space-6); }
+  .view-header h1 { font-size: var(--type-22); }
+  .wheel-stage { padding: var(--space-3); }
+}

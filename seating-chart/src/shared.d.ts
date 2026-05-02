@@ -27,6 +27,19 @@ declare module "@shared/storage.js" {
   export function getRoster(classId: string): string[];
   export function setRoster(classId: string, names: string[]): void;
   export function listPeriods(): string[];
+
+  // Class metadata
+  export type ClassSource = "canonical" | "seating-chart";
+  export interface ClassListEntry {
+    id: string;
+    name: string;
+    source: ClassSource;
+  }
+  export function getClassName(classId: string): string | null;
+  export function setClassName(classId: string, name: string): void;
+  export function listClasses(): ClassListEntry[];
+  export function deleteClass(classId: string): void;
+
   export function getCallCount(classId: string, name: string): number;
   export function incrementCallCount(classId: string, name: string): number;
   export function getToolState<T = unknown>(toolName: string): T | null;

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Name Picker · The Teacher's Desk</title>
+  <meta name="description" content="A spinning-wheel name picker for classroom rosters. Part of The Teacher's Desk." />
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <div class="suite-topstrip-left">
+      <a class="suite-wordmark" href="../">
+        <span aria-hidden="true">&larr;</span> The Teacher's Desk
+      </a>
+      <span class="suite-tool-name">Name Picker</span>
+    </div>
+  </div>
+
+  <main class="picker-main">
+
+    <!-- ═════════════════════════════════════════
+         CLASS-SELECT VIEW
+         ═════════════════════════════════════════ -->
+    <section id="class-select-view" class="view">
+      <header class="view-header">
+        <h1>Pick a class</h1>
+        <p class="muted">Spin a wheel for any class on this device. Classes you create here are visible to other tools too.</p>
+      </header>
+
+      <div class="picker-actions">
+        <button type="button" id="btn-new-class" class="desk-button">+ New class</button>
+      </div>
+
+      <div id="class-grid" class="class-grid" aria-live="polite"></div>
+
+      <div id="class-empty" class="print-paper" hidden>
+        <p>No classes yet.</p>
+        <p class="muted">Create one above to get started, or visit the Seating Chart to import a roster.</p>
+      </div>
+    </section>
+
+    <!-- ═════════════════════════════════════════
+         WHEEL VIEW
+         ═════════════════════════════════════════ -->
+    <section id="wheel-view" class="view" hidden>
+      <header class="view-header view-header--wheel">
+        <button type="button" id="btn-back-classes" class="link-button" aria-label="Back to classes">
+          <span aria-hidden="true">&larr;</span> Classes
+        </button>
+        <h1 id="wheel-class-name">&nbsp;</h1>
+        <span id="wheel-class-source" class="tag" hidden>From Seating Chart</span>
+      </header>
+
+      <div class="wheel-layout">
+        <div class="wheel-stage">
+          <div class="wheel-pointer" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><polygon points="12,2 18,12 12,10 6,12" /></svg>
+          </div>
+          <div id="wheel-frame" class="wheel-frame">
+            <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel"></svg>
+          </div>
+          <div class="wheel-controls">
+            <button type="button" id="btn-spin" class="desk-button">Spin</button>
+            <span id="wheel-msg" class="muted"></span>
+          </div>
+          <div id="picked-card" class="picked-card" hidden>
+            <span class="tag is-blue">Picked</span>
+            <div id="picked-name" class="picked-name">&nbsp;</div>
+            <button type="button" id="btn-spin-again" class="desk-button is-ghost">Spin again</button>
+          </div>
+        </div>
+
+        <aside class="wheel-sidebar">
+          <h2 class="sidebar-heading">Roster</h2>
+
+          <ul id="roster-list" class="roster-list" aria-live="polite"></ul>
+
+          <h2 class="sidebar-heading">Options</h2>
+          <label class="option-row">
+            <input type="checkbox" id="opt-allow-repeats" checked />
+            <span>Allow repeats</span>
+          </label>
+          <label class="option-row">
+            <input type="checkbox" id="opt-show-counts" checked />
+            <span>Show call counts</span>
+          </label>
+
+          <button type="button" id="btn-reset-session" class="desk-button is-ghost">Reset session</button>
+        </aside>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═════════════════════════════════════════
+       NEW-CLASS MODAL
+       ═════════════════════════════════════════ -->
+  <div id="new-class-overlay" class="suite-overlay" hidden>
+    <div class="suite-panel">
+      <div class="suite-panel-header">
+        <h2>New class</h2>
+        <button class="suite-panel-close" id="btn-close-new-class" aria-label="Close">&times;</button>
+      </div>
+      <div class="suite-panel-body">
+        <div class="suite-settings-section">
+          <h3>Class name</h3>
+          <input type="text" id="new-class-name" class="modal-input" placeholder="e.g. Period 3 Math" />
+          <p id="new-class-name-error" class="error-msg" hidden></p>
+        </div>
+        <div class="suite-settings-section">
+          <h3>Students</h3>
+          <p class="muted">Paste names — one per line. Blank lines are ignored.</p>
+          <textarea id="new-class-students" class="modal-textarea" rows="10"
+                    placeholder="Alice&#10;Bob&#10;Charlie"></textarea>
+          <p id="new-class-students-error" class="error-msg" hidden></p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-new-class" class="desk-button is-ghost">Cancel</button>
+          <button type="button" id="btn-create-class" class="desk-button">Create class</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>How to use the Name Picker · The Teacher's Desk</title>
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <style>
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; }
+    main { flex: 1; padding: var(--space-6) var(--space-5); max-width: 720px; margin: 0 auto; width: 100%; }
+    header { text-align: center; margin-bottom: var(--space-5); color: rgb(var(--paper-cream)); }
+    header h1 { font-size: clamp(28px, 5vw, 44px); margin: 0 0 var(--space-2); }
+    header p { font-style: italic; opacity: 0.85; margin: 0; }
+    footer { text-align: center; padding: var(--space-5) 0 0; color: rgb(var(--paper-cream)); font-size: var(--type-13); }
+    footer a { color: rgb(var(--paper-cream)); }
+  </style>
+</head>
+<body class="wood-bg">
+  <main>
+    <header>
+      <h1>Name Picker</h1>
+      <p>How to use this tool.</p>
+    </header>
+
+    <div class="print-paper">
+      <h2>What it does</h2>
+      <p>Spin a wheel to pick a student at random from a class roster. Useful for cold-calls, fair turn-taking, group draws, or just adding a little ceremony to a question.</p>
+
+      <h2>Getting started</h2>
+      <p>Open <a href="index.html">the picker</a> and either pick an existing class (your seating chart's classes show up here too) or click <em>+ New class</em> to create one. Paste names one per line.</p>
+
+      <h2>Spinning</h2>
+      <p>Click <em>Spin</em> or press the spacebar. The wheel will turn for a few seconds and stop on a name. Each pick increments a call count in the sidebar so you can keep things fair.</p>
+
+      <h2>Allow repeats / Reset session</h2>
+      <p>If you want each student to be picked once before any name comes up again, switch off <em>Allow repeats</em>. Picked names get crossed out in the sidebar. Click <em>Reset session</em> to clear that list.</p>
+
+      <p>For more games, check back soon — group makers and a few others are on the way.</p>
+    </div>
+
+    <footer>
+      <a href="index.html">&larr; Back to the picker</a>
+    </footer>
+  </main>
+</body>
+</html>

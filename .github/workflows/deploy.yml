@@ -52,7 +52,7 @@ jobs:
           # Static root pages
           cp index.html about.html _site/
           # Tools and shared assets that ship as-is
-          cp -r bingo shared assets _site/
+          cp -r bingo picker shared assets _site/
           # Seating chart: deploy the BUILT output, not the source tree
           cp -r seating-chart/dist _site/seating-chart
           # Sanity check

@@ -19,6 +19,7 @@ Two working tools (Math Bingo, Seating Chart Designer) plus shared infrastructur
 │   ├── tip-jar.js            ← stub for future Stripe tip jar
 │   └── components/           ← README only today; future home for JS components
 ├── bingo/                    ← Math Bingo (vanilla)
+├── picker/                   ← Name Picker (vanilla)
 ├── seating-chart/            ← Seating Chart Designer (React + Vite + Tailwind)
 ├── assets/
 │   ├── renders/              ← future Blender output, empty for now
@@ -70,6 +71,7 @@ Single source of truth: [`shared/storage.js`](shared/storage.js).
 | Tool             | Stack                          | Build step? |
 |------------------|--------------------------------|-------------|
 | `bingo/`         | Vanilla HTML/CSS/JS (ES modules) | No |
+| `picker/`        | Vanilla HTML/CSS/JS (ES modules) | No |
 | `seating-chart/` | React 18 + TypeScript + Vite + Tailwind + Konva + Zustand | Yes (`npm run build`) |
 
 The seating chart is the **only** tool with a build step. Treat it as the existing exception, not a precedent. New tools should be vanilla.

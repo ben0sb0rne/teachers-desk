@@ -44,7 +44,8 @@ function defaultState() {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     preferences: {},
-    rosters: {},
+    classes: {},        // canonical class metadata: { [classId]: { name } }
+    rosters: {},        // canonical roster: { [classId]: string[] }
     callCounts: {},
     tools: {},
   };
@@ -212,6 +213,7 @@ function load() {
         cache = {
           schemaVersion: typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : CURRENT_SCHEMA_VERSION,
           preferences: parsed.preferences && typeof parsed.preferences === 'object' ? parsed.preferences : {},
+          classes: parsed.classes && typeof parsed.classes === 'object' ? parsed.classes : {},
           rosters: parsed.rosters && typeof parsed.rosters === 'object' ? parsed.rosters : {},
           callCounts: parsed.callCounts && typeof parsed.callCounts === 'object' ? parsed.callCounts : {},
           tools: parsed.tools && typeof parsed.tools === 'object' ? parsed.tools : {},
@@ -378,15 +380,117 @@ export function setRoster(classId, names) {
 
 export function listPeriods() {
   const state = load();
-  // Union of explicit roster classIds and seating-chart class IDs (so callers
-  // that haven't yet been written into shared rosters still appear).
+  // Union of explicit roster classIds, canonical class metadata, and seating-chart
+  // class IDs (so classes from any source surface).
   const ids = new Set(Object.keys(state.rosters));
+  if (state.classes) for (const id of Object.keys(state.classes)) ids.add(id);
   const sc = state.tools && state.tools['seating-chart'];
   const inner = sc && sc.state ? sc.state : sc;
   if (inner && Array.isArray(inner.classes)) {
     for (const c of inner.classes) if (c && c.id) ids.add(c.id);
   }
   return Array.from(ids);
+}
+
+// -------------------------------------------------------------
+// Class metadata (suite-canonical "what's this class called?")
+//
+// Canonical class metadata lives at state.classes[classId] = { name }.
+// Created by the picker, the suite Rosters page, and (from Phase B onward)
+// mirrored by the seating chart. listClasses() unions canonical entries with
+// any seating-chart-only classes so every tool can list them.
+// -------------------------------------------------------------
+
+/** @returns {string|null} */
+export function getClassName(classId) {
+  const state = load();
+  // Canonical first.
+  const canonical = state.classes && state.classes[classId];
+  if (canonical && typeof canonical.name === 'string' && canonical.name) {
+    return canonical.name;
+  }
+  // Fallback: read the seating chart's blob.
+  const sc = state.tools && state.tools['seating-chart'];
+  const inner = sc && sc.state ? sc.state : sc;
+  if (inner && Array.isArray(inner.classes)) {
+    const cls = inner.classes.find((c) => c && c.id === classId);
+    if (cls && typeof cls.name === 'string' && cls.name) return cls.name;
+  }
+  return null;
+}
+
+export function setClassName(classId, name) {
+  if (typeof name !== 'string') {
+    throw new TypeError('setClassName: name must be a string');
+  }
+  const trimmed = name.trim();
+  const state = load();
+  if (!state.classes) state.classes = {};
+  if (!state.classes[classId]) state.classes[classId] = {};
+  state.classes[classId].name = trimmed;
+  save();
+}
+
+/**
+ * Returns every known class as `{ id, name, source }`. Source is:
+ *   - 'canonical'      → the suite owns this class metadata
+ *   - 'seating-chart'  → the class only exists in the seating chart's blob
+ * If a class exists both canonically and in seating-chart, canonical wins.
+ */
+export function listClasses() {
+  const state = load();
+  const out = new Map(); // id -> { id, name, source }
+
+  // Canonical first.
+  if (state.classes) {
+    for (const [id, meta] of Object.entries(state.classes)) {
+      out.set(id, {
+        id,
+        name: (meta && meta.name) || '(unnamed)',
+        source: 'canonical',
+      });
+    }
+  }
+
+  // Seating chart fallback.
+  const sc = state.tools && state.tools['seating-chart'];
+  const inner = sc && sc.state ? sc.state : sc;
+  if (inner && Array.isArray(inner.classes)) {
+    for (const c of inner.classes) {
+      if (c && c.id && !out.has(c.id)) {
+        out.set(c.id, {
+          id: c.id,
+          name: (c.name && String(c.name)) || '(unnamed)',
+          source: 'seating-chart',
+        });
+      }
+    }
+  }
+
+  return Array.from(out.values());
+}
+
+/**
+ * Remove canonical class metadata + the canonical roster + call counts for
+ * a classId. Does NOT touch seating-chart-owned classes (they live inside
+ * tools["seating-chart"] and must be deleted from the seating chart itself).
+ */
+export function deleteClass(classId) {
+  const state = load();
+  let changed = false;
+  if (state.classes && state.classes[classId]) {
+    delete state.classes[classId];
+    changed = true;
+  }
+  if (state.rosters && state.rosters[classId]) {
+    delete state.rosters[classId];
+    changed = true;
+  }
+  if (state.callCounts && state.callCounts[classId]) {
+    delete state.callCounts[classId];
+    changed = true;
+  }
+  if (changed) save();
 }
 
 // -------------------------------------------------------------
@@ -620,6 +724,10 @@ export default {
   getRoster,
   setRoster,
   listPeriods,
+  getClassName,
+  setClassName,
+  listClasses,
+  deleteClass,
   getCallCount,
   incrementCallCount,
   getToolState,
