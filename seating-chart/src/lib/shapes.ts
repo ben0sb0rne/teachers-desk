@@ -78,12 +78,15 @@ function seatAt(x: number, y: number): Seat {
 function layoutMultiRect({ rows, cols }: MultiRectParams): LaidOutShape {
   const r = clamp(rows, 1, 10);
   const c = clamp(cols, 1, 10);
+  // Width per column matches the module (80); height per row matches the
+  // single rectangle desk (60). This keeps a 1-row table visually identical
+  // in height to a row of single desks, and stacks nicely for multi-row.
   const width = c * MODULE;
-  const height = r * MODULE;
+  const height = r * SINGLE_H;
   const seats: Seat[] = [];
   for (let row = 0; row < r; row++) {
     for (let col = 0; col < c; col++) {
-      seats.push(seatAt((col + 0.5) * MODULE, (row + 0.5) * MODULE));
+      seats.push(seatAt((col + 0.5) * MODULE, (row + 0.5) * SINGLE_H));
     }
   }
   return { width, height, seats };

@@ -68,6 +68,38 @@ export default function DeskNode({
     return () => registerNode(desk.id, null);
   }, [desk.id, registerNode]);
 
+  // Override getClientRect so the shared Transformer sizes its bounding
+  // box to the desk's visible footprint, not to decorative children. The
+  // default Group.getClientRect() unions every child's rect — front-row
+  // markers (at y = -12), future labels, and the per-seat sub-Groups all
+  // pad it, so the multi-select bbox sits offset above the desks. By
+  // delegating to the main shape's rect (the first child rendered by
+  // DeskShapeRenderer below), we get a tight bbox that matches the
+  // visible desk in any rotation/scale.
+  useEffect(() => {
+    const node = groupRef.current;
+    if (!node) return;
+    type RectGetter = (config?: { relativeTo?: Konva.Container }) => {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (
+      this: Konva.Group,
+      config,
+    ) {
+      const main = this.getChildren()[0];
+      if (!main) {
+        return { x: this.x(), y: this.y(), width: 0, height: 0 };
+      }
+      return main.getClientRect({
+        ...config,
+        relativeTo: config?.relativeTo ?? (this.getParent() as Konva.Container),
+      });
+    };
+  });
+
   const allFront = desk.seats.length > 0 && desk.seats.every((s) => s.isFrontRow);
   const fill = selected ? FILL_SELECTED : FILL;
   const stroke = selected ? STROKE_SELECTED : STROKE;
@@ -115,6 +147,22 @@ export default function DeskNode({
         updateDesk(classId, desk.id, { x: e.target.x(), y: e.target.y() });
         onDragEnd();
       }}
+      onTransform={() => {
+        // While the user is mid-resize, counter-scale each seat sub-Group so
+        // the seat dot / student-name Text stays at its natural size and
+        // shape. Without this, a non-uniform resize visibly stretches the
+        // seat circles into ellipses until the drag ends.
+        const node = groupRef.current;
+        if (!node) return;
+        const sx = node.scaleX();
+        const sy = node.scaleY();
+        const inverseX = sx === 0 ? 1 : 1 / sx;
+        const inverseY = sy === 0 ? 1 : 1 / sy;
+        for (const seatGroup of node.find(".seat-group")) {
+          seatGroup.scaleX(inverseX);
+          seatGroup.scaleY(inverseY);
+        }
+      }}
       onTransformEnd={() => {
         const node = groupRef.current;
         if (!node) return;
@@ -129,6 +177,13 @@ export default function DeskNode({
         }));
         node.scaleX(1);
         node.scaleY(1);
+        // Reset the per-seat counter-scale we applied during onTransform —
+        // once the parent scale is committed to width/height, the seats
+        // should render at natural scale again.
+        for (const seatGroup of node.find(".seat-group")) {
+          seatGroup.scaleX(1);
+          seatGroup.scaleY(1);
+        }
         updateDesk(classId, desk.id, {
           x: node.x(),
           y: node.y(),
@@ -147,6 +202,7 @@ export default function DeskNode({
         return (
           <Group
             key={seat.id}
+            name="seat-group"
             x={seat.offsetX}
             y={seat.offsetY}
             onMouseDown={(e) => {

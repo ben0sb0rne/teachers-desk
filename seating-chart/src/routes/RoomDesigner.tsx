@@ -441,6 +441,7 @@ export default function RoomDesigner() {
         onSave={handleSaveArrangement}
         onExportImage={handleExportImage}
         onExportPrint={handleExportPrint}
+        onSelectDesk={(deskId) => setSelectedItemIds([deskId])}
       />
       <MultiShapeParamsDialog
         open={paramsDialog.open}

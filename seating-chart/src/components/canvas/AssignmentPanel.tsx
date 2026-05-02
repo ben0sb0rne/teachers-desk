@@ -13,6 +13,9 @@ interface Props {
   onSave: () => void;
   onExportImage: () => void;
   onExportPrint: () => void;
+  /** Select the given desk on the canvas. Called when the user clicks a seat
+   *  or a seated student row in this panel. */
+  onSelectDesk?: (deskId: string) => void;
 }
 
 export default function AssignmentPanel({
@@ -25,6 +28,7 @@ export default function AssignmentPanel({
   onSave,
   onExportImage,
   onExportPrint,
+  onSelectDesk,
 }: Props) {
   const seats = useMemo(() => roomSeats(klass.room), [klass.room]);
   const seated = new Set(Object.values(assignments));
@@ -92,8 +96,25 @@ export default function AssignmentPanel({
             seats.map((s, idx) => {
               const studentId = assignments[s.seatId];
               const student = studentId ? klass.students.find((x) => x.id === studentId) : undefined;
+              const selectable = !!onSelectDesk;
               return (
-                <li key={s.seatId} className="flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-slate-50">
+                <li
+                  key={s.seatId}
+                  className={
+                    "flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-slate-50" +
+                    (selectable ? " cursor-pointer" : "")
+                  }
+                  onClick={() => onSelectDesk?.(s.deskId)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelectDesk?.(s.deskId);
+                    }
+                  }}
+                  role={selectable ? "button" : undefined}
+                  tabIndex={selectable ? 0 : undefined}
+                  title={selectable ? "Select this desk on the canvas" : undefined}
+                >
                   <span className="text-xs text-ink-muted">
                     Seat {idx + 1}{s.isFrontRow && <span className="ml-1 text-amber-700">·front</span>}
                   </span>
@@ -103,7 +124,10 @@ export default function AssignmentPanel({
                   {student && (
                     <button
                       className="rounded p-0.5 text-ink-muted hover:bg-red-50 hover:text-red-600"
-                      onClick={() => onAssignSeat(s.seatId, null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAssignSeat(s.seatId, null);
+                      }}
                       title="Clear assignment"
                     >
                       <Icon name="x" size={12} />

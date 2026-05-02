@@ -154,13 +154,57 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     if (!tr) return;
     if (locked) {
       tr.nodes([]);
-    } else {
-      const nodes = selectedItemIds
-        .map((id) => nodeRefs.current.get(id))
-        .filter((n): n is Konva.Group => !!n);
-      tr.nodes(nodes);
+      return;
     }
+
+    const nodes = selectedItemIds
+      .map((id) => nodeRefs.current.get(id))
+      .filter((n): n is Konva.Group => !!n);
+    tr.nodes(nodes);
     tr.getLayer()?.batchDraw();
+
+    // Live alignment guides during resize. Single-select only — multi-select
+    // resize doesn't really need guides since the whole group scales together.
+    if (selectedItemIds.length !== 1 || nodes.length !== 1) {
+      return;
+    }
+    const node = nodes[0];
+    const activeId = selectedItemIds[0];
+
+    // Snapshot the current desk/furniture metadata once. The snap calc reads
+    // from this; we don't need to re-bind the listener as the user drags.
+    const desk = room.desks.find((d) => d.id === activeId);
+    const furniture = (room.furniture ?? []).find((f) => f.id === activeId);
+    const baseW = desk?.width ?? furniture?.width;
+    const baseH = desk?.height ?? furniture?.height;
+    if (!baseW || !baseH) return;
+
+    const allItems = [
+      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height })),
+      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height })),
+    ];
+
+    function onTransform() {
+      const sx = node.scaleX();
+      const sy = node.scaleY();
+      const w = (baseW as number) * sx;
+      const h = (baseH as number) * sy;
+      const me = { id: activeId, x: node.x(), y: node.y(), width: w, height: h };
+      // Reuse snapPosition and discard its returned x/y — for resize we just
+      // SHOW guides; we don't snap the resize handle itself in v1.
+      const result = snapPosition(me, node.x(), node.y(), allItems);
+      setGuides(result.guides);
+    }
+    function onTransformEndClear() {
+      setGuides([]);
+    }
+
+    node.on("transform.guides", onTransform);
+    node.on("transformend.guides", onTransformEndClear);
+    return () => {
+      node.off("transform.guides");
+      node.off("transformend.guides");
+    };
   }, [selectedItemIds, locked, room.desks, room.furniture]);
 
   useLayoutEffect(() => {
