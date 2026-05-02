@@ -305,6 +305,45 @@ export function setPreference(key, value) {
 }
 
 // -------------------------------------------------------------
+// Theme — three states ('auto' | 'light' | 'dark'), default 'auto'.
+// 'auto' follows system preference (prefers-color-scheme); the others
+// are explicit overrides set via <html data-theme="...">.
+//
+// applyTheme() is called eagerly at boot from each tool's entry point;
+// setTheme() is called by the theme-toggle UI in each app.
+//
+// A 'themechange' window event is dispatched whenever the theme actually
+// changes, so non-CSS consumers (Konva canvas in the seating chart) can
+// re-render to match.
+// -------------------------------------------------------------
+const VALID_THEMES = ['auto', 'light', 'dark'];
+
+export function getTheme() {
+  return getPreference('theme', 'auto');
+}
+
+export function setTheme(theme) {
+  if (!VALID_THEMES.includes(theme)) {
+    throw new Error(`Invalid theme "${theme}" — expected one of ${VALID_THEMES.join(', ')}`);
+  }
+  setPreference('theme', theme);
+  applyTheme(theme);
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
+  }
+}
+
+export function applyTheme(theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (!theme || theme === 'auto') {
+    root.removeAttribute('data-theme');
+  } else if (theme === 'light' || theme === 'dark') {
+    root.setAttribute('data-theme', theme);
+  }
+}
+
+// -------------------------------------------------------------
 // Rosters
 // `getRoster` falls back to reading the seating chart's class blob if
 // no explicit roster has been written for that classId. This lets
@@ -575,6 +614,9 @@ export default {
   // domain
   getPreference,
   setPreference,
+  getTheme,
+  setTheme,
+  applyTheme,
   getRoster,
   setRoster,
   listPeriods,

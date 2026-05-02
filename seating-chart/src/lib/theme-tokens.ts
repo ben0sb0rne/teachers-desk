@@ -2,39 +2,112 @@
 // theme-tokens.ts — Konva mirror of suite design tokens.
 //
 // Konva renders to canvas (not the DOM) and can't read CSS variables, so we
-// keep these JS constants in sync with `/shared/desk.css`. A vitest snapshot
-// test (tests/theme-sync.test.ts) parses desk.css as text and asserts each
-// SUITE token below matches its `--<token>` value.
+// keep these JS constants in sync with `/shared/desk.css`. A vitest test
+// (tests/theme-sync.test.ts) parses desk.css as text and asserts each
+// suite token below matches the corresponding `--<token>` value in both
+// the :root block (light) and the [data-theme="dark"] block (dark).
 //
-// Suite tokens: chrome colors that should track the design system.
-// Functional tokens: semantic colors that intentionally do NOT theme
-//   (front-row highlight, door amber, drag-select marquee). Changing one
-//   shifts the meaning of a UI signal, so we hardcode them.
+// SUITE tokens flip between light and dark. FUNCTIONAL tokens are
+// semantic (front-row highlight, door amber, drag-select marquee) and
+// intentionally do NOT theme — changing one shifts the meaning of a UI
+// signal, so we hardcode them.
+//
+// Consumers should call `useThemeTokens()` from a React component so the
+// canvas re-renders when the user toggles theme via shared/storage.js
+// (which dispatches a 'themechange' window event).
 // =============================================================
 
-// ── Suite tokens (kept in sync with /shared/desk.css) ──
-export const PAPER_CREAM = "#F8EED6"; // --paper-cream  · room background, paper surfaces
-export const PAPER_EDGE = "#1A1614"; // --paper-edge   · ink, dark strokes, primary text
-export const ACCENT_BLUE = "#1E5BFF"; // --accent-blue  · selection borders, primary accent
-export const ACCENT_YELLOW = "#FFE03A"; // --accent-yellow · sticky-note style highlight
-export const DESK_WOOD = "#BD9060"; // --desk-wood    · honey oak (homepage backdrop)
+import { useEffect, useState } from "react";
 
-// ── Functional tokens (semantic; do NOT theme) ──
-export const FRONT_ROW = "#fde68a"; // amber-200; soft highlight on front-row seats
-export const DOOR_FILL = "#f59e0b"; // amber-500; door fill — instantly readable
-export const DOOR_STROKE = "#92400e"; // amber-800; door outline
-export const MARQUEE_STROKE = "#ec4899"; // pink-500; drag-to-select rectangle stroke
+export interface ThemeTokens {
+  // Suite tokens (flip)
+  paperCream: string;
+  paperEdge: string;
+  deskWood: string;
+  deskWoodDark: string;
+  neutralLine: string;
+  // Suite tokens (don't flip; provided here for API parity)
+  accentBlue: string;
+  accentYellow: string;
+  // Functional tokens (semantic; never flip)
+  frontRow: string;
+  doorFill: string;
+  doorStroke: string;
+  marqueeStroke: string;
+}
 
-// ── Neutral helpers ──
-// A subtle grid/border tint that reads on cream paper. We keep this as a
-// hex literal because the desk-cream base is light enough that a translucent
-// paper-edge can render too dark in Konva when antialiased.
-export const NEUTRAL_LINE = "#cbd5e1"; // slate-300; quiet grid lines, room outline
+// ── Light mode (matches :root in shared/desk.css) ──
+export const lightTokens: ThemeTokens = {
+  paperCream: "#F8EED6",
+  paperEdge: "#1A1614",
+  deskWood: "#BD9060",
+  deskWoodDark: "#8C6840",
+  neutralLine: "#cbd5e1", // slate-300; quiet grid lines on cream paper
+  accentBlue: "#1E5BFF",
+  accentYellow: "#FFE03A",
+  frontRow: "#fde68a",
+  doorFill: "#f59e0b",
+  doorStroke: "#92400e",
+  marqueeStroke: "#ec4899",
+};
 
-/**
- * Channel-form values, in case anyone needs to compose with alpha in
- * canvas (not common; provided for parity with the CSS API).
- */
+// ── Dark mode (matches [data-theme="dark"] in shared/desk.css) ──
+export const darkTokens: ThemeTokens = {
+  paperCream: "#3A2F22",
+  paperEdge: "#EFE5D2",
+  deskWood: "#2A2118",
+  deskWoodDark: "#18130E",
+  neutralLine: "#5C4E3D", // muted warm tan; reads cleanly on dark walnut
+  accentBlue: "#1E5BFF",
+  accentYellow: "#FFE03A",
+  frontRow: "#fde68a",
+  doorFill: "#f59e0b",
+  doorStroke: "#92400e",
+  marqueeStroke: "#ec4899",
+};
+
+/** Synchronous read — returns the token set matching the current data-theme
+ *  attribute, falling back to system preference for 'auto'. Safe in SSR
+ *  contexts (returns light when document is unavailable). */
+export function getThemeTokens(): ThemeTokens {
+  if (typeof document === "undefined") return lightTokens;
+  const explicit = document.documentElement.dataset.theme;
+  if (explicit === "dark") return darkTokens;
+  if (explicit === "light") return lightTokens;
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? darkTokens : lightTokens;
+  }
+  return lightTokens;
+}
+
+/** React hook that returns the current theme tokens and re-runs when
+ *  the user toggles theme (via shared/storage.setTheme, which dispatches
+ *  a 'themechange' event) OR when the OS-level prefers-color-scheme
+ *  changes (matchMedia 'change' event). */
+export function useThemeTokens(): ThemeTokens {
+  const [tokens, setTokens] = useState<ThemeTokens>(getThemeTokens);
+
+  useEffect(() => {
+    function update() {
+      setTokens(getThemeTokens());
+    }
+    window.addEventListener("themechange", update);
+    window.addEventListener("storage", update);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", update);
+    return () => {
+      window.removeEventListener("themechange", update);
+      window.removeEventListener("storage", update);
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
+    };
+  }, []);
+
+  return tokens;
+}
+
+/** Channel-form values for tokens that need alpha composition in canvas
+ *  (e.g. translucent marquee fill). Mirrors the channel-form CSS vars in
+ *  desk.css. Light values; dark equivalents would be added if needed. */
 export const CHANNELS = {
   PAPER_CREAM: "248 238 214",
   PAPER_EDGE: "26 22 20",

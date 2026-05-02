@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('teachersdesk:v1');
+          if (!raw) return;
+          var t = JSON.parse(raw);
+          t = t && t.preferences && t.preferences.theme;
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
     <title>Seating Chart Designer · The Teacher's Desk</title>
   </head>
   <body class="wood-bg text-ink antialiased">

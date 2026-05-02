@@ -1,10 +1,22 @@
 ﻿<!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <!-- "BINGO" tool name shown in the suite topstrip; matches the homepage placard. -->
   <meta name="application-name" content="Math Bingo">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+<script>
+  (function () {
+    try {
+      var raw = localStorage.getItem('teachersdesk:v1');
+      if (!raw) return;
+      var t = JSON.parse(raw);
+      t = t && t.preferences && t.preferences.theme;
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
 <title>Math Bingo Caller</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>

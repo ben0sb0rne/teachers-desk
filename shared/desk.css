@@ -55,6 +55,40 @@
 }
 
 /* =============================================================
+   DARK MODE
+   "The teacher's desk at night under a dim lamp."
+
+   Tokens flip under either:
+   - prefers-color-scheme: dark (system pref) — UNLESS the user has
+     explicitly chosen light via [data-theme="light"]
+   - [data-theme="dark"] — explicit user choice, always wins
+
+   --accent-blue and --accent-yellow stay the same in both modes; their
+   saturation reads cleanly on honey-oak and dark walnut alike. Shadows
+   need more opacity on dark surfaces to register.
+   ============================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk-wood:        42  33  24;   /* #2A2118 — dark walnut */
+    --desk-wood-dark:   24  19  14;   /* #18130E — vignette */
+    --paper-cream:      58  47  34;   /* #3A2F22 — dimmed paper card */
+    --paper-edge:      239 229 210;   /* #EFE5D2 — text */
+    --shadow-paper:  0 2px 8px rgb(0 0 0 / 0.55);
+    --shadow-lift:   0 6px 18px rgb(0 0 0 / 0.65);
+  }
+}
+
+[data-theme="dark"] {
+  --desk-wood:        42  33  24;
+  --desk-wood-dark:   24  19  14;
+  --paper-cream:      58  47  34;
+  --paper-edge:      239 229 210;
+  --shadow-paper:  0 2px 8px rgb(0 0 0 / 0.55);
+  --shadow-lift:   0 6px 18px rgb(0 0 0 / 0.65);
+}
+
+/* =============================================================
    BASE TYPOGRAPHY & PAGE
    ============================================================= */
 

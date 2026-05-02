@@ -1962,7 +1962,9 @@ function render() {
 
 function applySettings() {
   const s = state.settings;
-  document.documentElement.setAttribute('data-theme', s.theme);
+  // Theme: 'auto' clears data-theme so the prefers-color-scheme media query
+  // takes over; 'light' / 'dark' set it explicitly. (See shared/desk.css.)
+  sharedStorage.applyTheme(s.theme);
   document.documentElement.style.setProperty('--rbs', s.recentBallScale ?? 1.0);
   document.getElementById('bottom-nav').hidden = !s.showNavButtons;
   const isRecent = s.boardMode === 'recent';
@@ -2336,6 +2338,7 @@ function renderSettings() {
     <div class="settings-section">
       <span class="settings-label">Theme</span>
       <div class="seg-group">
+        <button class="seg-btn${s.theme==='auto'||!s.theme?' active':''}" data-theme-val="auto">Auto</button>
         <button class="seg-btn${s.theme==='light'?' active':''}" data-theme-val="light">Light</button>
         <button class="seg-btn${s.theme==='dark'?' active':''}" data-theme-val="dark">Dark</button>
       </div>
@@ -2470,7 +2473,13 @@ function renderSettings() {
   }
   sBody.querySelectorAll('[data-theme-val]').forEach(btn => {
     btn.onclick = () => {
-      state.settings.theme = btn.dataset.themeVal;
+      const v = btn.dataset.themeVal;
+      state.settings.theme = v;
+      // setTheme persists to suite preferences, applies the data-theme
+      // attribute, and dispatches a 'themechange' event for any non-CSS
+      // listeners (Konva in the seating chart). saveSettings() also writes
+      // the suite-wide preference, but setTheme handles the apply + event.
+      sharedStorage.setTheme(v);
       saveSettings(); renderSettings(); render();
     };
   });

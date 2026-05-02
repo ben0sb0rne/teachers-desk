@@ -4,7 +4,7 @@ import type Konva from "konva";
 import type { ClassId, Furniture } from "@/types";
 import { FURNITURE_DEFAULTS, furnitureLabel } from "@/lib/furniture";
 import { useAppStore } from "@/store/appStore";
-import { ACCENT_BLUE } from "@/lib/theme-tokens";
+import { lightTokens } from "@/lib/theme-tokens";
 
 interface Props {
   furniture: Furniture;
@@ -18,7 +18,8 @@ interface Props {
   registerNode: (id: string, node: Konva.Group | null) => void;
 }
 
-const STROKE_SELECTED = ACCENT_BLUE;
+// accent-blue stays the same in light + dark modes, so a static reference is fine.
+const STROKE_SELECTED = lightTokens.accentBlue;
 const MIN_DIM = 24;
 
 export default function FurnitureNode({

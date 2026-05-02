@@ -14,7 +14,10 @@
 
   /* Accent (buttons, focus rings, the timer fill) */
   --primary:      rgb(var(--accent-blue));
-  --primary-fg:   rgb(var(--paper-cream));
+  /* Foreground on primary stays white in both light and dark modes; deriving
+     from --paper-cream would invert to dark warm in dark mode and fail
+     contrast against the saturated blue. */
+  --primary-fg:   #fff;
 
   /* Errors — kept as functional, semantic colors */
   --danger:       #c62828;
@@ -48,23 +51,11 @@
   --app-font:     var(--font-slab);
 }
 
-/* Dark theme — preserved as bingo's tool-local feature.
-   The suite UI is light only in v1; bingo retains its own dark scheme. */
-[data-theme="dark"] {
-  --bg:         #121212;
-  --surface:    #1e1e1e;
-  --surface2:   #2a2a2a;
-  --border:     #444;
-  --text:       #f0f0f0;
-  --text-muted: #999;
-  --primary:    #5c9ce6;
-  --primary-fg: #000;
-  --col-B-light: #0d2a4a;
-  --col-I-light: #0a2a0f;
-  --col-N-light: #2a1500;
-  --col-G-light: #1e0a2a;
-  --col-O-light: #2a0a0a;
-}
+/* Dark mode is handled at the suite level (shared/desk.css). Bingo's
+   --bg/--surface/--text/--border all derive from the suite tokens
+   (--paper-cream, --paper-edge), so they flip automatically. The literal
+   col-* values stay (functional column identity). #notification.* dark
+   overrides for success/warning/error are below, where the rules live. */
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

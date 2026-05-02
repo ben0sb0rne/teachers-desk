@@ -3,7 +3,17 @@ import { Group, Rect, Circle, Shape, Text } from "react-konva";
 import type Konva from "konva";
 import type { Desk, SeatId, Student, StudentId, ClassId } from "@/types";
 import { useAppStore } from "@/store/appStore";
-import { ACCENT_BLUE, DOOR_FILL, DOOR_STROKE, PAPER_EDGE } from "@/lib/theme-tokens";
+import { lightTokens } from "@/lib/theme-tokens";
+
+// DeskNode reads theme values statically because the desk's own slate fill
+// (STROKE/FILL below) is hardcoded slate that doesn't flip — flipping the
+// student-name text colour with the suite ink would put cream text on a
+// light slate desk in dark mode and break contrast. If desks ever theme,
+// migrate to useThemeTokens().
+const ACCENT_BLUE = lightTokens.accentBlue;
+const DOOR_FILL = lightTokens.doorFill;
+const DOOR_STROKE = lightTokens.doorStroke;
+const PAPER_EDGE = lightTokens.paperEdge;
 
 interface Props {
   desk: Desk;

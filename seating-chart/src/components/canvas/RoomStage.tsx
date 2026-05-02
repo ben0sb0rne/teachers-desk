@@ -18,15 +18,12 @@ import { snapPosition, type Guide, GRID } from "@/lib/snap";
 import { shouldKeepRatio } from "@/lib/shapes";
 import { useAppStore } from "@/store/appStore";
 import Icon, { type IconName } from "@/components/Icon";
-import {
-  ACCENT_BLUE,
-  CHANNELS,
-  MARQUEE_STROKE,
-  NEUTRAL_LINE,
-  PAPER_CREAM,
-  PAPER_EDGE,
-} from "@/lib/theme-tokens";
+import { CHANNELS, lightTokens, useThemeTokens } from "@/lib/theme-tokens";
 
+// Static (don't flip with theme): accent-blue is the same in light + dark;
+// marquee-stroke is functional/semantic.
+const ACCENT_BLUE = lightTokens.accentBlue;
+const MARQUEE_STROKE = lightTokens.marqueeStroke;
 // Translucent selection-marquee fill — accent blue at 12% alpha.
 const MARQUEE_FILL = `rgb(${CHANNELS.ACCENT_BLUE} / 0.12)`;
 
@@ -108,6 +105,14 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   const nodeRefs = useRef(new Map<string, Konva.Group>());
   const dragSession = useRef<DragSession | null>(null);
   useImperativeHandle(ref, () => stageRef.current!, []);
+
+  // Theme tokens that flip with light/dark mode. The component re-renders
+  // when the user toggles theme (via shared/storage.setTheme) or the OS
+  // prefers-color-scheme changes, so Konva picks up the new colors.
+  const tokens = useThemeTokens();
+  const PAPER_CREAM = tokens.paperCream;
+  const PAPER_EDGE = tokens.paperEdge;
+  const NEUTRAL_LINE = tokens.neutralLine;
 
   const updateDesk = useAppStore((s) => s.updateDesk);
   const updateFurniture = useAppStore((s) => s.updateFurniture);

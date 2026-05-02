@@ -5,7 +5,10 @@ import { useAppStore } from "@/store/appStore";
 import { FURNITURE_DEFAULTS } from "@/lib/furniture";
 import Icon from "@/components/Icon";
 import type { Arrangement, ClassRoom, Desk, Furniture } from "@/types";
-import { ACCENT_BLUE, PAPER_CREAM, PAPER_EDGE } from "@/lib/theme-tokens";
+import { lightTokens, useThemeTokens } from "@/lib/theme-tokens";
+
+// accent-blue stays the same in light + dark, so a static reference is fine.
+const ACCENT_BLUE = lightTokens.accentBlue;
 
 export default function History() {
   const { id } = useParams();
@@ -92,6 +95,7 @@ export default function History() {
 }
 
 function Thumbnail({ klass, arrangement }: { klass: ClassRoom; arrangement: Arrangement }) {
+  const tokens = useThemeTokens();
   const w = klass.room.width;
   const h = klass.room.height;
   const frontWall = klass.room.frontWall ?? "top";
@@ -102,8 +106,8 @@ function Thumbnail({ klass, arrangement }: { klass: ClassRoom; arrangement: Arra
     { x1: 0, y1: 0, x2: 0, y2: h };
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full">
-      <rect x={0} y={0} width={w} height={h} fill={PAPER_CREAM} />
-      <line {...frontLine} stroke={PAPER_EDGE} strokeWidth={6} strokeDasharray="14 8" />
+      <rect x={0} y={0} width={w} height={h} fill={tokens.paperCream} />
+      <line {...frontLine} stroke={tokens.paperEdge} strokeWidth={6} strokeDasharray="14 8" />
       {(klass.room.furniture ?? []).map((f) => (
         <g
           key={f.id}
@@ -228,6 +232,7 @@ function ViewSvg({
   klass: ClassRoom;
   arrangement: Arrangement;
 }) {
+  const tokens = useThemeTokens();
   const w = klass.room.width;
   const h = klass.room.height;
   const frontWall = klass.room.frontWall ?? "top";
@@ -241,11 +246,11 @@ function ViewSvg({
       id={id}
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${w} ${h}`}
-      className="h-auto w-full bg-white"
+      className="h-auto w-full bg-paper"
       style={{ maxHeight: "70vh" }}
     >
-      <rect x={0} y={0} width={w} height={h} fill={PAPER_CREAM} />
-      <line {...frontLine} stroke={PAPER_EDGE} strokeWidth={5} strokeDasharray="12 8" />
+      <rect x={0} y={0} width={w} height={h} fill={tokens.paperCream} />
+      <line {...frontLine} stroke={tokens.paperEdge} strokeWidth={5} strokeDasharray="12 8" />
       {(klass.room.furniture ?? []).map((f) => (
         <g
           key={f.id}
@@ -273,7 +278,7 @@ function ViewSvg({
                       textAnchor="middle"
                       fontSize={13}
                       fontWeight="bold"
-                      fill={PAPER_EDGE}
+                      fill={tokens.paperEdge}
                     >
                       {student.name}
                     </text>
