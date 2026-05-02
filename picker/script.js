@@ -6,6 +6,10 @@
 // here write canonical metadata + roster. Call counts increment on each
 // pick (groundwork for future fairness logic).
 //
+// UI is intentionally minimal: just the wheel + a small back link + the
+// suite settings gear. Allow-repeats / Reset session live inside the
+// shared settings dialog (registered via `registerToolSettings`).
+//
 // Suite integration:
 //   - <body class="wood-bg"> + anti-FOUC theme script in index.html
 //   - .suite-topstrip with wordmark + tool name
@@ -14,14 +18,11 @@
 
 import * as storage from '../shared/storage.js';
 import * as bridge from '../shared/roster-bridge.js';
-import { mountSettingsButton } from '../shared/settings.js';
+import { mountSettingsButton, registerToolSettings } from '../shared/settings.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { openOverlay } from '../shared/components/overlay.js';
 import { mountPasteBulk } from '../shared/components/paste-bulk.js';
 
-// Tracks the active class's roster subscription so we can refresh the wheel
-// + sidebar when the roster is edited elsewhere (e.g. on the Rosters page,
-// or in another browser tab) while the user is on the wheel view.
 let activeClassUnsubscribe = null;
 
 mountSettingsButton();
@@ -37,41 +38,29 @@ const VIEW = {
 const state = {
   activeClassId: null,
   activeClassName: '',
-  activeRoster: [],     // string[] — current names (read fresh from storage on entry)
-  pickedThisSession: new Set(), // names picked since last reset
-  justPicked: null,     // last name picked, for one-tick highlight in sidebar
-  currentRotation: 0,   // running degrees (so the wheel doesn't snap back between spins)
+  activeRoster: [],
+  pickedThisSession: new Set(),
+  lastPickedName: null, // most-recent picked name; used to highlight its sector
+  currentRotation: 0,
   isSpinning: false,
   options: {
-    allowRepeats: true,
-    showCounts: true,
+    allowRepeats: storage.getPreference('picker.allowRepeats', true),
   },
 };
 
-// -------------------------------------------------------------
-// View routing
-// -------------------------------------------------------------
 function showView(name) {
-  for (const [k, el] of Object.entries(VIEW)) {
-    el.hidden = k !== name;
-  }
+  for (const [k, el] of Object.entries(VIEW)) el.hidden = k !== name;
 }
 
 // -------------------------------------------------------------
 // CLASS SELECT VIEW
-//
-// Uses shared/components/class-card-grid.js — auto-refreshes on canonical
-// changes (class created/renamed/deleted in another tool, roster edited
-// elsewhere) so the picker's class list never gets stale.
 // -------------------------------------------------------------
 let classGridCtl = null;
 
 function mountClassSelect() {
-  if (classGridCtl) return; // already mounted
+  if (classGridCtl) return;
   const grid = document.getElementById('class-grid');
   const empty = document.getElementById('class-empty');
-  // The shared component takes ownership of `grid` and shows/hides itself.
-  // We hide our own empty-state element since the component renders one too.
   empty.hidden = true;
   classGridCtl = mountClassCardGrid(grid, {
     onSelect: (classId) => openClass(classId),
@@ -89,56 +78,40 @@ function openClass(classId) {
   state.activeClassName = storage.getClassName(classId) || '(unnamed)';
   state.activeRoster = storage.getRoster(classId).slice();
   state.pickedThisSession.clear();
-  state.justPicked = null;
+  state.lastPickedName = null;
   state.currentRotation = 0;
 
-  // Subscribe to roster changes for this class. If the user (or another tab,
-  // or the Rosters page) edits the class while we're on the wheel view,
-  // refresh the visible roster + wheel.
   if (activeClassUnsubscribe) activeClassUnsubscribe();
   activeClassUnsubscribe = bridge.onRosterChange(classId, ({ names }) => {
     state.activeRoster = names.slice();
     renderWheel();
-    renderRoster();
-    updateSpinButton();
+    updateMessage();
   });
 
-  // Read source for the badge
+  // Source badge for seating-chart-owned classes.
   const cls = storage.listClasses().find((c) => c.id === classId);
-  const sourceTag = document.getElementById('wheel-class-source');
-  sourceTag.hidden = !cls || cls.source !== 'seating-chart';
-
+  document.getElementById('wheel-class-source').hidden = !cls || cls.source !== 'seating-chart';
   document.getElementById('wheel-class-name').textContent = state.activeClassName;
-  document.getElementById('picked-card').hidden = true;
-  document.getElementById('btn-spin').hidden = false;
 
-  // Reset the wheel transform without animation, then re-render
-  const wheelEl = document.getElementById('wheel-svg');
-  wheelEl.style.transition = 'none';
-  wheelEl.style.transform = 'rotate(0deg)';
-  // Force reflow so the next transition applies cleanly
-  void wheelEl.getBoundingClientRect();
-  wheelEl.style.transition = '';
+  // Reset wheel transform without animating.
+  wheelSvg.style.transition = 'none';
+  wheelSvg.style.transform = 'rotate(0deg)';
+  void wheelSvg.getBoundingClientRect();
+  wheelSvg.style.transition = '';
 
   showView('wheel');
   renderWheel();
-  renderRoster();
-  updateSpinButton();
+  updateMessage();
 }
 
 // -------------------------------------------------------------
-// NEW-CLASS MODAL
-//
-// Built ad-hoc via shared/components/overlay.js + paste-bulk.js — no
-// dedicated HTML markup. Open from button click or any other entry
-// point that needs a "create class quickly" affordance.
+// NEW-CLASS MODAL (unchanged)
 // -------------------------------------------------------------
 
 function openNewClassModal() {
   const handle = openOverlay({ title: 'New class' });
   const body = handle.body;
 
-  // — Class name input —
   const nameSection = document.createElement('div');
   nameSection.className = 'suite-settings-section';
   const nameHeading = document.createElement('h3');
@@ -156,7 +129,6 @@ function openNewClassModal() {
   nameSection.appendChild(nameError);
   body.appendChild(nameSection);
 
-  // — Paste-bulk students —
   const studentsSection = document.createElement('div');
   studentsSection.className = 'suite-settings-section';
   const studentsHeading = document.createElement('h3');
@@ -183,7 +155,6 @@ function openNewClassModal() {
   stagedNotice.hidden = true;
   studentsSection.appendChild(stagedNotice);
 
-  // — Action row —
   const actions = document.createElement('div');
   actions.className = 'modal-actions';
   const cancel = document.createElement('button');
@@ -237,7 +208,6 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 
 document.getElementById('btn-back-classes').addEventListener('click', () => {
   showView('classSelect');
-  // class-card-grid auto-refreshes; no manual call needed.
   if (activeClassUnsubscribe) {
     activeClassUnsubscribe();
     activeClassUnsubscribe = null;
@@ -246,95 +216,108 @@ document.getElementById('btn-back-classes').addEventListener('click', () => {
 
 const wheelSvg = document.getElementById('wheel-svg');
 
-/** Build sector + label markup for the wheel's current roster. */
+// Wheel geometry (in viewBox units; viewBox is -100..100).
+const HUB_R = 14;
+const RIM_R = 96;
+const LABEL_OUTER_PAD = 10;
+
+/**
+ * Build sector + label markup for the visible roster.
+ *
+ * Labels are tangent to the rim (each name's baseline runs along the rim's
+ * arc at its sector position), with a 180° flip for sectors whose midpoint
+ * sits in the bottom half of the wheel — so at rest, every name reads
+ * left-to-right with letters upright. There's a single "seam" near 9 and
+ * 3 o'clock where adjacent flipped/un-flipped sectors face opposite ways,
+ * which is the standard prize-wheel compromise.
+ */
 function renderWheel() {
-  const visibleRoster = visibleNames();
-  const n = visibleRoster.length;
+  const visible = visibleNames();
+  const n = visible.length;
   wheelSvg.innerHTML = '';
 
-  // Outer hub circle (so an empty wheel still has a visible disk).
-  const hub = svgEl('circle', {
-    cx: 0,
-    cy: 0,
-    r: 95,
+  // Outer disk so the wheel is always a full circle, even with one slice.
+  appendSvg('circle', {
+    cx: 0, cy: 0, r: RIM_R,
     fill: 'rgb(var(--paper-cream))',
     stroke: 'rgb(var(--paper-edge) / 0.18)',
     'stroke-width': 1,
   });
-  wheelSvg.appendChild(hub);
 
   if (n === 0) {
-    const t = svgEl('text', {
-      x: 0,
-      y: 0,
+    const t = appendSvg('text', {
+      x: 0, y: 0,
       'text-anchor': 'middle',
       'dominant-baseline': 'central',
       'font-family': 'var(--font-slab)',
-      'font-size': 7,
-      fill: 'var(--ink-muted)',
+      'font-size': 9,
+      fill: 'rgb(var(--paper-edge) / 0.6)',
     });
     t.textContent = state.activeRoster.length === 0
       ? 'No students'
       : 'Everyone has been picked';
-    wheelSvg.appendChild(t);
+    appendSvg('circle', {
+      cx: 0, cy: 0, r: HUB_R,
+      fill: 'rgb(var(--paper-cream))',
+      stroke: 'rgb(var(--paper-edge) / 0.4)',
+      'stroke-width': 1,
+    });
     return;
   }
 
   const sectorDeg = 360 / n;
+  const fontSize = labelFontSize(n);
+  const labelR = RIM_R - LABEL_OUTER_PAD;
+  const lastPickedIndex = state.lastPickedName != null
+    ? visible.indexOf(state.lastPickedName)
+    : -1;
+
   for (let i = 0; i < n; i++) {
-    // Sector i spans from i*sectorDeg to (i+1)*sectorDeg, with 0° at 12 o'clock
-    // and increasing clockwise. We orient the path so sector 0 is centered at
-    // 12 o'clock (i.e. its midpoint is up).
     const startDeg = i * sectorDeg - sectorDeg / 2;
     const endDeg = startDeg + sectorDeg;
 
-    // Subtle alternating fill in cream/ink-tint to give sector definition
-    // without a saturated palette (per the suite's design rules).
-    const fill = i % 2 === 0
-      ? 'rgb(var(--paper-cream))'
-      : 'rgb(var(--paper-edge) / 0.06)';
+    const isPicked = i === lastPickedIndex;
+    const fill = isPicked
+      ? 'rgb(var(--accent-yellow) / 0.55)'
+      : i % 2 === 0
+        ? 'rgb(var(--paper-cream))'
+        : 'rgb(var(--paper-edge) / 0.06)';
 
-    const path = svgEl('path', {
-      d: sectorPath(95, startDeg, endDeg),
+    appendSvg('path', {
+      d: sectorPath(RIM_R, startDeg, endDeg),
       fill,
-      stroke: 'rgb(var(--paper-edge) / 0.18)',
+      stroke: 'rgb(var(--paper-edge) / 0.2)',
       'stroke-width': 0.6,
     });
-    wheelSvg.appendChild(path);
 
-    // Label: rotated from the wheel's center to the sector's midpoint
-    // angle, then placed along that radius. The text reads outward.
-    const label = visibleRoster[i];
-    const fontSize = labelFontSize(n);
-    const txt = svgEl('text', {
-      transform: `rotate(${i * sectorDeg}) translate(0,-58)`,
+    const θ = i * sectorDeg;
+    const norm = ((θ % 360) + 360) % 360;
+    const flip = norm > 90 && norm < 270;
+
+    const txt = appendSvg('text', {
+      transform: flip
+        ? `rotate(${θ + 180}) translate(0, ${labelR})`
+        : `rotate(${θ}) translate(0, ${-labelR})`,
       'text-anchor': 'middle',
       'dominant-baseline': 'central',
       'font-family': 'var(--font-slab)',
       'font-size': fontSize,
-      'font-weight': 600,
+      'font-weight': isPicked ? 700 : 600,
       fill: 'rgb(var(--paper-edge))',
     });
-    txt.textContent = truncateLabel(label, n);
-    wheelSvg.appendChild(txt);
+    txt.textContent = truncateLabel(visible[i], n);
   }
 
-  // Center cap — also catches mouse to keep clicks off random sectors.
-  const cap = svgEl('circle', {
-    cx: 0,
-    cy: 0,
-    r: 12,
+  // Center hub last so it sits above the sector strokes.
+  appendSvg('circle', {
+    cx: 0, cy: 0, r: HUB_R,
     fill: 'rgb(var(--paper-cream))',
     stroke: 'rgb(var(--paper-edge) / 0.4)',
     'stroke-width': 1,
   });
-  wheelSvg.appendChild(cap);
 }
 
-/** Build an SVG arc path for a sector (degrees measured clockwise from 12 o'clock). */
 function sectorPath(r, startDeg, endDeg) {
-  // Convert from "clockwise from 12 o'clock" to math radians (counterclockwise from 3 o'clock).
-  // 12 o'clock is -90° in math terms, and clockwise is negative direction.
   function toCart(deg) {
     const rad = ((deg - 90) * Math.PI) / 180;
     return [r * Math.cos(rad), r * Math.sin(rad)];
@@ -345,98 +328,73 @@ function sectorPath(r, startDeg, endDeg) {
   return `M0,0 L${x1.toFixed(3)},${y1.toFixed(3)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`;
 }
 
+/**
+ * Pick a label font size and truncation based on roster size. Tangent
+ * labels have only the rim arc per sector to fit, so for big rosters we
+ * shrink the font and trim long names down.
+ */
 function labelFontSize(n) {
-  if (n <= 6) return 9;
-  if (n <= 12) return 7;
-  if (n <= 20) return 5.5;
-  if (n <= 30) return 4.5;
-  return 3.6;
+  if (n <= 4) return 14;
+  if (n <= 8) return 11;
+  if (n <= 14) return 9;
+  if (n <= 20) return 7.5;
+  if (n <= 28) return 6.5;
+  return 5.5;
 }
 
 function truncateLabel(label, n) {
-  // For very tight sectors, fall back to first name only.
-  if (n > 30 && label.includes(' ')) return label.split(' ')[0];
-  if (label.length > 18 && n > 12) return label.slice(0, 16) + '…';
+  if (n > 24 && label.includes(' ')) return label.split(' ')[0];
+  if (n > 14 && label.length > 14) return label.slice(0, 12) + '…';
+  if (n > 8 && label.length > 18) return label.slice(0, 16) + '…';
   return label;
 }
 
-function svgEl(tag, attrs) {
+function appendSvg(tag, attrs) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  wheelSvg.appendChild(el);
   return el;
 }
 
-/** Names eligible for the next pick, given the "Allow repeats" toggle. */
 function visibleNames() {
   if (state.options.allowRepeats) return state.activeRoster.slice();
   return state.activeRoster.filter((n) => !state.pickedThisSession.has(n));
 }
 
-function renderRoster() {
-  const list = document.getElementById('roster-list');
-  list.innerHTML = '';
-  for (const name of state.activeRoster) {
-    const li = document.createElement('li');
-    li.className = 'roster-row';
-    if (!state.options.allowRepeats && state.pickedThisSession.has(name)) {
-      li.classList.add('is-picked');
-    }
-    if (state.justPicked === name) li.classList.add('is-just-picked');
-
-    const left = document.createElement('span');
-    left.textContent = name;
-    li.appendChild(left);
-
-    if (state.options.showCounts) {
-      const right = document.createElement('span');
-      right.className = 'roster-count';
-      const count = storage.getCallCount(state.activeClassId, name);
-      right.textContent = count > 0 ? String(count) : '';
-      li.appendChild(right);
-    }
-    list.appendChild(li);
-  }
-}
-
-function updateSpinButton() {
-  const spin = document.getElementById('btn-spin');
+function updateMessage() {
   const msg = document.getElementById('wheel-msg');
   const remaining = visibleNames().length;
   if (state.activeRoster.length === 0) {
-    spin.disabled = true;
     msg.textContent = 'Add students to start picking.';
   } else if (remaining === 0) {
-    spin.disabled = true;
-    msg.textContent = 'Everyone has been picked. Reset session?';
-  } else {
-    spin.disabled = state.isSpinning;
+    msg.textContent = 'Everyone has been picked. Reset session in settings (S).';
+  } else if (state.options.allowRepeats) {
     msg.textContent = '';
+  } else {
+    const total = state.activeRoster.length;
+    const picked = total - remaining;
+    msg.textContent = `${picked} / ${total} picked`;
   }
 }
 
+// -------------------------------------------------------------
 // Spin
-const spinBtn = document.getElementById('btn-spin');
-const spinAgainBtn = document.getElementById('btn-spin-again');
-const pickedCard = document.getElementById('picked-card');
-const pickedNameEl = document.getElementById('picked-name');
+// -------------------------------------------------------------
 
 function spin() {
   if (state.isSpinning) return;
+  if (VIEW.wheel.hidden) return;
   const eligible = visibleNames();
   if (eligible.length === 0) return;
 
-  // Pick name first, then translate to its sector index in the *visible* wheel.
   const visibleIndex = Math.floor(Math.random() * eligible.length);
   const pickedName = eligible[visibleIndex];
 
-  // The wheel renders only `eligible` names. So sector visibleIndex IS the picked sector.
   const n = eligible.length;
   const sectorDeg = 360 / n;
   const finalOffset = -((visibleIndex + 0.5) * sectorDeg);
-  const turns = 5 + Math.floor(Math.random() * 4); // 5–8
+  const turns = 6 + Math.floor(Math.random() * 4); // 6–9 full rotations
 
-  // currentRotation may have any cumulative value. We add full turns and the
-  // delta needed to land the picked sector midpoint at the pointer (0°).
   const target =
     state.currentRotation +
     turns * 360 +
@@ -444,74 +402,116 @@ function spin() {
   state.currentRotation = target;
 
   state.isSpinning = true;
-  pickedCard.hidden = true;
-  spinBtn.disabled = true;
+  // Clear the previous winner highlight while spinning.
+  state.lastPickedName = null;
+  renderWheel();
 
   wheelSvg.style.transform = `rotate(${target}deg)`;
   wheelSvg.addEventListener('transitionend', onSpinEnd, { once: true });
 
   function onSpinEnd() {
     state.isSpinning = false;
-    state.justPicked = pickedName;
+    state.lastPickedName = pickedName;
     state.pickedThisSession.add(pickedName);
     storage.incrementCallCount(state.activeClassId, pickedName);
 
-    pickedNameEl.textContent = pickedName;
-    pickedCard.hidden = false;
-
-    // If the toggle excludes repeats, the next render needs to drop the
-    // picked name out of the wheel so the visible sectors match the
-    // remaining roster.
-    if (!state.options.allowRepeats) {
-      renderWheel();
-      // Any currentRotation works for a fresh wheel — keep continuity.
-    }
-
-    renderRoster();
-    updateSpinButton();
+    // Re-render so the picked sector lights up. When repeats are off, the
+    // picked name drops out of the visible roster — the wheel re-builds
+    // around the remaining names without a snap (currentRotation is
+    // preserved across spins).
+    renderWheel();
+    updateMessage();
   }
 }
 
-spinBtn.addEventListener('click', spin);
-spinAgainBtn.addEventListener('click', () => {
-  pickedCard.hidden = true;
-  state.justPicked = null;
-  renderRoster();
-  spin();
+// Click anywhere on the wheel to spin (also keyboard-activatable).
+wheelSvg.addEventListener('click', spin);
+wheelSvg.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    spin();
+  }
 });
 
-// Spacebar to spin (only on the wheel view; ignore when typing or when
-// any overlay — settings, new-class, etc. — is open above us).
+// -------------------------------------------------------------
+// Shortcuts: Space to spin (anywhere on the wheel view), R to reset.
+// 'S' for settings is wired by shared/settings.js.
+// -------------------------------------------------------------
+
 document.addEventListener('keydown', (e) => {
-  if (e.key !== ' ') return;
   if (VIEW.wheel.hidden) return;
   const t = e.target;
   if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  if (t && t.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (document.querySelector('.suite-overlay')) return;
-  e.preventDefault();
-  spin();
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    spin();
+  } else if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    resetSession();
+  }
 });
 
-// Toggles
-document.getElementById('opt-allow-repeats').addEventListener('change', (e) => {
-  state.options.allowRepeats = e.target.checked;
-  renderWheel();
-  renderRoster();
-  updateSpinButton();
-});
-document.getElementById('opt-show-counts').addEventListener('change', (e) => {
-  state.options.showCounts = e.target.checked;
-  renderRoster();
-});
-
-// Reset session
-document.getElementById('btn-reset-session').addEventListener('click', () => {
+function resetSession() {
   state.pickedThisSession.clear();
-  state.justPicked = null;
-  pickedCard.hidden = true;
+  state.lastPickedName = null;
   renderWheel();
-  renderRoster();
-  updateSpinButton();
+  updateMessage();
+}
+
+// -------------------------------------------------------------
+// Tool-specific settings (rendered inside the shared settings dialog)
+// -------------------------------------------------------------
+
+registerToolSettings('picker', 'Name Picker', (host) => {
+  host.classList.add('picker-settings');
+
+  // Allow repeats toggle.
+  const repeatsRow = document.createElement('div');
+  repeatsRow.className = 'suite-settings-row';
+  const repeatsLabel = document.createElement('label');
+  repeatsLabel.htmlFor = 'picker-allow-repeats';
+  repeatsLabel.textContent = 'Allow repeats';
+  const repeatsInput = document.createElement('input');
+  repeatsInput.type = 'checkbox';
+  repeatsInput.id = 'picker-allow-repeats';
+  repeatsInput.checked = state.options.allowRepeats;
+  repeatsInput.addEventListener('change', () => {
+    state.options.allowRepeats = repeatsInput.checked;
+    storage.setPreference('picker.allowRepeats', repeatsInput.checked);
+    renderWheel();
+    updateMessage();
+  });
+  repeatsRow.appendChild(repeatsLabel);
+  repeatsRow.appendChild(repeatsInput);
+  host.appendChild(repeatsRow);
+
+  // Reset session button.
+  const resetRow = document.createElement('div');
+  resetRow.className = 'suite-settings-row';
+  resetRow.style.justifyContent = 'flex-start';
+  const resetBtn = document.createElement('button');
+  resetBtn.type = 'button';
+  resetBtn.className = 'desk-button is-ghost';
+  resetBtn.textContent = 'Reset session';
+  resetBtn.title = 'Clears the picked-this-session set (call counts persist). Shortcut: R';
+  resetBtn.addEventListener('click', () => {
+    resetSession();
+  });
+  resetRow.appendChild(resetBtn);
+  host.appendChild(resetRow);
+
+  // Help blurb.
+  const help = document.createElement('p');
+  help.className = 'muted';
+  help.style.fontSize = 'var(--type-11)';
+  help.style.margin = '8px 0 0';
+  help.textContent =
+    'Shortcuts: Space spins the wheel. R resets the session. S opens this dialog.';
+  host.appendChild(help);
 });
 
 // -------------------------------------------------------------

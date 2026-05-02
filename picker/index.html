@@ -60,9 +60,12 @@
 
     <!-- ═════════════════════════════════════════
          WHEEL VIEW
+         Minimal: a back link, the class name as a small title, and the
+         wheel itself filling the remaining viewport. Options + reset live
+         in the suite settings dialog (gear in the top-right corner).
          ═════════════════════════════════════════ -->
-    <section id="wheel-view" class="view" hidden>
-      <header class="view-header view-header--wheel">
+    <section id="wheel-view" class="view view--wheel" hidden>
+      <header class="wheel-header">
         <button type="button" id="btn-back-classes" class="link-button" aria-label="Back to classes">
           <span aria-hidden="true">&larr;</span> Classes
         </button>
@@ -70,42 +73,14 @@
         <span id="wheel-class-source" class="tag" hidden>From Seating Chart</span>
       </header>
 
-      <div class="wheel-layout">
-        <div class="wheel-stage">
-          <div class="wheel-pointer" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><polygon points="12,2 18,12 12,10 6,12" /></svg>
-          </div>
-          <div id="wheel-frame" class="wheel-frame">
-            <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel"></svg>
-          </div>
-          <div class="wheel-controls">
-            <button type="button" id="btn-spin" class="desk-button">Spin</button>
-            <span id="wheel-msg" class="muted"></span>
-          </div>
-          <div id="picked-card" class="picked-card" hidden>
-            <span class="tag is-blue">Picked</span>
-            <div id="picked-name" class="picked-name">&nbsp;</div>
-            <button type="button" id="btn-spin-again" class="desk-button is-ghost">Spin again</button>
-          </div>
+      <div class="wheel-stage">
+        <div class="wheel-pointer" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><polygon points="12,22 18,12 12,14 6,12" /></svg>
         </div>
-
-        <aside class="wheel-sidebar">
-          <h2 class="sidebar-heading">Roster</h2>
-
-          <ul id="roster-list" class="roster-list" aria-live="polite"></ul>
-
-          <h2 class="sidebar-heading">Options</h2>
-          <label class="option-row">
-            <input type="checkbox" id="opt-allow-repeats" checked />
-            <span>Allow repeats</span>
-          </label>
-          <label class="option-row">
-            <input type="checkbox" id="opt-show-counts" checked />
-            <span>Show call counts</span>
-          </label>
-
-          <button type="button" id="btn-reset-session" class="desk-button is-ghost">Reset session</button>
-        </aside>
+        <div id="wheel-frame" class="wheel-frame">
+          <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel" role="button" tabindex="0" aria-label="Spin the wheel"></svg>
+        </div>
+        <p id="wheel-msg" class="wheel-msg muted"></p>
       </div>
     </section>
 
