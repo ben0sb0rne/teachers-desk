@@ -26,6 +26,8 @@ interface Props {
   onAlignHorizontal: () => void;
   onDistributeVertical: () => void;
   onDistributeHorizontal: () => void;
+  onFlipHorizontal: () => void;
+  onFlipVertical: () => void;
   locked: boolean;
   onToggleLocked: () => void;
   showGrid: boolean;
@@ -65,6 +67,8 @@ export default function DeskPalette({
   onAlignHorizontal,
   onDistributeVertical,
   onDistributeHorizontal,
+  onFlipHorizontal,
+  onFlipVertical,
   locked,
   onToggleLocked,
   showGrid,
@@ -77,6 +81,8 @@ export default function DeskPalette({
 
   const canAlign = selectionSize >= 2 && !locked;
   const canDistribute = selectionSize >= 3 && !locked;
+  // Flip works on a single item (mirror its own seat layout) or any group.
+  const canFlip = selectionSize >= 1 && !locked;
   const isDefaultRoom = room.width === DEFAULT_ROOM_W && room.height === DEFAULT_ROOM_H;
 
   if (collapsed) {
@@ -200,6 +206,16 @@ export default function DeskPalette({
           <button className="btn-secondary justify-center" onClick={onDistributeHorizontal} disabled={!canDistribute} title="Spread items evenly between left and right">
             <Icon name="distribute-horizontal" size={14} />
             <span className="text-xs">Dist H</span>
+          </button>
+        </div>
+        <div className="mb-2 grid grid-cols-2 gap-1">
+          <button className="btn-secondary justify-center" onClick={onFlipHorizontal} disabled={!canFlip} title="Mirror selection across the vertical axis">
+            <Icon name="flip-horizontal" size={14} />
+            <span className="text-xs">Flip H</span>
+          </button>
+          <button className="btn-secondary justify-center" onClick={onFlipVertical} disabled={!canFlip} title="Mirror selection across the horizontal axis">
+            <Icon name="flip-vertical" size={14} />
+            <span className="text-xs">Flip V</span>
           </button>
         </div>
         <p className="mb-4 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>

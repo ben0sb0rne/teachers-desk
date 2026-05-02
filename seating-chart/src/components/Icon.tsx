@@ -153,6 +153,29 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
     </>
   ),
+  // Lucide flip-horizontal / flip-vertical: a shape mirrored across the
+  // central axis. The dashed line is the mirror; the side arcs are the
+  // shape silhouettes that mirror onto each other.
+  "flip-horizontal": (
+    <>
+      <path d="M8 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h3" />
+      <path d="M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3" />
+      <path d="M12 20v2" />
+      <path d="M12 14v2" />
+      <path d="M12 8v2" />
+      <path d="M12 2v2" />
+    </>
+  ),
+  "flip-vertical": (
+    <>
+      <path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3" />
+      <path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3" />
+      <path d="M4 12H2" />
+      <path d="M10 12H8" />
+      <path d="M16 12h-2" />
+      <path d="M22 12h-2" />
+    </>
+  ),
   "help-circle": (
     <>
       <circle cx="12" cy="12" r="10" />

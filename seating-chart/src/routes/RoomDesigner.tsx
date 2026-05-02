@@ -327,6 +327,54 @@ export default function RoomDesigner() {
     });
   }
 
+  // Mirror selected items across the selection's vertical center axis. Each
+  // item's position is reflected; for desks, seat offsets within the desk
+  // are mirrored too so a multi-rect table reads correctly after the flip.
+  // Single-item flip works on a single desk's internal seat layout.
+  function handleFlipHorizontal() {
+    if (!klass || selectedItemIds.length < 1) return;
+    const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
+    if (items.length === 0) return;
+    const minX = Math.min(...items.map((it) => it.entity.x));
+    const maxX = Math.max(...items.map((it) => it.entity.x + it.entity.width));
+    const centerX = (minX + maxX) / 2;
+    for (const it of items) {
+      const newX = Math.round(2 * centerX - (it.entity.x + it.entity.width));
+      if (it.kind === "desk") {
+        const desk = it.entity;
+        const seats = desk.seats.map((seat) => ({
+          ...seat,
+          offsetX: desk.width - seat.offsetX,
+        }));
+        updateDesk(klass.id, desk.id, { x: newX, seats });
+      } else {
+        updateFurniture(klass.id, it.entity.id, { x: newX });
+      }
+    }
+  }
+
+  function handleFlipVertical() {
+    if (!klass || selectedItemIds.length < 1) return;
+    const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
+    if (items.length === 0) return;
+    const minY = Math.min(...items.map((it) => it.entity.y));
+    const maxY = Math.max(...items.map((it) => it.entity.y + it.entity.height));
+    const centerY = (minY + maxY) / 2;
+    for (const it of items) {
+      const newY = Math.round(2 * centerY - (it.entity.y + it.entity.height));
+      if (it.kind === "desk") {
+        const desk = it.entity;
+        const seats = desk.seats.map((seat) => ({
+          ...seat,
+          offsetY: desk.height - seat.offsetY,
+        }));
+        updateDesk(klass.id, desk.id, { y: newY, seats });
+      } else {
+        updateFurniture(klass.id, it.entity.id, { y: newY });
+      }
+    }
+  }
+
   function handleRandomize() {
     if (!klass) return;
     setWarning(null);
@@ -396,6 +444,8 @@ export default function RoomDesigner() {
         onAlignHorizontal={handleAlignHorizontal}
         onDistributeVertical={handleDistributeVertical}
         onDistributeHorizontal={handleDistributeHorizontal}
+        onFlipHorizontal={handleFlipHorizontal}
+        onFlipVertical={handleFlipVertical}
         locked={locked}
         onToggleLocked={() => setLocked((l) => !l)}
         showGrid={showGrid}
