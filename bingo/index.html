@@ -104,6 +104,17 @@
         <label class="pv-opt-label">Number of cards</label>
         <input id="pv-count" type="number" min="1" max="200" value="30">
       </div>
+      <div class="pv-opt-group" id="pv-assign-group">
+        <label class="pv-opt-label">Pre-assign by class</label>
+        <div class="settings-row" style="margin-bottom:6px">
+          <input type="checkbox" id="pv-assign-toggle">
+          <label for="pv-assign-toggle" style="font-size:.9rem;cursor:pointer;flex:1">Print one card per student</label>
+        </div>
+        <select id="pv-assign-class" style="width:100%" hidden>
+          <option value="">Select a class…</option>
+        </select>
+        <p id="pv-assign-msg" class="file-info" hidden style="margin-top:6px"></p>
+      </div>
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
         <div id="pv-style-picker">

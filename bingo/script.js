@@ -818,6 +818,9 @@ const state = {
   gameOver: false,
   currentView: 'home',
   settings: loadSettings(),
+  // Pre-assign cards to a class roster (Phase D)
+  assignByClass: false,
+  assignClassId: null,
 };
 
 function shuffle(arr) {
@@ -1353,6 +1356,66 @@ function renderPrintView() {
   // Detect duplicate (column, answer) pairs in loaded data so editor + gates flag them on first render.
   syncProblemsFromEditRows();
   renderPvEditTable();
+  // Refresh class options every time the editor opens so newly created
+  // classes (in Picker / Rosters) show up here.
+  refreshAssignClasses();
+  updateAssignUi();
+}
+
+/* ============================================================
+   PRE-ASSIGN CARDS BY CLASS ROSTER
+   When enabled, generates one card per student in the chosen class and
+   prints the student's name in the card's bottom label slot. Reads from
+   the suite's canonical roster (shared/storage.js).
+   ============================================================ */
+function refreshAssignClasses() {
+  const select = document.getElementById('pv-assign-class');
+  if (!select) return;
+  const previous = select.value;
+  select.innerHTML = '';
+  select.appendChild(new Option('Select a class…', ''));
+  const classes = sharedStorage.listClasses();
+  classes.sort((a, b) => a.name.localeCompare(b.name));
+  for (const c of classes) {
+    const count = sharedStorage.getRoster(c.id).length;
+    select.appendChild(new Option(`${c.name} (${count})`, c.id));
+  }
+  // Preserve selection if still valid
+  if (previous && Array.from(select.options).some((o) => o.value === previous)) {
+    select.value = previous;
+  } else if (previous) {
+    state.assignClassId = null;
+    select.value = '';
+  }
+}
+
+function updateAssignUi() {
+  const toggle = document.getElementById('pv-assign-toggle');
+  const select = document.getElementById('pv-assign-class');
+  const msg    = document.getElementById('pv-assign-msg');
+  const count  = document.getElementById('pv-count');
+  if (!toggle || !select || !msg || !count) return;
+
+  if (toggle.checked) {
+    select.hidden = false;
+    if (state.assignClassId) {
+      const roster = sharedStorage.getRoster(state.assignClassId);
+      count.value = String(roster.length);
+      count.disabled = true;
+      msg.hidden = false;
+      msg.innerHTML = roster.length === 0
+        ? 'Selected class has <strong>no students</strong>. Pick another, or add students in Rosters.'
+        : `<strong>${roster.length}</strong> card${roster.length === 1 ? '' : 's'}, one per student. Each card prints the student name.`;
+    } else {
+      count.disabled = true;
+      msg.hidden = false;
+      msg.textContent = 'Pick a class to set the card count.';
+    }
+  } else {
+    select.hidden = true;
+    msg.hidden = true;
+    count.disabled = false;
+  }
 }
 
 /* ============================================================
@@ -2518,13 +2581,26 @@ function generateBingoCards(n) {
 async function pvDownloadCards() {
   // Re-entry guard — async work should never overlap with itself.
   if (pvDownloadCards._busy) return;
-  const n        = parseInt(document.getElementById('pv-count').value, 10);
+  let   n        = parseInt(document.getElementById('pv-count').value, 10);
   const style    = document.querySelector('.pv-style-card.active')?.dataset.pvStyle || 'full';
   const color    = document.querySelector('[data-pv-color].active')?.dataset.pvColor !== 'bw';
   const showNums = document.getElementById('pv-show-numbers')?.checked ?? true;
   const workType = document.querySelector('[data-pv-work].active')?.dataset.pvWork || 'lined';
   const errEl    = document.getElementById('pv-dl-error');
   errEl.hidden   = true;
+
+  // Per-class assignment: override count to roster size, label each card
+  // with the student's name. Reads from canonical roster.
+  let cardLabels = null;
+  if (state.assignByClass && state.assignClassId) {
+    const roster = sharedStorage.getRoster(state.assignClassId);
+    if (roster.length === 0) {
+      errEl.textContent = 'Selected class has no students. Add students before generating cards.';
+      errEl.hidden = false; return;
+    }
+    n = roster.length;
+    cardLabels = roster.slice();
+  }
 
   if (isNaN(n) || n < 1) {
     errEl.textContent = 'Enter a valid card count (1\u2013200).'; errEl.hidden = false; return;
@@ -2564,7 +2640,7 @@ async function pvDownloadCards() {
     btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Generating PDF…';
   }
   try {
-    await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font });
+    await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font, cardLabels });
   } catch (e) {
     errEl.textContent = `Could not generate PDF: ${e.message || e}`;
     errEl.hidden = false;
@@ -2771,7 +2847,7 @@ const BW_HEADER_RGB = [51, 51, 51];
  * Cells are always square (cellH = cellW). Fonts scale with cell size so
  * full-page and half-page layouts both look balanced.
  */
-function drawBingoCard(doc, { x, y, cardW, card, cardIdx, headerH, showCardNumbers, color, pdfFont = 'helvetica' }) {
+function drawBingoCard(doc, { x, y, cardW, card, cardIdx, headerH, showCardNumbers, color, pdfFont = 'helvetica', cardLabel = null }) {
   const cols  = BINGO_COLS;
   const cellW = cardW / 5;
   const cellH = cellW;
@@ -2823,13 +2899,15 @@ function drawBingoCard(doc, { x, y, cardW, card, cardIdx, headerH, showCardNumbe
   doc.setLineWidth(0.6);
   doc.rect(x, y, cardW, headerH + 5 * cellH);
 
-  // Card number label below table
+  // Card label below table — student name when pre-assigning by class,
+  // otherwise the card sequence number.
   if (showCardNumbers) {
     const labelY = y + headerH + 5 * cellH + Math.max(5, headerH * 0.45);
     doc.setTextColor(150, 150, 150);
-    doc.setFont(pdfFont,'normal');
-    doc.setFontSize(9);
-    doc.text(`Card ${cardIdx + 1}`, x + cardW / 2, labelY, { align: 'center' });
+    doc.setFont(pdfFont, cardLabel ? 'bold' : 'normal');
+    doc.setFontSize(cardLabel ? 10 : 9);
+    const text = cardLabel ? cardLabel : `Card ${cardIdx + 1}`;
+    doc.text(text, x + cardW / 2, labelY, { align: 'center' });
   }
 }
 
@@ -2942,7 +3020,8 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
 }
 
 async function generateCardsPDF(cards, opts) {
-  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default' } = opts;
+  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null } = opts;
+  const labelFor = (i) => (cardLabels && cardLabels[i]) ? cardLabels[i] : null;
   const { jsPDF } = jspdf;
 
   if (style === 'full') {
@@ -2954,7 +3033,7 @@ async function generateCardsPDF(cards, opts) {
     const headerH = 14;
     cards.forEach((card, idx) => {
       if (idx > 0) doc.addPage();
-      drawBingoCard(doc, { x: margin, y: margin, cardW, card, cardIdx: idx, headerH, showCardNumbers, color, pdfFont });
+      drawBingoCard(doc, { x: margin, y: margin, cardW, card, cardIdx: idx, headerH, showCardNumbers, color, pdfFont, cardLabel: labelFor(idx) });
     });
     if (callerSheet) drawCallerSheet(doc, state.problems, color, pdfFont);
     doc.save('bingo-cards.pdf');
@@ -2977,9 +3056,9 @@ async function generateCardsPDF(cards, opts) {
   if (style === 'half') {
     for (let i = 0; i < cards.length; i += 2) {
       if (i > 0) doc.addPage();
-      drawBingoCard(doc, { x: margin, y: yStart, cardW, card: cards[i], cardIdx: i, headerH, showCardNumbers, color, pdfFont });
+      drawBingoCard(doc, { x: margin, y: yStart, cardW, card: cards[i], cardIdx: i, headerH, showCardNumbers, color, pdfFont, cardLabel: labelFor(i) });
       if (i + 1 < cards.length) {
-        drawBingoCard(doc, { x: margin + cardW + gap, y: yStart, cardW, card: cards[i + 1], cardIdx: i + 1, headerH, showCardNumbers, color, pdfFont });
+        drawBingoCard(doc, { x: margin + cardW + gap, y: yStart, cardW, card: cards[i + 1], cardIdx: i + 1, headerH, showCardNumbers, color, pdfFont, cardLabel: labelFor(i + 1) });
       }
     }
   } else { // 'work'
@@ -2987,7 +3066,7 @@ async function generateCardsPDF(cards, opts) {
     const workH = pageH - 2 * margin;  // fill full page height within margins
     cards.forEach((card, idx) => {
       if (idx > 0) doc.addPage();
-      drawBingoCard(doc, { x: margin, y: yStart, cardW, card, cardIdx: idx, headerH, showCardNumbers, color, pdfFont });
+      drawBingoCard(doc, { x: margin, y: yStart, cardW, card, cardIdx: idx, headerH, showCardNumbers, color, pdfFont, cardLabel: labelFor(idx) });
       drawWorkArea(doc, { x: workX, y: margin, w: cardW, h: workH, workType, lineSpacing });
     });
   }
@@ -3273,6 +3352,21 @@ function wireEvents() {
   };
   document.getElementById('pv-download-btn').onclick = () => pvDownloadCards();
   document.getElementById('pv-save-csv-btn').onclick = () => pvSaveSetCsv();
+
+  // Pre-assign by class
+  const assignToggle = document.getElementById('pv-assign-toggle');
+  const assignSelect = document.getElementById('pv-assign-class');
+  if (assignToggle && assignSelect) {
+    assignToggle.addEventListener('change', () => {
+      state.assignByClass = !!assignToggle.checked;
+      if (state.assignByClass) refreshAssignClasses();
+      updateAssignUi();
+    });
+    assignSelect.addEventListener('change', () => {
+      state.assignClassId = assignSelect.value || null;
+      updateAssignUi();
+    });
+  }
 
   // Style card picker
   document.getElementById('pv-style-picker').addEventListener('click', e => {
