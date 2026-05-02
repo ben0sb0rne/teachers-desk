@@ -384,7 +384,6 @@ export function setRoster(classId, names) {
     return;
   }
   state.rosters[classId] = next;
-  save();
 
   // Compute additions and removals so listeners can do targeted updates
   // without re-reading the whole roster.
@@ -392,6 +391,15 @@ export function setRoster(classId, names) {
   const nextSet = new Set(next);
   const added = next.filter((n) => !prevSet.has(n));
   const removed = previous.filter((n) => !nextSet.has(n));
+
+  // Auto-cleanup: drop tool metadata for any names that were removed.
+  if (removed.length > 0) {
+    forEachToolStudentBucket(state, classId, (bucket) => {
+      for (const name of removed) delete bucket[name];
+    });
+  }
+
+  save();
 
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
     window.dispatchEvent(
@@ -451,6 +459,20 @@ export function renameStudent(classId, oldName, newName) {
     state.callCounts[classId][trimmed] =
       (state.callCounts[classId][trimmed] || 0) + carry;
   }
+
+  // Migrate tool metadata under the new name. Tools store per-student data
+  // at tools[toolName].students[classId][name] — rekey each bucket.
+  forEachToolStudentBucket(state, classId, (bucket) => {
+    if (Object.prototype.hasOwnProperty.call(bucket, oldName)) {
+      const existing = bucket[oldName];
+      delete bucket[oldName];
+      // If the new name already had metadata, preserve it (incoming wins for
+      // any overlapping fields via shallow merge); otherwise just move.
+      bucket[trimmed] = bucket[trimmed]
+        ? { ...existing, ...bucket[trimmed] }
+        : existing;
+    }
+  });
 
   save();
 
@@ -587,6 +609,16 @@ export function deleteClass(classId) {
     delete state.callCounts[classId];
     changed = true;
   }
+  // Drop every tool's metadata bucket for this class.
+  if (state.tools) {
+    for (const toolName of Object.keys(state.tools)) {
+      const tool = state.tools[toolName];
+      if (tool && tool.students && tool.students[classId]) {
+        delete tool.students[classId];
+        changed = true;
+      }
+    }
+  }
   if (changed) {
     save();
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
@@ -629,6 +661,77 @@ export function setToolState(toolName, value) {
     state.tools[toolName] = value;
   }
   save();
+}
+
+// -------------------------------------------------------------
+// Tool metadata (per-student, keyed by canonical name)
+//
+// Convention: tools[toolName].students[classId][name] = arbitrary value.
+// The seating chart's needsFrontRow / keepApart / notes are stored here
+// (Phase B+ refactor); a future attendance tool's presentToday flag
+// would live here too.
+//
+// Auto-maintenance:
+//   renameStudent → tool metadata key migrates from oldName to newName
+//   setRoster     → tool metadata for removed names is dropped
+//   deleteClass   → all tool metadata for the classId is dropped
+// Tools therefore don't need to wire up cleanup themselves.
+// -------------------------------------------------------------
+
+function ensureToolStudentBucket(state, toolName, classId) {
+  if (!state.tools[toolName]) state.tools[toolName] = {};
+  if (!state.tools[toolName].students) state.tools[toolName].students = {};
+  if (!state.tools[toolName].students[classId]) state.tools[toolName].students[classId] = {};
+  return state.tools[toolName].students[classId];
+}
+
+/** Read a tool's per-student metadata. Returns undefined if not set. */
+export function getToolMeta(toolName, classId, name) {
+  const state = load();
+  const tool = state.tools[toolName];
+  if (!tool || !tool.students) return undefined;
+  const bucket = tool.students[classId];
+  if (!bucket) return undefined;
+  return bucket[name];
+}
+
+/** Replace a tool's per-student metadata for one name. */
+export function setToolMeta(toolName, classId, name, value) {
+  const state = load();
+  const bucket = ensureToolStudentBucket(state, toolName, classId);
+  bucket[name] = value;
+  save();
+}
+
+/** Shallow-merge a partial update into a tool's per-student metadata. */
+export function patchToolMeta(toolName, classId, name, patch) {
+  const state = load();
+  const bucket = ensureToolStudentBucket(state, toolName, classId);
+  bucket[name] = { ...(bucket[name] || {}), ...patch };
+  save();
+}
+
+/** Drop a tool's metadata for a single student. */
+export function removeToolMeta(toolName, classId, name) {
+  const state = load();
+  const tool = state.tools[toolName];
+  if (!tool || !tool.students || !tool.students[classId]) return;
+  if (name in tool.students[classId]) {
+    delete tool.students[classId][name];
+    save();
+  }
+}
+
+// Walk all tool blobs and apply a transform to each tool's per-student
+// bucket for the given classId. Used internally by the canonical helpers
+// below to keep tool metadata in lock-step with canonical changes.
+function forEachToolStudentBucket(state, classId, transform) {
+  if (!state.tools) return;
+  for (const toolName of Object.keys(state.tools)) {
+    const tool = state.tools[toolName];
+    if (!tool || !tool.students || !tool.students[classId]) continue;
+    transform(tool.students[classId]);
+  }
 }
 
 // -------------------------------------------------------------
@@ -835,6 +938,10 @@ export default {
   incrementCallCount,
   getToolState,
   setToolState,
+  getToolMeta,
+  setToolMeta,
+  patchToolMeta,
+  removeToolMeta,
   // export/import
   exportClassroom,
   importClassroom,

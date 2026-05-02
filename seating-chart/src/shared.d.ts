@@ -50,6 +50,14 @@ declare module "@shared/storage.js" {
   export function getToolState<T = unknown>(toolName: string): T | null;
   export function setToolState(toolName: string, value: unknown | null): void;
 
+  /** Per-student tool metadata, keyed by canonical name. Auto-cleaned by
+   *  setRoster (drops removed names) / renameStudent (rekeys) /
+   *  deleteClass (drops the whole class bucket). */
+  export function getToolMeta<T = unknown>(toolName: string, classId: string, name: string): T | undefined;
+  export function setToolMeta(toolName: string, classId: string, name: string, value: unknown): void;
+  export function patchToolMeta(toolName: string, classId: string, name: string, patch: object): void;
+  export function removeToolMeta(toolName: string, classId: string, name: string): void;
+
   // Export / import
   export interface ClassroomExport {
     format: "teachersdesk-classroom-export";
@@ -65,4 +73,51 @@ declare module "@shared/storage.js" {
   export function exportClassroom(): ClassroomExport;
   export function importClassroom(json: unknown, mode?: "replace" | "merge"): void;
   export function downloadExport(): void;
+}
+
+declare module "@shared/roster-bridge.js" {
+  export interface ClassListEntry {
+    id: string;
+    name: string;
+    source: "canonical" | "seating-chart";
+  }
+  export interface RosterChangeDetail {
+    classId: string;
+    names: string[];
+    added: string[];
+    removed: string[];
+  }
+  export interface RosterRenameDetail {
+    classId: string;
+    oldName: string;
+    newName: string;
+  }
+
+  // Snapshot reads (re-exports from storage)
+  export function getClasses(): ClassListEntry[];
+  export function getRoster(classId: string): string[];
+  export function getClassName(classId: string): string | null;
+  export function getCallCount(classId: string, name: string): number;
+  export function getToolMeta<T = unknown>(toolName: string, classId: string, name: string): T | undefined;
+  export function setClassName(classId: string, name: string): void;
+  export function setRoster(classId: string, names: string[]): void;
+  export function renameStudent(classId: string, oldName: string, newName: string): string;
+  export function deleteClass(classId: string): void;
+  export function setToolMeta(toolName: string, classId: string, name: string, value: unknown): void;
+  export function patchToolMeta(toolName: string, classId: string, name: string, patch: object): void;
+  export function removeToolMeta(toolName: string, classId: string, name: string): void;
+  export function incrementCallCount(classId: string, name: string): number;
+
+  // Subscriptions — each returns an unsubscribe function.
+  export function onClassesChange(cb: () => void): () => void;
+  export function onClassDelete(cb: (detail: { classId: string }) => void): () => void;
+  export function onRosterChange(
+    classId: string | null | undefined,
+    cb: (detail: RosterChangeDetail) => void,
+  ): () => void;
+  export function onRosterRename(
+    classId: string | null | undefined,
+    cb: (oldName: string, newName: string, detail: RosterRenameDetail) => void,
+  ): () => void;
+  export function onAnyChange(cb: () => void): () => void;
 }
