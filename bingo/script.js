@@ -1275,7 +1275,7 @@ function _renderTopicCard(group, gk) {
   const stdGrades = _hpFilter.grade ? [gk] : _activeGrades();
   const stdText = topicAllStandards(group, stdGrades).join(' · ');
   const isFluency = !!(group.fluency && group.fluency[gk]);
-  const tags = (isFluency ? '<span class="hp-tag tag-fluency" title="Fluency standard">★</span>' : '')
+  const tags = (isFluency ? '<span class="hp-tag tag-fluency" title="Fluency standard">★&#xFE0E;</span>' : '')
              + (group.calc ? '<span class="hp-tag tag-calc" title="Calculator recommended">[calc]</span>' : '');
   const playableVariants = group.variants.filter(v => v.path);
   const hasMultipleVariants = playableVariants.length > 1;
@@ -1319,7 +1319,7 @@ function renderRoadmapOverlay() {
     const rows = byGrade[gk].map(group => {
       const std = topicAllStandards(group, [gk]).join(' · ');
       const isFluency = !!(group.fluency && group.fluency[gk]);
-      const tags = (isFluency ? '<span class="hp-tag tag-fluency" title="Fluency standard">★</span>' : '')
+      const tags = (isFluency ? '<span class="hp-tag tag-fluency" title="Fluency standard">★&#xFE0E;</span>' : '')
                  + (group.calc ? '<span class="hp-tag tag-calc" title="Calculator recommended">[calc]</span>' : '');
       const status = topicIsPlayable(group)
         ? '<span class="rm-status rm-ready">Ready</span>'

@@ -112,7 +112,7 @@ a:hover { text-decoration-thickness: 2px; }
     radial-gradient(
       ellipse at center,
       rgb(var(--desk-wood)) 0%,
-      rgb(var(--desk-wood)) 55%,
+      rgb(var(--desk-wood)) 70%,
       rgb(var(--desk-wood-dark) / 0.55) 100%
     ),
     /* faint horizontal grain */
