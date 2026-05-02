@@ -13,7 +13,16 @@
 // =============================================================
 
 import * as storage from '../shared/storage.js';
+import * as bridge from '../shared/roster-bridge.js';
 import { mountSettingsButton } from '../shared/settings.js';
+import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
+import { openOverlay } from '../shared/components/overlay.js';
+import { mountPasteBulk } from '../shared/components/paste-bulk.js';
+
+// Tracks the active class's roster subscription so we can refresh the wheel
+// + sidebar when the roster is edited elsewhere (e.g. on the Rosters page,
+// or in another browser tab) while the user is on the wheel view.
+let activeClassUnsubscribe = null;
 
 mountSettingsButton();
 
@@ -50,71 +59,29 @@ function showView(name) {
 
 // -------------------------------------------------------------
 // CLASS SELECT VIEW
+//
+// Uses shared/components/class-card-grid.js — auto-refreshes on canonical
+// changes (class created/renamed/deleted in another tool, roster edited
+// elsewhere) so the picker's class list never gets stale.
 // -------------------------------------------------------------
-function renderClassSelect() {
+let classGridCtl = null;
+
+function mountClassSelect() {
+  if (classGridCtl) return; // already mounted
   const grid = document.getElementById('class-grid');
   const empty = document.getElementById('class-empty');
-  const classes = storage.listClasses();
-
-  grid.innerHTML = '';
-  if (classes.length === 0) {
-    empty.hidden = false;
-    return;
-  }
+  // The shared component takes ownership of `grid` and shows/hides itself.
+  // We hide our own empty-state element since the component renders one too.
   empty.hidden = true;
-
-  // Stable sort by name
-  classes.sort((a, b) => a.name.localeCompare(b.name));
-
-  for (const c of classes) {
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'class-card';
-    card.dataset.classId = c.id;
-
-    const roster = storage.getRoster(c.id);
-    const count = roster.length;
-
-    const name = document.createElement('div');
-    name.className = 'class-card-name';
-    name.textContent = c.name;
-    card.appendChild(name);
-
-    const meta = document.createElement('div');
-    meta.className = 'class-card-meta';
-    const studentSpan = document.createElement('span');
-    studentSpan.textContent = `${count} student${count === 1 ? '' : 's'}`;
-    meta.appendChild(studentSpan);
-    if (c.source === 'seating-chart') {
-      const tag = document.createElement('span');
-      tag.className = 'tag';
-      tag.textContent = 'From Seating Chart';
-      meta.appendChild(tag);
-    }
-    card.appendChild(meta);
-
-    // Action row — only canonical classes can be deleted from here.
-    if (c.source === 'canonical') {
-      const actions = document.createElement('div');
-      actions.className = 'class-card-actions';
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'is-danger';
-      del.textContent = 'Delete';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (confirm(`Delete class "${c.name}"? Its roster and call counts will be removed.`)) {
-          storage.deleteClass(c.id);
-          renderClassSelect();
-        }
-      });
-      actions.appendChild(del);
-      card.appendChild(actions);
-    }
-
-    card.addEventListener('click', () => openClass(c.id));
-    grid.appendChild(card);
-  }
+  classGridCtl = mountClassCardGrid(grid, {
+    onSelect: (classId) => openClass(classId),
+    onDelete: (classId, name) => {
+      if (confirm(`Delete class "${name}"? Its roster and call counts will be removed.`)) {
+        storage.deleteClass(classId);
+      }
+    },
+    emptyMessage: 'No classes yet. Create one with + New class, or use the Rosters page.',
+  });
 }
 
 function openClass(classId) {
@@ -124,6 +91,17 @@ function openClass(classId) {
   state.pickedThisSession.clear();
   state.justPicked = null;
   state.currentRotation = 0;
+
+  // Subscribe to roster changes for this class. If the user (or another tab,
+  // or the Rosters page) edits the class while we're on the wheel view,
+  // refresh the visible roster + wheel.
+  if (activeClassUnsubscribe) activeClassUnsubscribe();
+  activeClassUnsubscribe = bridge.onRosterChange(classId, ({ names }) => {
+    state.activeRoster = names.slice();
+    renderWheel();
+    renderRoster();
+    updateSpinButton();
+  });
 
   // Read source for the badge
   const cls = storage.listClasses().find((c) => c.id === classId);
@@ -150,81 +128,108 @@ function openClass(classId) {
 
 // -------------------------------------------------------------
 // NEW-CLASS MODAL
+//
+// Built ad-hoc via shared/components/overlay.js + paste-bulk.js — no
+// dedicated HTML markup. Open from button click or any other entry
+// point that needs a "create class quickly" affordance.
 // -------------------------------------------------------------
-const newClassOverlay = document.getElementById('new-class-overlay');
-const newClassNameInput = document.getElementById('new-class-name');
-const newClassStudentsInput = document.getElementById('new-class-students');
-const newClassNameError = document.getElementById('new-class-name-error');
-const newClassStudentsError = document.getElementById('new-class-students-error');
 
 function openNewClassModal() {
-  newClassNameInput.value = '';
-  newClassStudentsInput.value = '';
-  newClassNameError.hidden = true;
-  newClassStudentsError.hidden = true;
-  newClassOverlay.hidden = false;
-  setTimeout(() => newClassNameInput.focus(), 0);
-}
-function closeNewClassModal() {
-  newClassOverlay.hidden = true;
+  const handle = openOverlay({ title: 'New class' });
+  const body = handle.body;
+
+  // — Class name input —
+  const nameSection = document.createElement('div');
+  nameSection.className = 'suite-settings-section';
+  const nameHeading = document.createElement('h3');
+  nameHeading.textContent = 'Class name';
+  nameSection.appendChild(nameHeading);
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'modal-input';
+  nameInput.placeholder = 'e.g. Period 3 Math';
+  nameInput.style.width = '100%';
+  nameSection.appendChild(nameInput);
+  const nameError = document.createElement('p');
+  nameError.className = 'error-msg';
+  nameError.hidden = true;
+  nameSection.appendChild(nameError);
+  body.appendChild(nameSection);
+
+  // — Paste-bulk students —
+  const studentsSection = document.createElement('div');
+  studentsSection.className = 'suite-settings-section';
+  const studentsHeading = document.createElement('h3');
+  studentsHeading.textContent = 'Students';
+  studentsSection.appendChild(studentsHeading);
+  body.appendChild(studentsSection);
+
+  let pendingNames = [];
+  const pasteBulk = mountPasteBulk(studentsSection, {
+    placeholder: 'Alice\nBob\nCharlie',
+    rows: 8,
+    buttonLabel: 'Stage names',
+    hint: 'Paste names — one per line. Click Stage names to confirm; you can also leave it empty and add students later from the Rosters page.',
+    onSubmit: (names) => {
+      pendingNames = names;
+      pasteBulk.reset();
+      stagedNotice.textContent = `Staged ${names.length} student${names.length === 1 ? '' : 's'}.`;
+      stagedNotice.hidden = false;
+    },
+  });
+  const stagedNotice = document.createElement('p');
+  stagedNotice.className = 'muted';
+  stagedNotice.style.fontSize = 'var(--type-11)';
+  stagedNotice.hidden = true;
+  studentsSection.appendChild(stagedNotice);
+
+  // — Action row —
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'desk-button is-ghost';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => handle.close());
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'desk-button';
+  create.textContent = 'Create class';
+  create.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    nameError.hidden = true;
+    if (!name) {
+      nameError.textContent = 'Class name is required.';
+      nameError.hidden = false;
+      nameInput.focus();
+      return;
+    }
+    const existing = storage.listClasses().find(
+      (c) => c.source === 'canonical' && c.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (existing) {
+      nameError.textContent = 'A class with this name already exists.';
+      nameError.hidden = false;
+      nameInput.focus();
+      return;
+    }
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'cls-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+    storage.setClassName(id, name);
+    storage.setRoster(id, pendingNames);
+    handle.close();
+    openClass(id);
+  });
+  actions.appendChild(cancel);
+  actions.appendChild(create);
+  body.appendChild(actions);
+
+  setTimeout(() => nameInput.focus(), 0);
 }
 
 document.getElementById('btn-new-class').addEventListener('click', openNewClassModal);
-document.getElementById('btn-close-new-class').addEventListener('click', closeNewClassModal);
-document.getElementById('btn-cancel-new-class').addEventListener('click', closeNewClassModal);
-newClassOverlay.addEventListener('click', (e) => {
-  if (e.target === newClassOverlay) closeNewClassModal();
-});
-
-document.getElementById('btn-create-class').addEventListener('click', () => {
-  const name = newClassNameInput.value.trim();
-  newClassNameError.hidden = true;
-  newClassStudentsError.hidden = true;
-
-  if (!name) {
-    newClassNameError.textContent = 'Class name is required.';
-    newClassNameError.hidden = false;
-    newClassNameInput.focus();
-    return;
-  }
-
-  const existing = storage.listClasses().find(
-    (c) => c.source === 'canonical' && c.name.toLowerCase() === name.toLowerCase(),
-  );
-  if (existing) {
-    newClassNameError.textContent = 'A class with this name already exists.';
-    newClassNameError.hidden = false;
-    newClassNameInput.focus();
-    return;
-  }
-
-  const names = newClassStudentsInput.value
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  // Dedupe (case-insensitive) and warn if any collisions
-  const seen = new Set();
-  const dedup = [];
-  for (const n of names) {
-    const k = n.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    dedup.push(n);
-  }
-
-  // Generate id and persist
-  const id =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : 'cls-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
-
-  storage.setClassName(id, name);
-  storage.setRoster(id, dedup);
-
-  closeNewClassModal();
-  openClass(id);
-});
 
 // -------------------------------------------------------------
 // WHEEL VIEW
@@ -232,7 +237,11 @@ document.getElementById('btn-create-class').addEventListener('click', () => {
 
 document.getElementById('btn-back-classes').addEventListener('click', () => {
   showView('classSelect');
-  renderClassSelect();
+  // class-card-grid auto-refreshes; no manual call needed.
+  if (activeClassUnsubscribe) {
+    activeClassUnsubscribe();
+    activeClassUnsubscribe = null;
+  }
 });
 
 const wheelSvg = document.getElementById('wheel-svg');
@@ -472,14 +481,13 @@ spinAgainBtn.addEventListener('click', () => {
 });
 
 // Spacebar to spin (only on the wheel view; ignore when typing or when
-// the settings dialog is open above us).
+// any overlay — settings, new-class, etc. — is open above us).
 document.addEventListener('keydown', (e) => {
   if (e.key !== ' ') return;
   if (VIEW.wheel.hidden) return;
   const t = e.target;
   if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-  if (document.querySelector('.suite-overlay')) return; // settings dialog open
-  if (!newClassOverlay.hidden) return;
+  if (document.querySelector('.suite-overlay')) return;
   e.preventDefault();
   spin();
 });
@@ -509,5 +517,5 @@ document.getElementById('btn-reset-session').addEventListener('click', () => {
 // -------------------------------------------------------------
 // Boot
 // -------------------------------------------------------------
-renderClassSelect();
+mountClassSelect();
 showView('classSelect');

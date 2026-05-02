@@ -9,7 +9,9 @@
 // =============================================================
 
 import * as storage from '../shared/storage.js';
+import * as bridge from '../shared/roster-bridge.js';
 import { mountSettingsButton } from '../shared/settings.js';
+import { mountPasteBulk } from '../shared/components/paste-bulk.js';
 
 mountSettingsButton();
 
@@ -93,7 +95,8 @@ const editClassName = document.getElementById('edit-class-name');
 const editSourceMsg = document.getElementById('edit-source-msg');
 const editRosterList = document.getElementById('edit-roster-list');
 const editRosterCount = document.getElementById('edit-roster-count');
-const editPasteArea = document.getElementById('edit-paste-area');
+const editPasteHost = document.getElementById('edit-paste-host');
+let editPasteCtl = null;
 const linkPicker = document.getElementById('link-picker');
 const linkSeating = document.getElementById('link-seating');
 const btnDeleteClass = document.getElementById('btn-delete-class');
@@ -158,8 +161,7 @@ function renderRoster() {
       li.appendChild(span);
       editRosterList.appendChild(li);
     }
-    editPasteArea.disabled = true;
-    document.getElementById('btn-paste-add').disabled = true;
+    if (editPasteCtl) editPasteCtl.setDisabled(true);
     return;
   }
 
@@ -191,8 +193,7 @@ function renderRoster() {
     editRosterList.appendChild(li);
   }
 
-  editPasteArea.disabled = false;
-  document.getElementById('btn-paste-add').disabled = false;
+  if (editPasteCtl) editPasteCtl.setDisabled(false);
 }
 
 function commitRename(idx, newValue) {
@@ -230,31 +231,23 @@ function removeAt(idx) {
   renderRoster();
 }
 
-document.getElementById('btn-paste-add').addEventListener('click', () => {
-  if (state.editingSource !== 'canonical') return;
-  const incoming = editPasteArea.value
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (incoming.length === 0) return;
-
-  const existing = storage.getRoster(state.editingId);
-  const existingLower = new Set(existing.map((n) => n.toLowerCase()));
-  const toAdd = [];
-  for (const n of incoming) {
-    const k = n.toLowerCase();
-    if (!existingLower.has(k)) {
-      toAdd.push(n);
-      existingLower.add(k);
-    }
-  }
-  if (toAdd.length === 0) {
-    editPasteArea.value = '';
-    return;
-  }
-  storage.setRoster(state.editingId, [...existing, ...toAdd]);
-  editPasteArea.value = '';
-  renderRoster();
+// Mount the shared paste-bulk component for the add-students area. The
+// component handles dedupe within the input + the textarea/button DOM;
+// our onSubmit handler still dedupes against the existing class roster.
+editPasteCtl = mountPasteBulk(editPasteHost, {
+  placeholder: 'Alice\nBob',
+  rows: 4,
+  buttonLabel: 'Add to class',
+  hint: 'Paste names — one per line. Duplicates within the class are skipped.',
+  onSubmit: (incoming) => {
+    if (state.editingSource !== 'canonical') return;
+    const existing = storage.getRoster(state.editingId);
+    const existingLower = new Set(existing.map((n) => n.toLowerCase()));
+    const toAdd = incoming.filter((n) => !existingLower.has(n.toLowerCase()));
+    if (toAdd.length === 0) return;
+    storage.setRoster(state.editingId, [...existing, ...toAdd]);
+    renderRoster();
+  },
 });
 
 editClassName.addEventListener('change', () => {

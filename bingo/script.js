@@ -1,6 +1,7 @@
 'use strict';
 
 import * as sharedStorage from '../shared/storage.js';
+import * as rosterBridge from '../shared/roster-bridge.js';
 
 /* ============================================================
    DEFAULT PROBLEMS (80 integer addition/subtraction problems)
@@ -1366,7 +1367,9 @@ function renderPrintView() {
    PRE-ASSIGN CARDS BY CLASS ROSTER
    When enabled, generates one card per student in the chosen class and
    prints the student's name in the card's bottom label slot. Reads from
-   the suite's canonical roster (shared/storage.js).
+   the suite's canonical roster (shared/storage.js). Live-updates the
+   dropdown when classes are added/renamed/deleted in another tool —
+   wired via shared/roster-bridge.js below.
    ============================================================ */
 function refreshAssignClasses() {
   const select = document.getElementById('pv-assign-class');
@@ -3364,6 +3367,22 @@ function wireEvents() {
     });
     assignSelect.addEventListener('change', () => {
       state.assignClassId = assignSelect.value || null;
+      updateAssignUi();
+    });
+    // Auto-refresh the dropdown when the canonical class list changes
+    // anywhere — Picker / Rosters / Seating Chart create/rename/delete.
+    rosterBridge.onClassesChange(() => {
+      if (!state.assignByClass) return;
+      refreshAssignClasses();
+      updateAssignUi();
+    });
+    // Also refresh when the active class's roster size changes (the option
+    // labels include "(N)" student counts).
+    rosterBridge.onRosterChange(null, ({ classId }) => {
+      if (!state.assignByClass) return;
+      // Only refresh if the change concerns a class that's in the dropdown
+      // (i.e. any canonical/seating-chart class — listClasses includes both).
+      if (classId) refreshAssignClasses();
       updateAssignUi();
     });
   }
