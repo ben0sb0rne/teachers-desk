@@ -199,15 +199,19 @@ body { display: flex; flex-direction: column; }
   border-radius: 50%;
 }
 
-/* Downward-pointing arrow above the wheel — sits on the wheel edge so
-   it visibly indicates "this is the slice that wins". */
+/* Downward-pointing arrow above the wheel — sits inside .wheel-frame so
+   it tracks the wheel's size. The polygon tip is at viewBox y=22/24, so
+   with `top: -6%` the tip lands just above the visible wheel rim
+   (rim top is at frame y ~2%, since the wheel circle is 96% of viewBox). */
 .wheel-pointer {
   position: absolute;
-  top: -2%;
+  top: -6%;
   left: 50%;
   transform: translate(-50%, 0);
-  width: clamp(28px, 4.6vmin, 56px);
-  height: clamp(28px, 4.6vmin, 56px);
+  width: 8%;
+  max-width: 56px;
+  min-width: 28px;
+  aspect-ratio: 1 / 1;
   z-index: 5;
   color: rgb(var(--accent-blue));
   pointer-events: none;
