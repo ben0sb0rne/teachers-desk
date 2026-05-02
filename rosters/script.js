@@ -195,27 +195,17 @@ function commitRename(idx, newValue) {
   }
   if (trimmed === names[idx]) return; // no change
 
-  // Disallow duplicates within the class (case-insensitive).
-  const k = trimmed.toLowerCase();
-  for (let j = 0; j < names.length; j++) {
-    if (j !== idx && names[j].toLowerCase() === k) {
-      alert(`"${trimmed}" is already in this class.`);
-      renderRoster();
-      return;
+  try {
+    // renameStudent handles dedupe checking, call-count migration, and
+    // dispatches a `rosterrename` window event so other tools (the seating
+    // chart) can update their per-student metadata.
+    storage.renameStudent(state.editingId, names[idx], trimmed);
+  } catch (e) {
+    if (e && e.name === 'RosterDuplicateError') {
+      alert(e.message);
+    } else {
+      alert(`Rename failed: ${e && e.message ? e.message : e}`);
     }
-  }
-
-  // Migrate the call count under the new name (we key call counts by name)
-  const oldName = names[idx];
-  const oldCount = storage.getCallCount(state.editingId, oldName);
-  names[idx] = trimmed;
-  storage.setRoster(state.editingId, names);
-  if (oldCount > 0) {
-    // No direct setter; replay increments under the new name and clear the old
-    // by overwriting via an explicit clear-and-rewrite via setToolState path.
-    // Simpler: call increment N times under the new name. Keep the old key
-    // in the bucket (orphaned) — UI no longer references it.
-    for (let r = 0; r < oldCount; r++) storage.incrementCallCount(state.editingId, trimmed);
   }
   renderRoster();
 }

@@ -6,6 +6,7 @@
 declare module "@shared/storage.js" {
   export class StorageQuotaError extends Error {}
   export class ImportFormatError extends Error {}
+  export class RosterDuplicateError extends Error {}
 
   // Low-level (dot-path)
   export function get(path: string): unknown;
@@ -26,6 +27,10 @@ declare module "@shared/storage.js" {
 
   export function getRoster(classId: string): string[];
   export function setRoster(classId: string, names: string[]): void;
+  /** Rename a roster member; dispatches a `rosterrename` window event with
+   *  `detail: { classId, oldName, newName }`. Throws RosterDuplicateError
+   *  if newName collides with another name in the same class. */
+  export function renameStudent(classId: string, oldName: string, newName: string): string;
   export function listPeriods(): string[];
 
   // Class metadata

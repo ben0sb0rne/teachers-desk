@@ -378,6 +378,69 @@ export function setRoster(classId, names) {
   save();
 }
 
+/**
+ * Rename a member of a class's roster. Migrates the call count from oldName
+ * to newName. Dispatches a `rosterrename` window event so other tools (the
+ * seating chart) can update any per-student metadata they own.
+ *
+ * Throws RosterDuplicateError if newName already exists in the class
+ * (case-insensitive). Returns the trimmed new name on success.
+ */
+export class RosterDuplicateError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'RosterDuplicateError';
+  }
+}
+
+export function renameStudent(classId, oldName, newName) {
+  if (typeof oldName !== 'string' || typeof newName !== 'string') {
+    throw new TypeError('renameStudent: names must be strings');
+  }
+  const trimmed = newName.trim();
+  if (!trimmed) throw new Error('renameStudent: new name cannot be empty');
+  if (oldName === trimmed) return trimmed;
+
+  const state = load();
+  const names = state.rosters[classId];
+  if (!Array.isArray(names)) return trimmed;
+  const idx = names.indexOf(oldName);
+  if (idx === -1) return trimmed;
+
+  // Disallow duplicates within the class (case-insensitive).
+  const lower = trimmed.toLowerCase();
+  for (let i = 0; i < names.length; i++) {
+    if (i !== idx && names[i].toLowerCase() === lower) {
+      throw new RosterDuplicateError(`"${trimmed}" is already in this class.`);
+    }
+  }
+
+  names[idx] = trimmed;
+
+  // Migrate call counts under the new name.
+  if (
+    state.callCounts[classId] &&
+    Object.prototype.hasOwnProperty.call(state.callCounts[classId], oldName)
+  ) {
+    const carry = state.callCounts[classId][oldName] || 0;
+    delete state.callCounts[classId][oldName];
+    state.callCounts[classId][trimmed] =
+      (state.callCounts[classId][trimmed] || 0) + carry;
+  }
+
+  save();
+
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(
+      new CustomEvent('rosterrename', {
+        detail: { classId, oldName, newName: trimmed },
+      }),
+    );
+  }
+
+  return trimmed;
+}
+
 export function listPeriods() {
   const state = load();
   // Union of explicit roster classIds, canonical class metadata, and seating-chart
@@ -723,6 +786,7 @@ export default {
   applyTheme,
   getRoster,
   setRoster,
+  renameStudent,
   listPeriods,
   getClassName,
   setClassName,
@@ -739,4 +803,5 @@ export default {
   // errors
   StorageQuotaError,
   ImportFormatError,
+  RosterDuplicateError,
 };

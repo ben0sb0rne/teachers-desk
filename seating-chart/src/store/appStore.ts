@@ -530,6 +530,32 @@ useAppStore.subscribe((state, prev) => {
   mirrorPrevClassIds = nextIds;
 });
 
+// Phase C: when a student is renamed via the suite Rosters page, the shared
+// storage dispatches a 'rosterrename' window event so we can update the
+// matching Student object's name (preserving its id, needsFrontRow,
+// keepApart references, notes). Idempotent: if the seating chart originated
+// the rename, the `oldName` is already gone and the .map() is a no-op.
+if (typeof window !== "undefined") {
+  window.addEventListener("rosterrename", (e: Event) => {
+    const detail = (e as CustomEvent).detail as
+      | { classId: string; oldName: string; newName: string }
+      | undefined;
+    if (!detail) return;
+    const { classId, oldName, newName } = detail;
+    useAppStore.setState((state) => ({
+      classes: state.classes.map((c) => {
+        if (c.id !== classId) return c;
+        return {
+          ...c,
+          students: c.students.map((s) =>
+            s.name === oldName ? { ...s, name: newName } : s,
+          ),
+        };
+      }),
+    }));
+  });
+}
+
 export const selectClass = (id: ClassId | null) => (s: AppStore): ClassRoom | undefined =>
   id ? findClass(s, id) : undefined;
 
