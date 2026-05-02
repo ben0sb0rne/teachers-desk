@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Rosters · The Teacher's Desk</title>
+  <meta name="description" content="Manage class rosters that carry across every tool in The Teacher's Desk." />
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <div class="suite-topstrip-left">
+      <a class="suite-wordmark" href="../">
+        <span aria-hidden="true">&larr;</span> The Teacher's Desk
+      </a>
+      <span class="suite-tool-name">Rosters</span>
+    </div>
+  </div>
+
+  <main class="rosters-main">
+
+    <!-- ═════════════════════════════════════════
+         LIST VIEW
+         ═════════════════════════════════════════ -->
+    <section id="list-view" class="view">
+      <header class="view-header">
+        <h1>Class rosters</h1>
+        <p class="muted">Classes you create here are visible to every tool in the suite. Existing seating-chart classes show up too &mdash; edit them inside the Seating Chart for now.</p>
+      </header>
+
+      <div class="rosters-actions">
+        <button type="button" id="btn-new-class" class="desk-button">+ New class</button>
+      </div>
+
+      <div id="class-list" class="class-list" aria-live="polite"></div>
+
+      <div id="class-empty" class="print-paper" hidden>
+        <p>No classes yet.</p>
+        <p class="muted">Click <em>New class</em> above, or open the Seating Chart to create your first class there.</p>
+      </div>
+    </section>
+
+    <!-- ═════════════════════════════════════════
+         EDIT VIEW
+         ═════════════════════════════════════════ -->
+    <section id="edit-view" class="view" hidden>
+      <header class="view-header view-header--edit">
+        <button type="button" id="btn-back-list" class="link-button" aria-label="Back to all classes">
+          <span aria-hidden="true">&larr;</span> Classes
+        </button>
+        <div class="edit-title-block">
+          <input type="text" id="edit-class-name" class="edit-class-name" />
+          <p id="edit-source-msg" class="muted" hidden></p>
+        </div>
+      </header>
+
+      <div class="edit-layout">
+        <div class="edit-roster-pane">
+          <h2 class="sidebar-heading">Students <span id="edit-roster-count" class="roster-count"></span></h2>
+          <ul id="edit-roster-list" class="edit-roster-list"></ul>
+
+          <h2 class="sidebar-heading">Add students</h2>
+          <p class="muted">Paste names &mdash; one per line. Duplicates within the class are skipped.</p>
+          <textarea id="edit-paste-area" class="modal-textarea" rows="4"
+                    placeholder="Alice&#10;Bob"></textarea>
+          <div class="edit-paste-actions">
+            <button type="button" id="btn-paste-add" class="desk-button is-ghost">Add to class</button>
+          </div>
+        </div>
+
+        <aside class="edit-meta-pane">
+          <h2 class="sidebar-heading">Tools</h2>
+          <p class="muted">Open this class in another tool.</p>
+          <div class="tool-link-row">
+            <a id="link-picker" class="desk-button is-ghost" href="#">Spin in Picker &rarr;</a>
+            <a id="link-seating" class="desk-button is-ghost" href="#">Seating Chart &rarr;</a>
+          </div>
+
+          <h2 class="sidebar-heading">Danger</h2>
+          <button type="button" id="btn-delete-class" class="desk-button is-ghost">Delete class</button>
+          <p id="delete-warning" class="muted" hidden>Removes this class's roster and call counts. Seating-chart-owned classes can only be deleted from the Seating Chart.</p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <!-- New class modal -->
+  <div id="new-class-overlay" class="suite-overlay" hidden>
+    <div class="suite-panel">
+      <div class="suite-panel-header">
+        <h2>New class</h2>
+        <button class="suite-panel-close" id="btn-close-new-class" aria-label="Close">&times;</button>
+      </div>
+      <div class="suite-panel-body">
+        <div class="suite-settings-section">
+          <h3>Class name</h3>
+          <input type="text" id="new-class-name" class="modal-input" placeholder="e.g. Period 3 Math" />
+          <p id="new-class-name-error" class="error-msg" hidden></p>
+        </div>
+        <div class="suite-settings-section">
+          <h3>Students</h3>
+          <p class="muted">Paste names &mdash; one per line. Optional; you can add students later.</p>
+          <textarea id="new-class-students" class="modal-textarea" rows="8"
+                    placeholder="Alice&#10;Bob&#10;Charlie"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-new-class" class="desk-button is-ghost">Cancel</button>
+          <button type="button" id="btn-create-class" class="desk-button">Create class</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

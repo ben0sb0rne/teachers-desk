@@ -20,6 +20,7 @@ Two working tools (Math Bingo, Seating Chart Designer) plus shared infrastructur
 │   └── components/           ← README only today; future home for JS components
 ├── bingo/                    ← Math Bingo (vanilla)
 ├── picker/                   ← Name Picker (vanilla)
+├── rosters/                  ← Suite-wide class roster manager (vanilla)
 ├── seating-chart/            ← Seating Chart Designer (React + Vite + Tailwind)
 ├── assets/
 │   ├── renders/              ← future Blender output, empty for now

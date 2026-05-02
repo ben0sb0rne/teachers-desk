@@ -87,6 +87,8 @@ export default function AppShell() {
           )}
         </div>
         <div className="suite-topstrip-right">
+          {/* Cross-tool nav: suite-level Rosters page (vanilla, leaves React app). */}
+          <a className="suite-topstrip-link" href="../rosters/">Rosters</a>
           <button
             type="button"
             className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"

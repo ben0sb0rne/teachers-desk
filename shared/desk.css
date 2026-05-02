@@ -241,6 +241,30 @@ a:hover { text-decoration-thickness: 2px; }
   text-overflow: ellipsis;
 }
 
+/* Cross-tool nav link in the topstrip right slot (e.g. "Rosters"). */
+.suite-topstrip-link {
+  font-family: var(--font-slab);
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: var(--radius-tight);
+  transition: color 80ms ease, background 80ms ease;
+}
+.suite-topstrip-link:hover {
+  color: rgb(var(--paper-edge));
+  background: rgb(var(--paper-edge) / 0.05);
+  text-decoration: none;
+}
+.suite-topstrip-link.is-current {
+  color: rgb(var(--paper-edge));
+  background: rgb(var(--paper-edge) / 0.07);
+}
+
 @media (max-width: 480px) {
   .suite-topstrip { padding: var(--space-2) var(--space-3); }
   .suite-tool-name { display: none; }
