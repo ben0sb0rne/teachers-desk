@@ -49,22 +49,30 @@ export default function AppShell() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 shadow-topbar">
-        <div className="flex min-w-0 items-center gap-3">
+      {/* Single header. The .suite-topstrip class (defined in shared/desk.css) gives
+          us the cream surface, ink border, and slab-serif font. The seating chart's
+          own tool nav (class name, tabs, help, menu) lives inside the same strip. */}
+      <header className="suite-topstrip">
+        <div className="suite-topstrip-left">
+          {/* Out-of-app link: leaves the React app, navigates to the suite root. */}
+          <a className="suite-wordmark" href="../" title="Back to The Teacher's Desk">
+            <span aria-hidden="true">&larr;</span> The Teacher's Desk
+          </a>
+          {/* In-app link: returns to the classes index. */}
           <Link
             to="/"
-            className="rounded px-1 text-sm font-semibold tracking-tight text-ink hover:text-accent-blue"
+            className="suite-tool-name hover:text-accent-blue"
             title="Back to all classes"
           >
-            Seating Chart Designer
+            Seating Chart
           </Link>
           {isClassRoute && klass && (
             <>
-              <span className="h-5 w-px bg-slate-300" aria-hidden />
+              <span className="h-5 w-px bg-ink/20" aria-hidden />
               <h1 className="truncate text-base font-semibold text-ink" title={klass.name}>
                 {klass.name}
               </h1>
-              <nav className="ml-2 flex items-center gap-0.5 rounded-md bg-slate-100 p-0.5">
+              <nav className="ml-2 flex items-center gap-0.5 rounded-md bg-ink/5 p-0.5">
                 <TabLink to={`/classes/${klass.id}/roster`}>Roster</TabLink>
                 <TabLink to={`/classes/${klass.id}/room`}>Room</TabLink>
                 <TabLink to={`/classes/${klass.id}/history`}>History</TabLink>
@@ -72,7 +80,7 @@ export default function AppShell() {
             </>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="suite-topstrip-right">
           <button
             className="btn-secondary"
             onClick={() => setHelpOpen(true)}
@@ -154,7 +162,7 @@ function TopbarMenu() {
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
           <button
-            className="rounded-md border border-slate-300 bg-white p-2 text-ink hover:bg-slate-50"
+            className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
             title="Menu"
           >
             <Icon name="more-horizontal" size={16} />
@@ -164,17 +172,17 @@ function TopbarMenu() {
           <DropdownMenu.Content
             align="end"
             sideOffset={6}
-            className="z-50 w-44 rounded-md border border-slate-200 bg-white p-1 text-sm shadow-lg"
+            className="z-50 w-44 rounded-md border border-ink/15 bg-paper p-1 text-sm shadow-lg"
           >
             <DropdownMenu.Item
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-slate-100"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-ink/5"
               onSelect={() => fileRef.current?.click()}
             >
               <Icon name="upload" size={14} />
               <span>Import…</span>
             </DropdownMenu.Item>
             <DropdownMenu.Item
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-slate-100"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-ink/5"
               onSelect={exportNow}
             >
               <Icon name="download" size={14} />
@@ -194,7 +202,8 @@ function TabLink({ to, children }: { to: string; children: React.ReactNode }) {
       className={({ isActive }) =>
         cn(
           "rounded px-2.5 py-1 text-xs font-medium transition",
-          isActive ? "bg-white text-ink shadow-sm" : "text-ink-muted hover:text-ink",
+          // Active tab pops up out of the bg-ink/5 nav onto the topstrip's cream surface.
+          isActive ? "bg-paper text-ink shadow-sm" : "text-ink-muted hover:text-ink",
         )
       }
     >

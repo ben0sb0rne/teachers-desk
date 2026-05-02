@@ -78,8 +78,11 @@ body {
   flex-direction: column;
 }
 
-/* ── App shell ── */
-#app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+/* ── App shell ──
+   Each top-level view (homepage, print, app) fills the space remaining
+   after the suite topstrip via flex layout; never use 100vh here or the
+   topstrip would push the bottom of the view out of view. */
+#app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* ── Top bar ── */
 #topbar {
@@ -787,10 +790,11 @@ kbd {
 
 /* ── Homepage ── */
 #homepage-view {
-  height: 100vh;
-  height: 100dvh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  background: var(--bg);
+  /* Transparent so the body's wood-bg shows around the cream tiles below. */
+  background: transparent;
 }
 .hp-inner {
   max-width: min(1600px, 96vw);
@@ -1217,8 +1221,8 @@ kbd {
 
 /* ── Print view shell ── */
 #print-view {
-  display: flex; flex-direction: column; height: 100vh; height: 100dvh;
-  background: var(--bg); overflow: hidden;
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+  background: transparent; overflow: hidden;
 }
 #pv-topbar {
   display: flex; align-items: center; gap: 12px;

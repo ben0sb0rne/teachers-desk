@@ -103,6 +103,12 @@ a:hover { text-decoration-thickness: 2px; }
 /* =============================================================
    .wood-bg — the desk surface
    Subtle vignette + a faint horizontal grain to suggest oak.
+
+   Note: this class only sets background. Default text color stays
+   whatever the consumer chooses — that lets us extend wood-bg under
+   tool pages (where panels have ink-on-cream text) without forcing
+   cream text on every descendant. Pages that want cream text on
+   wood (the homepage hero) set color explicitly on their own elements.
    ============================================================= */
 
 .wood-bg {
@@ -125,7 +131,85 @@ a:hover { text-decoration-thickness: 2px; }
       rgb(var(--desk-wood-dark) / 0.0)   8px
     );
   background-blend-mode: multiply, normal;
-  color: rgb(var(--paper-cream));
+}
+
+/* =============================================================
+   .suite-topstrip — back-to-suite chrome at the top of every tool
+   A thin cream strip with the suite wordmark on the left and an
+   optional secondary slot on the right. Sits on the wood-bg.
+
+   Use:
+     <div class="suite-topstrip">
+       <a class="suite-wordmark" href="..">
+         <span aria-hidden="true">&larr;</span> The Teacher's Desk
+       </a>
+       <!-- optional right-side content -->
+     </div>
+   ============================================================= */
+
+.suite-topstrip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: rgb(var(--paper-cream));
+  border-bottom: 1px solid rgb(var(--paper-edge) / 0.18);
+  box-shadow: 0 1px 0 rgb(26 22 20 / 0.06);
+  font-family: var(--font-slab);
+}
+
+.suite-topstrip-left,
+.suite-topstrip-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.suite-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-13);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--paper-edge));
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 2px 4px;
+  border-radius: var(--radius-tight);
+  transition: color 80ms ease, background 80ms ease;
+}
+
+.suite-wordmark:hover {
+  color: rgb(var(--accent-blue));
+  background: rgb(var(--paper-edge) / 0.04);
+  text-decoration: none;
+}
+
+.suite-wordmark:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+}
+
+/* Subtle separator + tool-name label, displayed inline after the wordmark */
+.suite-tool-name {
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  color: var(--ink-muted);
+  border-left: 1px solid rgb(var(--paper-edge) / 0.18);
+  padding-left: var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 480px) {
+  .suite-topstrip { padding: var(--space-2) var(--space-3); }
+  .suite-tool-name { display: none; }
 }
 
 /* =============================================================

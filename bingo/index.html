@@ -1,6 +1,8 @@
 ﻿<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
+  <!-- "BINGO" tool name shown in the suite topstrip; matches the homepage placard. -->
+  <meta name="application-name" content="Math Bingo">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Math Bingo Caller</title>
@@ -17,7 +19,17 @@
 <link rel="stylesheet" href="style.css">
 <script type="module" src="script.js"></script>
 </head>
-<body>
+<body class="wood-bg">
+
+<!-- Suite-wide back-link sits on the wood, above the tool's own UI. -->
+<div class="suite-topstrip">
+  <div class="suite-topstrip-left">
+    <a class="suite-wordmark" href="../">
+      <span aria-hidden="true">&larr;</span> The Teacher's Desk
+    </a>
+    <span class="suite-tool-name">Math Bingo</span>
+  </div>
+</div>
 
 <!-- Hidden SVG icon symbol defs (Feather Icons, MIT licence) -->
 <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
