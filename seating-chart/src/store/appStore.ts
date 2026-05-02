@@ -683,26 +683,33 @@ if (typeof window !== "undefined") {
 }
 
 // Mirror local-store changes (user actions in seating chart) back to canonical.
+// The whole block runs with suppressMirror true so any events dispatched by
+// shared/storage helpers don't bounce back into our own listeners.
 let mirrorPrevClassIds = new Set(useAppStore.getState().classes.map((c) => c.id));
 useAppStore.subscribe((state, prev) => {
   if (suppressMirror) return;
   if (state.classes === prev.classes) return;
 
-  const nextIds = new Set(state.classes.map((c) => c.id));
+  suppressMirror = true;
+  try {
+    const nextIds = new Set(state.classes.map((c) => c.id));
 
-  // Class deletions: remove canonical entries.
-  for (const id of mirrorPrevClassIds) {
-    if (!nextIds.has(id)) sharedStorage.deleteClass(id);
+    // Class deletions: remove canonical entries.
+    for (const id of mirrorPrevClassIds) {
+      if (!nextIds.has(id)) sharedStorage.deleteClass(id);
+    }
+
+    // Mirror name + roster. setClassName / setRoster are idempotent and
+    // skip writes (and event dispatches) when nothing actually changed.
+    for (const c of state.classes) {
+      sharedStorage.setClassName(c.id, c.name);
+      sharedStorage.setRoster(c.id, c.students.map((s) => s.name));
+    }
+
+    mirrorPrevClassIds = nextIds;
+  } finally {
+    suppressMirror = false;
   }
-
-  // Mirror name + roster. setClassName / setRoster are idempotent and
-  // skip writes (and event dispatches) when nothing actually changed.
-  for (const c of state.classes) {
-    sharedStorage.setClassName(c.id, c.name);
-    sharedStorage.setRoster(c.id, c.students.map((s) => s.name));
-  }
-
-  mirrorPrevClassIds = nextIds;
 });
 
 export const selectClass = (id: ClassId | null) => (s: AppStore): ClassRoom | undefined =>
