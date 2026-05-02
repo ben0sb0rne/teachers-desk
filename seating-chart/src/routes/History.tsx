@@ -18,12 +18,13 @@ export default function History() {
   const restoreArrangement = useAppStore((s) => s.restoreArrangement);
   const [viewing, setViewing] = useState<Arrangement | null>(null);
 
-  if (!klass) return <div className="p-6 text-ink-muted">Class not found.</div>;
+  if (!klass) return <div className="p-6 text-paper/70">Class not found.</div>;
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <h1 className="mb-1 text-xl font-bold">History · {klass.name}</h1>
-      <p className="mb-6 text-sm text-ink-muted">
+      {/* Heading sits on wood-bg — use cream text. */}
+      <h1 className="mb-1 text-xl font-bold text-paper">History · {klass.name}</h1>
+      <p className="mb-6 text-sm text-paper/70">
         Previous seating arrangements. View opens a read-only preview; Restore reloads the layout
         on the room canvas.
       </p>

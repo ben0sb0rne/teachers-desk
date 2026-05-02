@@ -36,7 +36,19 @@ export default function SeatPicker({ x, y, students, assignments, seatId, onPick
   const occupiedBy = new Set(Object.values(assignments));
   const currentStudent = assignments[seatId];
 
-  const filtered = students.filter((s) => s.name.toLowerCase().includes(filter.toLowerCase()));
+  // Sort with unseated students first, then students seated elsewhere — so
+  // the most useful candidates float to the top of the list. The student
+  // already in this seat (if any) appears in its natural position and is
+  // tagged "current"; clearing it goes via the explicit button above.
+  const filtered = students
+    .filter((s) => s.name.toLowerCase().includes(filter.toLowerCase()))
+    .slice()
+    .sort((a, b) => {
+      const aSeated = occupiedBy.has(a.id) && a.id !== currentStudent ? 1 : 0;
+      const bSeated = occupiedBy.has(b.id) && b.id !== currentStudent ? 1 : 0;
+      if (aSeated !== bSeated) return aSeated - bSeated; // unseated (0) before seated (1)
+      return a.name.localeCompare(b.name);
+    });
 
   return createPortal(
     <div

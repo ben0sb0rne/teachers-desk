@@ -62,8 +62,11 @@ export default function ClassesIndex() {
 
   return (
     <div className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-1 text-2xl font-bold tracking-tight">Your classes</h1>
-      <p className="mb-6 text-sm text-ink-muted">
+      {/* Heading + subtitle sit on the wood-bg directly (no card behind them),
+          so use cream text. The tools below — input, list, etc. — are inside
+          .card surfaces and use their own ink-on-cream colors. */}
+      <h1 className="mb-1 text-2xl font-bold tracking-tight text-paper">Your classes</h1>
+      <p className="mb-6 text-sm text-paper/70">
         Each class has its own roster, room layout, and seating history.
       </p>
 

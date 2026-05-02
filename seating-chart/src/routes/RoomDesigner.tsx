@@ -327,10 +327,15 @@ export default function RoomDesigner() {
     });
   }
 
-  // Mirror selected items across the selection's vertical center axis. Each
-  // item's position is reflected; for desks, seat offsets within the desk
-  // are mirrored too so a multi-rect table reads correctly after the flip.
-  // Single-item flip works on a single desk's internal seat layout.
+  // Mirror selected items across the selection's vertical center axis.
+  //
+  // A true horizontal flip is `scaleX = -1` about the center. Since the
+  // model doesn't store scale, we apply the equivalent decomposition:
+  //   1. reflect each item's position about the bbox centerX
+  //   2. negate rotation (rotation → -rotation, normalized to [0, 360))
+  //   3. mirror seat offsets within each desk (offsetX → desk.width - offsetX)
+  // Together these make a triangle desk face the opposite direction after
+  // the flip while preserving its seat-on-apex relationship.
   function handleFlipHorizontal() {
     if (!klass || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
@@ -340,19 +345,22 @@ export default function RoomDesigner() {
     const centerX = (minX + maxX) / 2;
     for (const it of items) {
       const newX = Math.round(2 * centerX - (it.entity.x + it.entity.width));
+      const newRotation = normalizeAngle(-it.entity.rotation);
       if (it.kind === "desk") {
         const desk = it.entity;
         const seats = desk.seats.map((seat) => ({
           ...seat,
           offsetX: desk.width - seat.offsetX,
         }));
-        updateDesk(klass.id, desk.id, { x: newX, seats });
+        updateDesk(klass.id, desk.id, { x: newX, rotation: newRotation, seats });
       } else {
-        updateFurniture(klass.id, it.entity.id, { x: newX });
+        updateFurniture(klass.id, it.entity.id, { x: newX, rotation: newRotation });
       }
     }
   }
 
+  // Vertical flip = horizontal flip composed with a 180° rotation, so:
+  //   rotation → 180 - rotation (normalized).
   function handleFlipVertical() {
     if (!klass || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
@@ -362,17 +370,22 @@ export default function RoomDesigner() {
     const centerY = (minY + maxY) / 2;
     for (const it of items) {
       const newY = Math.round(2 * centerY - (it.entity.y + it.entity.height));
+      const newRotation = normalizeAngle(180 - it.entity.rotation);
       if (it.kind === "desk") {
         const desk = it.entity;
         const seats = desk.seats.map((seat) => ({
           ...seat,
           offsetY: desk.height - seat.offsetY,
         }));
-        updateDesk(klass.id, desk.id, { y: newY, seats });
+        updateDesk(klass.id, desk.id, { y: newY, rotation: newRotation, seats });
       } else {
-        updateFurniture(klass.id, it.entity.id, { y: newY });
+        updateFurniture(klass.id, it.entity.id, { y: newY, rotation: newRotation });
       }
     }
+  }
+
+  function normalizeAngle(deg: number): number {
+    return ((deg % 360) + 360) % 360;
   }
 
   function handleRandomize() {
