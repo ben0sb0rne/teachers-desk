@@ -1,5 +1,6 @@
 import type { AppState, Arrangement, ClassRoom, Desk, Seat, Student } from "@/types";
 import { SCHEMA_VERSION } from "@/types";
+import * as sharedStorage from "@shared/storage.js";
 
 const uid = () => crypto.randomUUID();
 
@@ -15,7 +16,52 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 4) s = migrateV3toV4(s);
   if (fromVersion < 5) s = migrateV4toV5(s);
   if (fromVersion < 6) s = migrateV5toV6(s);
+  if (fromVersion < 7) s = migrateV6toV7(s);
   return s as AppState;
+}
+
+/** v6 → v7: write each class's roster + name into the suite's canonical
+ *  storage so the seating chart and other tools share the same source of
+ *  truth for class metadata + roster names. The seating chart's blob keeps
+ *  `students[]` (with rich metadata: needsFrontRow, keepApart, notes); the
+ *  appStore reconciles names against canonical at boot from this point on. */
+export function migrateV6toV7(persisted: unknown): AppState {
+  const obj = persisted as Record<string, unknown>;
+  const classes = (obj.classes ?? []) as Array<Record<string, unknown>>;
+
+  for (const klass of classes) {
+    const id = klass.id as string | undefined;
+    const name = klass.name as string | undefined;
+    const students = (klass.students ?? []) as Array<{ name?: string }>;
+    if (!id) continue;
+    if (typeof name === "string") {
+      try {
+        sharedStorage.setClassName(id, name);
+      } catch {
+        /* ignore */
+      }
+    }
+    const roster = students.map((s) => (s && s.name ? s.name : "")).filter(Boolean);
+    try {
+      // Only write if canonical doesn't already have a richer roster — avoids
+      // clobbering edits the user made via the Rosters page during the brief
+      // window where Phase B's overwrite-on-hydration was live.
+      const existing = sharedStorage.getRoster(id);
+      if (existing.length < roster.length) {
+        sharedStorage.setRoster(id, roster);
+      } else if (existing.length === 0) {
+        sharedStorage.setRoster(id, roster);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return {
+    classes: classes as unknown as ClassRoom[],
+    activeClassId: (obj.activeClassId as string | null) ?? null,
+    schemaVersion: SCHEMA_VERSION,
+  };
 }
 
 /** v5 → v6: each class gains `currentAssignments` (the live working seat map). */

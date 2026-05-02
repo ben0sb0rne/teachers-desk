@@ -374,8 +374,32 @@ export function setRoster(classId, names) {
   if (!Array.isArray(names)) {
     throw new TypeError('setRoster: names must be an array of strings');
   }
-  state.rosters[classId] = names.slice();
+  const next = names.slice();
+  const previous = state.rosters[classId] ? state.rosters[classId].slice() : [];
+  // Idempotency check — skip the write + event if nothing actually changed.
+  if (
+    previous.length === next.length &&
+    previous.every((n, i) => n === next[i])
+  ) {
+    return;
+  }
+  state.rosters[classId] = next;
   save();
+
+  // Compute additions and removals so listeners can do targeted updates
+  // without re-reading the whole roster.
+  const prevSet = new Set(previous);
+  const nextSet = new Set(next);
+  const added = next.filter((n) => !prevSet.has(n));
+  const removed = previous.filter((n) => !nextSet.has(n));
+
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(
+      new CustomEvent('rosterchange', {
+        detail: { classId, names: next, added, removed },
+      }),
+    );
+  }
 }
 
 /**
@@ -489,9 +513,19 @@ export function setClassName(classId, name) {
   const trimmed = name.trim();
   const state = load();
   if (!state.classes) state.classes = {};
+  const isNew = !state.classes[classId];
   if (!state.classes[classId]) state.classes[classId] = {};
+  const previousName = state.classes[classId].name;
+  if (previousName === trimmed && !isNew) return;
   state.classes[classId].name = trimmed;
   save();
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(
+      new CustomEvent('classmeta', {
+        detail: { classId, name: trimmed, isNew, previousName },
+      }),
+    );
+  }
 }
 
 /**
@@ -553,7 +587,12 @@ export function deleteClass(classId) {
     delete state.callCounts[classId];
     changed = true;
   }
-  if (changed) save();
+  if (changed) {
+    save();
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('classdelete', { detail: { classId } }));
+    }
+  }
 }
 
 // -------------------------------------------------------------

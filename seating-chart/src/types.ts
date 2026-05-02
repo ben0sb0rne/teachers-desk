@@ -91,7 +91,7 @@ export interface ClassRoom {
   currentAssignments: Record<SeatId, StudentId>;
 }
 
-export const SCHEMA_VERSION = 6 as const;
+export const SCHEMA_VERSION = 7 as const;
 
 export interface AppState {
   classes: ClassRoom[];

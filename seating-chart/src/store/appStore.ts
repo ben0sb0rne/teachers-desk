@@ -487,33 +487,205 @@ export const useAppStore = create<AppStore>()(
 );
 
 // ─────────────────────────────────────────────────────────────
-// Phase B: mirror seating-chart classes into the suite's canonical
-// roster store (/shared/storage.js). Other tools (Picker, Rosters
-// page) read from canonical, so this is what makes seating-chart
-// classes show up there as if they were canonical, and stay in sync
-// when the seating chart edits a roster.
+// CANONICAL SYNC — bidirectional
 //
-// One-way: seating chart → canonical. The reverse (canonical →
-// seating chart) is bigger work — picker/rosters-created classes
-// don't appear in the seating chart in v1. The seating chart
-// remains the only place rich Student metadata (needsFrontRow,
-// keepApart, notes) is edited.
+// The suite's canonical roster (in /shared/storage.js) is the single
+// source of truth for class.name and the list of student names. The
+// seating chart's blob owns rich per-student metadata (needsFrontRow,
+// keepApart, notes) and the room/arrangements geometry; the appStore
+// reconciles its `students[]` array against canonical at boot and on
+// every canonical event so picker/rosters-page edits propagate into
+// the seating chart immediately.
+//
+// Loop avoidance: a `suppressMirror` flag is set whenever we are
+// updating local state IN RESPONSE to a canonical event. The mirror
+// subscriber checks the flag and skips, so canonical → local → mirror
+// → canonical never bounces.
 // ─────────────────────────────────────────────────────────────
 
-function mirrorClassToShared(c: ClassRoom) {
-  sharedStorage.setClassName(c.id, c.name);
-  sharedStorage.setRoster(c.id, c.students.map((s) => s.name));
+const seatingDefaultStudent = (name: string): Student => ({
+  id: uid(),
+  name,
+  needsFrontRow: false,
+  keepApart: [],
+});
+
+const seatingDefaultClass = (id: ClassId, name: string, names: string[]): ClassRoom => ({
+  id,
+  name,
+  students: names.map(seatingDefaultStudent),
+  room: DEFAULT_ROOM(),
+  arrangements: [],
+  currentAssignments: {},
+});
+
+let suppressMirror = false;
+
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
-// Initial sync after hydration so existing data shows canonically right away.
-{
-  const initial = useAppStore.getState().classes;
-  for (const c of initial) mirrorClassToShared(c);
+/**
+ * Reconcile the local store with canonical storage:
+ *   1. canonical class missing locally → add a default class (with derived students)
+ *   2. local class missing canonically → drop it (canonical is source of truth)
+ *   3. class in both → align local class.name + students[] to canonical roster.
+ *      Preserves existing Student records by name (keeps their needsFrontRow,
+ *      keepApart, notes); creates default Student records for new names.
+ *
+ * No-op if nothing differs. Wraps the local-store update in `suppressMirror`
+ * so the mirror subscriber doesn't push the (now-canonical-aligned) state
+ * back to canonical and re-trigger this listener.
+ */
+function reconcileWithCanonical(): void {
+  if (typeof window === "undefined") return;
+  const state = useAppStore.getState();
+  const canonical = sharedStorage.listClasses();
+  const canonicalIds = new Set(canonical.map((c) => c.id));
+
+  let changed = false;
+  let nextClasses: ClassRoom[] = state.classes.slice();
+
+  // 1) Add canonical-only classes.
+  for (const c of canonical) {
+    if (!nextClasses.find((sc) => sc.id === c.id)) {
+      const roster = sharedStorage.getRoster(c.id);
+      nextClasses.push(seatingDefaultClass(c.id, c.name, roster));
+      changed = true;
+    }
+  }
+
+  // 2) Drop local classes not in canonical (deleted from canonical somewhere).
+  const filtered = nextClasses.filter((sc) => canonicalIds.has(sc.id));
+  if (filtered.length !== nextClasses.length) {
+    nextClasses = filtered;
+    changed = true;
+  }
+
+  // 3) Align name + students[] for classes in both.
+  nextClasses = nextClasses.map((sc) => {
+    const cEntry = canonical.find((c) => c.id === sc.id);
+    if (!cEntry) return sc;
+    const canonicalRoster = sharedStorage.getRoster(sc.id);
+    const localNames = sc.students.map((s) => s.name);
+
+    let updated = sc;
+    if (cEntry.name && cEntry.name !== "(unnamed)" && cEntry.name !== sc.name) {
+      updated = { ...updated, name: cEntry.name };
+      changed = true;
+    }
+    if (!arraysEqual(localNames, canonicalRoster)) {
+      const byName = new Map(sc.students.map((s) => [s.name, s]));
+      const reconciled = canonicalRoster.map(
+        (n) => byName.get(n) || seatingDefaultStudent(n),
+      );
+      updated = { ...updated, students: reconciled };
+      changed = true;
+    }
+    return updated;
+  });
+
+  if (changed) {
+    suppressMirror = true;
+    try {
+      useAppStore.setState({ classes: nextClasses });
+    } finally {
+      suppressMirror = false;
+    }
+  }
 }
 
+// Boot: align local with canonical before anything else.
+reconcileWithCanonical();
+
+// On any canonical change, re-reconcile. Targeted handlers below short-circuit
+// the common cases so the full reconcile only runs when there's no specific
+// handler — but reconcile is cheap (O(classes × students)) so generic
+// fallback to it is fine.
+if (typeof window !== "undefined") {
+  window.addEventListener("rosterrename", (e: Event) => {
+    if (suppressMirror) return;
+    const detail = (e as CustomEvent).detail as
+      | { classId: string; oldName: string; newName: string }
+      | undefined;
+    if (!detail) return;
+    const { classId, oldName, newName } = detail;
+    suppressMirror = true;
+    try {
+      useAppStore.setState((state) => ({
+        classes: state.classes.map((c) => {
+          if (c.id !== classId) return c;
+          return {
+            ...c,
+            students: c.students.map((s) =>
+              s.name === oldName ? { ...s, name: newName } : s,
+            ),
+          };
+        }),
+      }));
+    } finally {
+      suppressMirror = false;
+    }
+  });
+
+  window.addEventListener("rosterchange", () => {
+    if (suppressMirror) return;
+    reconcileWithCanonical();
+  });
+
+  window.addEventListener("classmeta", (e: Event) => {
+    if (suppressMirror) return;
+    const detail = (e as CustomEvent).detail as
+      | { classId: string; name: string; isNew: boolean }
+      | undefined;
+    if (!detail) return;
+    if (detail.isNew) {
+      // A class was created elsewhere (picker / rosters page). Pick it up.
+      reconcileWithCanonical();
+    } else {
+      // Pure rename of class.name — patch local without disturbing students.
+      suppressMirror = true;
+      try {
+        useAppStore.setState((state) => ({
+          classes: state.classes.map((c) =>
+            c.id === detail.classId ? { ...c, name: detail.name } : c,
+          ),
+        }));
+      } finally {
+        suppressMirror = false;
+      }
+    }
+  });
+
+  window.addEventListener("classdelete", (e: Event) => {
+    if (suppressMirror) return;
+    const detail = (e as CustomEvent).detail as { classId: string } | undefined;
+    if (!detail) return;
+    suppressMirror = true;
+    try {
+      useAppStore.setState((state) => ({
+        classes: state.classes.filter((c) => c.id !== detail.classId),
+        // Clear activeClassId if it pointed at the deleted class.
+        activeClassId: state.activeClassId === detail.classId ? null : state.activeClassId,
+      }));
+    } finally {
+      suppressMirror = false;
+    }
+  });
+
+  // Fires when another tab modifies localStorage.
+  window.addEventListener("storage", () => {
+    if (suppressMirror) return;
+    reconcileWithCanonical();
+  });
+}
+
+// Mirror local-store changes (user actions in seating chart) back to canonical.
 let mirrorPrevClassIds = new Set(useAppStore.getState().classes.map((c) => c.id));
-
 useAppStore.subscribe((state, prev) => {
+  if (suppressMirror) return;
   if (state.classes === prev.classes) return;
 
   const nextIds = new Set(state.classes.map((c) => c.id));
@@ -523,38 +695,15 @@ useAppStore.subscribe((state, prev) => {
     if (!nextIds.has(id)) sharedStorage.deleteClass(id);
   }
 
-  // Re-mirror every class. Cheap on typical class sizes; the canonical
-  // setRoster doesn't dispatch any cascading events.
-  for (const c of state.classes) mirrorClassToShared(c);
+  // Mirror name + roster. setClassName / setRoster are idempotent and
+  // skip writes (and event dispatches) when nothing actually changed.
+  for (const c of state.classes) {
+    sharedStorage.setClassName(c.id, c.name);
+    sharedStorage.setRoster(c.id, c.students.map((s) => s.name));
+  }
 
   mirrorPrevClassIds = nextIds;
 });
-
-// Phase C: when a student is renamed via the suite Rosters page, the shared
-// storage dispatches a 'rosterrename' window event so we can update the
-// matching Student object's name (preserving its id, needsFrontRow,
-// keepApart references, notes). Idempotent: if the seating chart originated
-// the rename, the `oldName` is already gone and the .map() is a no-op.
-if (typeof window !== "undefined") {
-  window.addEventListener("rosterrename", (e: Event) => {
-    const detail = (e as CustomEvent).detail as
-      | { classId: string; oldName: string; newName: string }
-      | undefined;
-    if (!detail) return;
-    const { classId, oldName, newName } = detail;
-    useAppStore.setState((state) => ({
-      classes: state.classes.map((c) => {
-        if (c.id !== classId) return c;
-        return {
-          ...c,
-          students: c.students.map((s) =>
-            s.name === oldName ? { ...s, name: newName } : s,
-          ),
-        };
-      }),
-    }));
-  });
-}
 
 export const selectClass = (id: ClassId | null) => (s: AppStore): ClassRoom | undefined =>
   id ? findClass(s, id) : undefined;
