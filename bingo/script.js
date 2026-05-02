@@ -3172,9 +3172,12 @@ function wireEvents() {
   document.getElementById('btn-prev').onclick = () => {
     prevProblem(); stopTimer(); render();
   };
-  document.getElementById('btn-settings').onclick = () => {
-    renderSettings(); openOverlay('settings-overlay');
-  };
+  // Two settings entry points wired to the same overlay:
+  // 1) #btn-settings — caller view's topbar button (only visible during play)
+  // 2) #btn-settings-floating — suite-wide floating gear (visible on every bingo view)
+  const openSettings = () => { renderSettings(); openOverlay('settings-overlay'); };
+  document.getElementById('btn-settings').onclick = openSettings;
+  document.getElementById('btn-settings-floating').onclick = openSettings;
   document.getElementById('btn-check-answers').onclick = () => renderCheckAnswers();
   document.getElementById('btn-close-check-answers').onclick = () => closeOverlay('check-answers-overlay');
 

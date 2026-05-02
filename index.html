@@ -71,36 +71,7 @@
     }
     footer a { color: rgb(var(--paper-cream)); }
 
-    /* Theme toggle in the footer — Auto / Light / Dark, plain text buttons. */
-    .theme-toggle {
-      display: inline-flex;
-      gap: var(--space-2);
-      align-items: baseline;
-    }
-    .theme-toggle button {
-      background: none;
-      border: none;
-      color: rgb(var(--paper-cream));
-      font: inherit;
-      cursor: pointer;
-      padding: 0 2px;
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-decoration-color: rgb(var(--paper-cream) / 0.35);
-      text-underline-offset: 3px;
-    }
-    .theme-toggle button:hover {
-      text-decoration-color: rgb(var(--paper-cream));
-    }
-    .theme-toggle button.is-active {
-      font-weight: 700;
-      text-decoration-color: rgb(var(--paper-cream));
-    }
-    .theme-toggle button:focus-visible {
-      outline: 2px solid rgb(var(--paper-cream) / 0.7);
-      outline-offset: 2px;
-      border-radius: var(--radius-tight);
-    }
+    /* Floating settings gear adapts to wood-bg pages — keep cream surface. */
   </style>
 </head>
 <body class="wood-bg">
@@ -138,32 +109,14 @@
         <a href="about.html">About</a>
         <span aria-hidden="true">&nbsp;&middot;&nbsp;</span>
         <a href="https://github.com/ben0sb0rne/teachers-desk">Source</a>
-        <span aria-hidden="true">&nbsp;&middot;&nbsp;</span>
-        <span class="theme-toggle" role="group" aria-label="Theme">
-          <button type="button" data-theme-set="auto">Auto</button>
-          <button type="button" data-theme-set="light">Light</button>
-          <button type="button" data-theme-set="dark">Dark</button>
-        </span>
       </footer>
     </div>
   </main>
 
   <script type="module">
-    import { getTheme, setTheme } from './shared/storage.js';
-
-    function syncActive() {
-      const cur = getTheme();
-      document.querySelectorAll('[data-theme-set]').forEach((btn) => {
-        btn.classList.toggle('is-active', btn.dataset.themeSet === cur);
-      });
-    }
-    syncActive();
-    document.querySelectorAll('[data-theme-set]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        setTheme(btn.dataset.themeSet);
-        syncActive();
-      });
-    });
+    // Mounts the floating gear button + binds 'S' to open the settings dialog.
+    import { mountSettingsButton } from './shared/settings.js';
+    mountSettingsButton();
   </script>
 </body>
 </html>

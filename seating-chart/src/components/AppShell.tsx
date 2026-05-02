@@ -5,16 +5,15 @@ import { useAppStore } from "@/store/appStore";
 import { exportStateToFile, readStateFromFile } from "@/lib/io";
 import { cn } from "@/lib/cn";
 import HelpDialog from "@/components/HelpDialog";
-import Icon, { type IconName } from "@/components/Icon";
-import { getTheme, setTheme } from "@shared/storage.js";
-
-type Theme = "auto" | "light" | "dark";
+import SuiteSettingsDialog from "@/components/SuiteSettingsDialog";
+import Icon from "@/components/Icon";
 
 export default function AppShell() {
   const { id } = useParams();
   const isClassRoute = useMatch("/classes/:id/*");
   const klass = useAppStore((s) => (id ? s.classes.find((c) => c.id === id) : undefined));
   const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Global undo / redo (works on every screen).
   useEffect(() => {
@@ -36,14 +35,18 @@ export default function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // "?" anywhere opens the help dialog.
+  // "?" opens help, "S" opens settings — both work anywhere except in inputs.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
         setHelpOpen(true);
+      } else if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -84,7 +87,15 @@ export default function AppShell() {
           )}
         </div>
         <div className="suite-topstrip-right">
-          <ThemeToggle />
+          <button
+            type="button"
+            className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
+            onClick={() => setSettingsOpen(true)}
+            title="Settings (S)"
+            aria-label="Settings"
+          >
+            <Icon name="settings" size={16} />
+          </button>
           <button
             className="btn-secondary"
             onClick={() => setHelpOpen(true)}
@@ -100,6 +111,7 @@ export default function AppShell() {
         <Outlet />
       </main>
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <SuiteSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }
@@ -196,51 +208,6 @@ function TopbarMenu() {
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </>
-  );
-}
-
-/**
- * Theme cycle button: Auto → Light → Dark → Auto.
- *
- * Reads from shared storage on mount and listens for the 'themechange'
- * window event so the icon stays in sync if another tab (or the bingo
- * settings overlay) changes the theme.
- */
-function ThemeToggle() {
-  const [theme, setLocalTheme] = useState<Theme>(() => getTheme() as Theme);
-
-  useEffect(() => {
-    function onChange() {
-      setLocalTheme(getTheme() as Theme);
-    }
-    window.addEventListener("themechange", onChange);
-    // Also re-sync on storage events from other tabs.
-    window.addEventListener("storage", onChange);
-    return () => {
-      window.removeEventListener("themechange", onChange);
-      window.removeEventListener("storage", onChange);
-    };
-  }, []);
-
-  function cycle() {
-    const next: Theme = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto";
-    setTheme(next);
-    setLocalTheme(next);
-  }
-
-  const icon: IconName = theme === "light" ? "sun" : theme === "dark" ? "moon" : "monitor";
-  const label = `Theme: ${theme} — click to cycle`;
-
-  return (
-    <button
-      type="button"
-      className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
-      onClick={cycle}
-      title={label}
-      aria-label={label}
-    >
-      <Icon name={icon} size={16} />
-    </button>
   );
 }
 

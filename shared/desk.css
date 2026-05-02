@@ -247,6 +247,171 @@ a:hover { text-decoration-thickness: 2px; }
 }
 
 /* =============================================================
+   .settings-button — floating gear, top-right of viewport
+   Suite-wide. Visible on every screen of every tool. Click opens
+   the suite settings dialog (shared/settings.js or each tool's
+   equivalent React/vanilla mount).
+   ============================================================= */
+
+.settings-button {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 90;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 80ms ease, background 80ms ease;
+}
+.settings-button:hover  { background: rgb(var(--paper-edge) / 0.05); }
+.settings-button:active { transform: translateY(1px); }
+.settings-button:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+}
+.settings-button .settings-button-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* =============================================================
+   Suite overlay + panel — shared dialog chrome
+   Used by shared/settings.js and (in spirit) by tool-specific
+   dialog components in React. Same look across every screen.
+   ============================================================= */
+
+.suite-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+}
+.suite-overlay[hidden] { display: none !important; }
+
+.suite-panel {
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border-radius: var(--radius);
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  box-shadow: var(--shadow-lift);
+  max-width: 520px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-slab);
+}
+.suite-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid rgb(var(--paper-edge) / 0.12);
+  flex-shrink: 0;
+}
+.suite-panel-header h2 {
+  margin: 0;
+  font-size: var(--type-13);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(var(--paper-edge));
+}
+.suite-panel-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-muted);
+  border-radius: var(--radius-tight);
+  font-size: 18px;
+  line-height: 1;
+}
+.suite-panel-close:hover {
+  background: rgb(var(--paper-edge) / 0.06);
+  color: rgb(var(--paper-edge));
+}
+.suite-panel-body {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.suite-settings-section {
+  margin-bottom: var(--space-4);
+}
+.suite-settings-section:last-child { margin-bottom: 0; }
+.suite-settings-section h3 {
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+  margin: 0 0 var(--space-2);
+}
+.suite-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--type-13);
+}
+.suite-settings-row:last-child { margin-bottom: 0; }
+
+/* Segmented control (Auto / Light / Dark, etc.) */
+.suite-seg {
+  display: inline-flex;
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.suite-seg button {
+  font-family: var(--font-slab);
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--ink-muted);
+  border: none;
+  border-right: 1px solid rgb(var(--paper-edge) / 0.2);
+  cursor: pointer;
+  transition: background 80ms ease, color 80ms ease;
+}
+.suite-seg button:last-child { border-right: none; }
+.suite-seg button:hover { color: rgb(var(--paper-edge)); background: rgb(var(--paper-edge) / 0.04); }
+.suite-seg button.is-active {
+  background: rgb(var(--paper-edge));
+  color: rgb(var(--paper-cream));
+}
+
+/* =============================================================
    .placard — museum-style numbered placard
    Use: <a class="placard" href="...">
           <span class="placard-num">01</span>
