@@ -107,6 +107,60 @@ export function snapPosition(
     }
   }
 
+  // Distribution snaps (Illustrator-style "equal-gap" guides). When the
+  // dragged item is positioned between two other items along an axis, with
+  // the inner gaps roughly equal, snap to exactly equal so a row of three
+  // desks reads as "evenly spaced". The "row alignment" filter is tight on
+  // purpose — distribution only makes sense when the items are already on a
+  // common centerline, the standard prerequisite from Align H / Align V.
+
+  // X-axis: find pairs to the left and right of the dragged item with
+  // similar centerY (allowing for the snap we just applied).
+  const myCenterY = bestY + h / 2;
+  const sameRow = otherBounds
+    .filter((b) => Math.abs(b.centerY - myCenterY) <= SNAP_THRESHOLD)
+    .slice()
+    .sort((a, b) => a.left - b.left);
+  for (let i = 0; i + 1 < sameRow.length; i++) {
+    const A = sameRow[i];
+    const B = sameRow[i + 1];
+    if (A.right >= B.left) continue; // overlap — no clean gap
+    const myLeft = bestX;
+    const myRight = bestX + w;
+    if (myLeft <= A.right || myRight >= B.left) continue; // dragged item not between
+    const gapLeft = myLeft - A.right;
+    const gapRight = B.left - myRight;
+    if (Math.abs(gapLeft - gapRight) <= SNAP_THRESHOLD * 2) {
+      const targetCenterX = (A.right + B.left) / 2;
+      bestX = Math.round(targetCenterX - w / 2);
+      guides.push({ axis: "x", position: targetCenterX });
+      break;
+    }
+  }
+
+  // Y-axis: same idea, transposed.
+  const myCenterX = bestX + w / 2;
+  const sameCol = otherBounds
+    .filter((b) => Math.abs(b.centerX - myCenterX) <= SNAP_THRESHOLD)
+    .slice()
+    .sort((a, b) => a.top - b.top);
+  for (let i = 0; i + 1 < sameCol.length; i++) {
+    const A = sameCol[i];
+    const B = sameCol[i + 1];
+    if (A.bottom >= B.top) continue;
+    const myTop = bestY;
+    const myBottom = bestY + h;
+    if (myTop <= A.bottom || myBottom >= B.top) continue;
+    const gapTop = myTop - A.bottom;
+    const gapBottom = B.top - myBottom;
+    if (Math.abs(gapTop - gapBottom) <= SNAP_THRESHOLD * 2) {
+      const targetCenterY = (A.bottom + B.top) / 2;
+      bestY = Math.round(targetCenterY - h / 2);
+      guides.push({ axis: "y", position: targetCenterY });
+      break;
+    }
+  }
+
   return { x: bestX, y: bestY, guides };
 }
 
