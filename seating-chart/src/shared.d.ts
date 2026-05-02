@@ -15,6 +15,15 @@ declare module "@shared/storage.js" {
   // Domain helpers
   export function getPreference<T = unknown>(key: string, defaultValue?: T): T;
   export function setPreference(key: string, value: unknown): void;
+
+  // Theme — 'auto' | 'light' | 'dark'; default 'auto'.
+  // setTheme persists, applies the data-theme attribute, and dispatches a
+  // 'themechange' window event so non-CSS consumers (Konva canvas) can re-render.
+  export type SuiteTheme = "auto" | "light" | "dark";
+  export function getTheme(): SuiteTheme;
+  export function setTheme(theme: SuiteTheme): void;
+  export function applyTheme(theme: SuiteTheme): void;
+
   export function getRoster(classId: string): string[];
   export function setRoster(classId: string, names: string[]): void;
   export function listPeriods(): string[];
