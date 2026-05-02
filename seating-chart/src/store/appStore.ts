@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { temporal } from "zundo";
 import * as sharedStorage from "@shared/storage.js";
+import * as rosterBridge from "@shared/roster-bridge.js";
 import type {
   AppState,
   Arrangement,
@@ -600,41 +601,40 @@ function reconcileWithCanonical(): void {
 // Boot: align local with canonical before anything else.
 reconcileWithCanonical();
 
-// On any canonical change, re-reconcile. Targeted handlers below short-circuit
-// the common cases so the full reconcile only runs when there's no specific
-// handler — but reconcile is cheap (O(classes × students)) so generic
-// fallback to it is fine.
+// Subscriptions via shared/roster-bridge.js. The bridge is the canonical
+// surface every tool should use to follow shared state — when a future
+// tool needs the same shape, it imports from the bridge instead of
+// reinventing this wiring.
+rosterBridge.onRosterRename(null, (oldName, newName, detail) => {
+  if (suppressMirror) return;
+  suppressMirror = true;
+  try {
+    useAppStore.setState((state) => ({
+      classes: state.classes.map((c) => {
+        if (c.id !== detail.classId) return c;
+        return {
+          ...c,
+          students: c.students.map((s) =>
+            s.name === oldName ? { ...s, name: newName } : s,
+          ),
+        };
+      }),
+    }));
+  } finally {
+    suppressMirror = false;
+  }
+});
+
+rosterBridge.onRosterChange(null, () => {
+  if (suppressMirror) return;
+  reconcileWithCanonical();
+});
+
+// Class metadata events still come direct from the storage event bus —
+// the bridge models them as part of onClassesChange (which would re-trigger
+// a full reconcile), but we want the targeted "name-only" path for renames
+// vs. "full reconcile" for new classes.
 if (typeof window !== "undefined") {
-  window.addEventListener("rosterrename", (e: Event) => {
-    if (suppressMirror) return;
-    const detail = (e as CustomEvent).detail as
-      | { classId: string; oldName: string; newName: string }
-      | undefined;
-    if (!detail) return;
-    const { classId, oldName, newName } = detail;
-    suppressMirror = true;
-    try {
-      useAppStore.setState((state) => ({
-        classes: state.classes.map((c) => {
-          if (c.id !== classId) return c;
-          return {
-            ...c,
-            students: c.students.map((s) =>
-              s.name === oldName ? { ...s, name: newName } : s,
-            ),
-          };
-        }),
-      }));
-    } finally {
-      suppressMirror = false;
-    }
-  });
-
-  window.addEventListener("rosterchange", () => {
-    if (suppressMirror) return;
-    reconcileWithCanonical();
-  });
-
   window.addEventListener("classmeta", (e: Event) => {
     if (suppressMirror) return;
     const detail = (e as CustomEvent).detail as
@@ -642,10 +642,9 @@ if (typeof window !== "undefined") {
       | undefined;
     if (!detail) return;
     if (detail.isNew) {
-      // A class was created elsewhere (picker / rosters page). Pick it up.
+      // A class was created elsewhere — let reconcile pick it up.
       reconcileWithCanonical();
     } else {
-      // Pure rename of class.name — patch local without disturbing students.
       suppressMirror = true;
       try {
         useAppStore.setState((state) => ({
@@ -658,29 +657,20 @@ if (typeof window !== "undefined") {
       }
     }
   });
-
-  window.addEventListener("classdelete", (e: Event) => {
-    if (suppressMirror) return;
-    const detail = (e as CustomEvent).detail as { classId: string } | undefined;
-    if (!detail) return;
-    suppressMirror = true;
-    try {
-      useAppStore.setState((state) => ({
-        classes: state.classes.filter((c) => c.id !== detail.classId),
-        // Clear activeClassId if it pointed at the deleted class.
-        activeClassId: state.activeClassId === detail.classId ? null : state.activeClassId,
-      }));
-    } finally {
-      suppressMirror = false;
-    }
-  });
-
-  // Fires when another tab modifies localStorage.
-  window.addEventListener("storage", () => {
-    if (suppressMirror) return;
-    reconcileWithCanonical();
-  });
 }
+
+rosterBridge.onClassDelete(({ classId }) => {
+  if (suppressMirror) return;
+  suppressMirror = true;
+  try {
+    useAppStore.setState((state) => ({
+      classes: state.classes.filter((c) => c.id !== classId),
+      activeClassId: state.activeClassId === classId ? null : state.activeClassId,
+    }));
+  } finally {
+    suppressMirror = false;
+  }
+});
 
 // Mirror local-store changes (user actions in seating chart) back to canonical.
 // The whole block runs with suppressMirror true so any events dispatched by
