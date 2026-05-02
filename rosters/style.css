@@ -176,8 +176,8 @@ body { display: flex; flex-direction: column; }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 340px;
-  overflow-y: auto;
+  /* Grow to fit the full roster — no inner scroll. The page scrolls
+     naturally when the list is long. */
 }
 .edit-roster-row {
   display: grid;

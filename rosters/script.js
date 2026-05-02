@@ -99,15 +99,16 @@ const linkSeating = document.getElementById('link-seating');
 const btnDeleteClass = document.getElementById('btn-delete-class');
 const deleteWarning = document.getElementById('delete-warning');
 
-function openEdit(classId) {
+function openEdit(classId, opts = {}) {
   const cls = storage.listClasses().find((c) => c.id === classId);
   if (!cls) return;
 
   state.editingId = classId;
   state.editingSource = cls.source;
 
-  editClassName.value = cls.name;
+  editClassName.value = cls.name === '(unnamed)' ? '' : cls.name;
   editClassName.disabled = cls.source !== 'canonical';
+  editClassName.placeholder = 'Class name…';
   editSourceMsg.hidden = cls.source !== 'seating-chart';
   if (cls.source === 'seating-chart') {
     editSourceMsg.textContent =
@@ -129,6 +130,16 @@ function openEdit(classId) {
 
   renderRoster();
   showView('edit');
+
+  // For freshly created classes, focus the name input so the user can
+  // type a name immediately. The class already exists in storage with
+  // an empty name; the editClassName change handler persists it on blur.
+  if (opts.isNew && cls.source === 'canonical') {
+    setTimeout(() => {
+      editClassName.focus();
+      editClassName.select();
+    }, 0);
+  }
 }
 
 function renderRoster() {
@@ -272,66 +283,22 @@ document.getElementById('btn-back-list').addEventListener('click', () => {
 });
 
 // -------------------------------------------------------------
-// New class modal
+// New class
+// Click "+ New class" → create a blank class and route directly into
+// the same edit view used for existing classes. No separate modal —
+// creation IS just editing a fresh class.
 // -------------------------------------------------------------
-const newOverlay = document.getElementById('new-class-overlay');
-const newName = document.getElementById('new-class-name');
-const newStudents = document.getElementById('new-class-students');
-const newError = document.getElementById('new-class-name-error');
-
 document.getElementById('btn-new-class').addEventListener('click', () => {
-  newName.value = '';
-  newStudents.value = '';
-  newError.hidden = true;
-  newOverlay.hidden = false;
-  setTimeout(() => newName.focus(), 0);
-});
-document.getElementById('btn-close-new-class').addEventListener('click', () => (newOverlay.hidden = true));
-document.getElementById('btn-cancel-new-class').addEventListener('click', () => (newOverlay.hidden = true));
-newOverlay.addEventListener('click', (e) => {
-  if (e.target === newOverlay) newOverlay.hidden = true;
-});
-
-document.getElementById('btn-create-class').addEventListener('click', () => {
-  const name = newName.value.trim();
-  if (!name) {
-    newError.textContent = 'Class name is required.';
-    newError.hidden = false;
-    newName.focus();
-    return;
-  }
-  const existing = storage
-    .listClasses()
-    .find((c) => c.source === 'canonical' && c.name.toLowerCase() === name.toLowerCase());
-  if (existing) {
-    newError.textContent = 'A class with this name already exists.';
-    newError.hidden = false;
-    return;
-  }
-
-  const incoming = newStudents.value
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const seen = new Set();
-  const dedup = [];
-  for (const n of incoming) {
-    const k = n.toLowerCase();
-    if (!seen.has(k)) {
-      seen.add(k);
-      dedup.push(n);
-    }
-  }
-
   const id =
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : 'cls-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
 
-  storage.setClassName(id, name);
-  storage.setRoster(id, dedup);
-  newOverlay.hidden = true;
-  openEdit(id);
+  // Persist immediately with an empty name. Until the user types one,
+  // the class shows as "(unnamed)" in list view; deletable from there.
+  storage.setClassName(id, '');
+  storage.setRoster(id, []);
+  openEdit(id, { isNew: true });
 });
 
 // -------------------------------------------------------------
