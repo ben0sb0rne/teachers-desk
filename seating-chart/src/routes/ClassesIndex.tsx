@@ -80,7 +80,7 @@ export default function ClassesIndex() {
             }}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           />
-          <button className="btn-primary whitespace-nowrap" onClick={handleCreate}>Create</button>
+          <button className="btn-secondary whitespace-nowrap" onClick={handleCreate}>Create</button>
         </div>
         {newError && <p className="mt-2 text-xs text-red-600">{newError}</p>}
       </div>

@@ -1010,8 +1010,8 @@ function renderHomepage() {
     <div class="hp-tile hp-tile-actions">
       <div class="hp-tile-header">Get Started</div>
       <div class="hp-upload-row">
-        <button class="hp-btn primary" id="hp-choose-file-btn"><svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg> Choose File</button>
-        <button class="hp-btn primary" id="hp-new-blank-btn"><svg class="icon" aria-hidden="true"><use href="#icon-file-plus"/></svg> New Blank Set</button>
+        <button class="hp-btn" id="hp-choose-file-btn"><svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg> Choose File</button>
+        <button class="hp-btn" id="hp-new-blank-btn"><svg class="icon" aria-hidden="true"><use href="#icon-file-plus"/></svg> New Blank Set</button>
         <button class="hp-btn" id="hp-format-help-btn">Format Help</button>
         <button class="hp-btn" id="hp-dl-template-btn">Download Template</button>
       </div>
@@ -2349,7 +2349,7 @@ function renderSettings() {
       </div>
       <div class="settings-row" style="gap:8px;flex-wrap:wrap">
         <button class="hp-btn"         id="settings-export">Export classroom</button>
-        <button class="hp-btn primary" id="settings-import">Import classroom…</button>
+        <button class="hp-btn" id="settings-import">Import classroom…</button>
       </div>
     </div>
 

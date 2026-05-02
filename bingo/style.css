@@ -720,9 +720,10 @@ body {
   transition: all .15s;
 }
 .seg-btn.active {
-  background: var(--primary);
-  color: var(--primary-fg);
-  border-color: var(--primary);
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border-color: rgb(var(--paper-edge));
+  font-weight: 700;
 }
 .seg-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 select {
@@ -900,9 +901,10 @@ kbd {
 }
 .hp-chip:hover { background: var(--surface); color: var(--text); }
 .hp-chip.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border-color: rgb(var(--paper-edge));
+  font-weight: 700;
 }
 
 /* Sets list — grouped by grade */
@@ -937,13 +939,13 @@ kbd {
 }
 .hp-set-card:hover {
   border-color: var(--primary);
-  background: var(--col-B-light);
+  background: rgb(var(--paper-edge) / 0.04);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0,0,0,.06);
 }
 .hp-set-card:active { transform: translateY(0); }
 .hp-set-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.hp-set-card.expanded { border-color: var(--primary); background: var(--col-B-light); }
+.hp-set-card.expanded { border-color: var(--primary); background: rgb(var(--paper-edge) / 0.04); }
 .hp-set-card-header {
   display: flex;
   align-items: center;
@@ -1004,7 +1006,7 @@ kbd {
 }
 .hp-variant-btn:hover { background: var(--surface2); border-color: var(--primary); }
 .hp-variant-btn.recommended {
-  background: var(--col-B-light);
+  background: rgb(var(--paper-edge) / 0.04);
   border-color: var(--primary);
   font-weight: 600;
 }
@@ -1110,7 +1112,7 @@ kbd {
   font-size: .9rem;
 }
 .rm-row.rm-ready-row {
-  background: var(--col-B-light);
+  background: rgb(var(--paper-edge) / 0.04);
   border-left: 3px solid var(--primary);
 }
 .rm-name-col { display: flex; flex-direction: column; gap: 2px; }
@@ -1264,7 +1266,7 @@ kbd {
   border: 2px solid var(--border); background: var(--surface2);
   transition: border-color .15s, background .15s;
 }
-.pv-style-card.active { border-color: var(--primary); background: var(--col-B-light); }
+.pv-style-card.active { border-color: var(--primary); background: rgb(var(--paper-edge) / 0.04); }
 .pv-style-card span { font-size: .88rem; font-weight: 600; }
 .pv-style-card small { display: block; font-size: .75rem; color: var(--text-muted); }
 .pv-style-thumb {

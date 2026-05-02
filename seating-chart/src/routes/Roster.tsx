@@ -59,7 +59,7 @@ export default function Roster() {
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
-          <button className="btn-primary" onClick={() => setPasteOpen(true)}>Paste names</button>
+          <button className="btn-secondary" onClick={() => setPasteOpen(true)}>Paste names</button>
         </div>
       </div>
 
@@ -156,7 +156,7 @@ export default function Roster() {
               </td>
               <td className="px-4 py-2 text-right">
                 <button
-                  className="btn-primary"
+                  className="btn-secondary"
                   onClick={handleAddSingle}
                   disabled={!newStudentName.trim()}
                 >
