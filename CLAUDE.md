@@ -4,27 +4,34 @@ A static suite of free classroom tools, designed to feel like one product. This 
 
 ## What this repo is
 
-Two working tools (Math Bingo, Seating Chart Designer) plus shared infrastructure. Everything is static + localStorage — no backend, no accounts, no auth, no analytics.
+Three working tools (Math Bingo, Name Picker, Seating Chart Designer) plus the suite Rosters page and shared infrastructure. Everything is static + localStorage — no backend, no accounts, no auth, no analytics.
 
 ## Folder structure
 
 ```
 /
-├── index.html                ← homepage
-├── about.html                ← about page
-├── shared/                   ← cross-tool code (CSS, storage, future helpers)
-│   ├── desk.css              ← single source of truth for visual style
-│   ├── storage.js            ← single source of truth for localStorage
-│   ├── picker-engine.js      ← stub for future name-picker tools
-│   ├── tip-jar.js            ← stub for future Stripe tip jar
-│   └── components/           ← README only today; future home for JS components
-├── bingo/                    ← Math Bingo (vanilla)
-├── picker/                   ← Name Picker (vanilla)
-├── rosters/                  ← Suite-wide class roster manager (vanilla)
-├── seating-chart/            ← Seating Chart Designer (React + Vite + Tailwind)
+├── index.html                  ← homepage
+├── about.html                  ← about page
+├── shared/                     ← cross-tool code (CSS, storage, bridge, components)
+│   ├── desk.css                ← single source of truth for visual style
+│   ├── storage.js              ← single source of truth for localStorage (annotated with JSDoc)
+│   ├── roster-bridge.js        ← canonical-event subscription surface for any tool
+│   ├── settings.js             ← floating gear + shared settings dialog
+│   ├── picker-engine.js        ← stub for future fairness-weighted picks
+│   ├── tip-jar.js              ← stub for future Stripe tip jar
+│   └── components/             ← shared vanilla UI components
+│       ├── overlay.js          ← openOverlay({title, onClose}) — modal w/ Esc + click-outside
+│       ├── paste-bulk.js       ← mountPasteBulk(host, opts) — textarea + dedupe + submit
+│       ├── class-card-grid.js  ← mountClassCardGrid(host, opts) — auto-refreshing class grid
+│       └── view-router.js      ← createViewRouter({a, b}) — show/current/onChange helper
+├── bingo/                      ← Math Bingo (vanilla)
+├── picker/                     ← Name Picker (vanilla)
+├── rosters/                    ← Suite-wide class roster manager (vanilla)
+├── seating-chart/              ← Seating Chart Designer (React + Vite + Tailwind)
+│   └── src/lib/use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
 ├── assets/
-│   ├── renders/              ← future Blender output, empty for now
-│   └── sounds/bingo/         ← bingo audio (note: lowercase `bingo`)
+│   ├── renders/                ← future Blender output, empty for now
+│   └── sounds/bingo/           ← bingo audio (note: lowercase `bingo`)
 ├── CLAUDE.md
 └── README.md
 ```
@@ -46,18 +53,64 @@ Konva renders to canvas, not the DOM, so it can't read CSS variables. The seatin
 
 Functional Konva colors (front row, door amber, selection pink) intentionally do **not** track the suite tokens — they carry semantic meaning. Don't unify them.
 
+## Shared component library
+
+Vanilla components in [`shared/components/`](shared/components/). New tools should compose these instead of reinventing modals or paste areas. Living examples in [`picker/script.js`](picker/script.js) and [`rosters/script.js`](rosters/script.js).
+
+| Component | Mounts | Purpose |
+|---|---|---|
+| `overlay.js` | `openOverlay({ title, onClose })` → `{ body, close }` | Standard modal chrome (`.suite-overlay` / `.suite-panel`). Handles Esc + click-outside-to-close + initial focus. |
+| `paste-bulk.js` | `mountPasteBulk(host, { placeholder, rows, buttonLabel, hint, onSubmit })` → `{ setDisabled, reset, focus, destroy }` | Textarea + button. Splits + dedupes pasted lines case-insensitively. Cmd/Ctrl+Enter submits. |
+| `class-card-grid.js` | `mountClassCardGrid(host, { onSelect, onDelete, showCount, showSource })` → `{ refresh, destroy }` | Grid of class cards with name + count + source badge. Auto-refreshes via `roster-bridge` on class or roster changes. |
+| `view-router.js` | `createViewRouter({ a, b })` → `{ show, current, onChange }` | Tiny `hidden` toggler so each tool stops reinventing `showView(name)`. |
+
+When in doubt, lift toward `shared/`. The barrier to reuse is low.
+
 ## Storage rules
 
-Single source of truth: [`shared/storage.js`](shared/storage.js).
+Single source of truth: [`shared/storage.js`](shared/storage.js). Subscription surface: [`shared/roster-bridge.js`](shared/roster-bridge.js).
 
-- **Never call `localStorage` directly from a tool.** Always go through the shared module.
+- **Never call `localStorage` directly from a tool.** Always go through `shared/storage.js`.
+- **Never subscribe to canonical events with raw `window.addEventListener`.** Use `shared/roster-bridge.js` (vanilla) or `seating-chart/src/lib/use-roster-bridge.ts` (React).
 - Suite uses **one localStorage key**, `teachersdesk:v1`, with one envelope:
   ```js
-  { schemaVersion: 1, preferences, rosters, callCounts, tools: { bingo, "seating-chart" } }
+  {
+    schemaVersion: 1,
+    preferences,                                    // { theme, sound, ... }
+    classes: { [classId]: { name } },               // canonical class metadata
+    rosters: { [classId]: string[] },               // canonical roster (names)
+    callCounts: { [classId]: { [name]: number } },  // picker fairness data
+    tools: {
+      [toolName]: {
+        // anything tool-specific; commonly:
+        students: { [classId]: { [name]: any } },   // per-student per-tool metadata
+        // ...other opaque tool state (e.g. seating-chart's Zustand blob)
+      }
+    }
+  }
   ```
 - The seating chart's Zustand persist middleware uses a custom storage adapter that delegates to `setToolState('seating-chart', ...)`. **Do not** point Zustand at a separate localStorage key.
-- Tools that need their own internal versioning store it inside their own `tools.<name>` blob — that migration chain is the tool's concern. The seating chart already does this (its own v1→v6 chain in `src/lib/migrations.ts`).
-- `getRoster(classId)` falls back to reading the seating chart's class blob if no explicit roster has been written. This means future tools can read student names without requiring the seating chart to actively sync.
+- Tools that need their own internal versioning store it inside their own `tools.<name>` blob — that migration chain is the tool's concern. The seating chart already does this (its own v1→v7 chain in `src/lib/migrations.ts`).
+- `getRoster(classId)` falls back to reading the seating chart's class blob if no explicit roster has been written. This means tools can read student names without requiring the seating chart to actively sync.
+
+### Canonical event contract
+
+Storage helpers dispatch these `window` `CustomEvent`s when canonical state changes:
+
+| Event           | Detail                                     | Fired by                                  |
+|-----------------|--------------------------------------------|-------------------------------------------|
+| `classmeta`     | `{ classId, name, isNew, previousName }`   | `setClassName`                            |
+| `classdelete`   | `{ classId }`                              | `deleteClass`                             |
+| `rosterchange`  | `{ classId, names, added, removed }`       | `setRoster`                               |
+| `rosterrename`  | `{ classId, oldName, newName }`            | `renameStudent`                           |
+| `themechange`   | `{ theme }`                                | `setTheme`                                |
+
+Subscribe via `shared/roster-bridge.js`: `onClassesChange`, `onClassDelete`, `onRosterChange(classId | null, cb)`, `onRosterRename(classId | null, cb)`, `onAnyChange`. Each returns an unsubscribe fn. The bridge also listens to cross-tab `storage` events so subscribers fire when another tab edits the same envelope.
+
+### Idempotency + auto-cleanup
+
+- **Idempotent helpers.** `setRoster` skips its write + event dispatch if the names match the current value; `setClassName` skips if name + isNew unchanged. Tools can call these in render loops without flooding subscribers.
+- **Auto-cleanup of tool metadata.** Per-student tool data lives at `state.tools[toolName].students[classId][name]`. Canonical helpers keep this in sync automatically — `setRoster` drops metadata for removed names, `renameStudent` rekeys, `deleteClass` drops the whole class bucket. Tools never need to wire up cleanup themselves.
 
 ## Aesthetic rules
 
@@ -73,6 +126,7 @@ Single source of truth: [`shared/storage.js`](shared/storage.js).
 |------------------|--------------------------------|-------------|
 | `bingo/`         | Vanilla HTML/CSS/JS (ES modules) | No |
 | `picker/`        | Vanilla HTML/CSS/JS (ES modules) | No |
+| `rosters/`       | Vanilla HTML/CSS/JS (ES modules) | No |
 | `seating-chart/` | React 18 + TypeScript + Vite + Tailwind + Konva + Zustand | Yes (`npm run build`) |
 
 The seating chart is the **only** tool with a build step. Treat it as the existing exception, not a precedent. New tools should be vanilla.
@@ -94,6 +148,8 @@ The seating chart deviates because Vite owns its file structure.
 - Don't add accounts, auth, login flows, or a backend. The suite is static + localStorage forever.
 - Don't add new external dependencies (CDN scripts, fonts, libraries) without flagging it. Existing deps in the bingo monolith — KaTeX, jsPDF, `@fontsource` for PDF fonts — stay.
 - Don't touch `localStorage` directly. Always go through `shared/storage.js`.
+- Don't subscribe to canonical events (`classmeta` / `classdelete` / `rosterchange` / `rosterrename` / `themechange`) with raw `window.addEventListener`. Use `shared/roster-bridge.js` (vanilla) or `seating-chart/src/lib/use-roster-bridge.ts` (React). The bridge unifies same-tab and cross-tab listeners and returns an unsubscribe function.
+- Don't reinvent modals, paste-bulk textareas, or class-card grids. Compose `shared/components/` instead.
 
 ## Running locally
 
@@ -114,14 +170,13 @@ npm run dev
 
 ## Deploying
 
-Cloudflare Pages, static. The seating chart needs a build step; everything else ships as-is.
+GitHub Pages, static, via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Every push to `main` runs the workflow:
 
-```bash
-cd seating-chart
-npm run build      # outputs seating-chart/dist/
-```
+1. Build the seating chart with Vite (`VITE_BASE=/teachers-desk/seating-chart/`).
+2. Assemble `_site/`: copy `index.html`, `about.html`, `bingo/`, `picker/`, `rosters/`, `shared/`, `assets/` as-is; replace `_site/seating-chart/` with `seating-chart/dist/`.
+3. Upload + deploy the artifact to GitHub Pages.
 
-Deploy the repo root, but replace the contents of `/seating-chart/` with the contents of `seating-chart/dist/`. The seating chart's `vite.config.ts` sets `base: '/seating-chart/'` so asset paths line up.
+Live URL: <https://ben0sb0rne.github.io/teachers-desk/>. When you add a new vanilla tool folder, **add it to the `cp -r` line in the Assemble step** so it ships.
 
 ## Testing
 

@@ -295,11 +295,19 @@ export function remove(path) {
 // -------------------------------------------------------------
 // Preferences (suite-wide)
 // -------------------------------------------------------------
+/** Read a suite-wide preference (theme, soundVolume, etc.).
+ *  @template T
+ *  @param {string} key
+ *  @param {T} [defaultValue]
+ *  @returns {T} */
 export function getPreference(key, defaultValue) {
   const state = load();
   return state.preferences[key] !== undefined ? state.preferences[key] : defaultValue;
 }
 
+/** Persist a suite-wide preference.
+ *  @param {string} key
+ *  @param {unknown} value */
 export function setPreference(key, value) {
   const state = load();
   state.preferences[key] = value;
@@ -320,10 +328,16 @@ export function setPreference(key, value) {
 // -------------------------------------------------------------
 const VALID_THEMES = ['auto', 'light', 'dark'];
 
+/** Get the user's theme preference. Defaults to `'auto'` (follows OS).
+ *  @returns {'auto' | 'light' | 'dark'} */
 export function getTheme() {
   return getPreference('theme', 'auto');
 }
 
+/** Set + persist + apply the user's theme. Dispatches a `themechange` window
+ *  event so canvas-based consumers (the seating chart's Konva layer) can
+ *  re-render to match. Throws if `theme` is not one of the valid values.
+ *  @param {'auto' | 'light' | 'dark'} theme */
 export function setTheme(theme) {
   if (!VALID_THEMES.includes(theme)) {
     throw new Error(`Invalid theme "${theme}" — expected one of ${VALID_THEMES.join(', ')}`);
@@ -335,6 +349,11 @@ export function setTheme(theme) {
   }
 }
 
+/** Apply a theme to `<html data-theme="...">` (DOM only — no persistence).
+ *  Called eagerly at boot from each tool's entry point. Pass `'auto'` (or
+ *  null/undefined) to remove the override and let CSS `prefers-color-scheme`
+ *  decide.
+ *  @param {'auto' | 'light' | 'dark' | null | undefined} theme */
 export function applyTheme(theme) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -352,6 +371,10 @@ export function applyTheme(theme) {
 // future tools (a name picker) read names without requiring the
 // seating chart to actively sync.
 // -------------------------------------------------------------
+/** Canonical roster (names) for a class. Falls back to the seating-chart
+ *  blob if no explicit roster has been written.
+ *  @param {string} classId
+ *  @returns {string[]} */
 export function getRoster(classId) {
   const state = load();
   if (state.rosters[classId]) return state.rosters[classId].slice();
@@ -369,6 +392,11 @@ export function getRoster(classId) {
   return [];
 }
 
+/** Replace the canonical roster for a class. Idempotent — skipped when nothing
+ *  changed. Drops tool metadata for any names that were removed. Dispatches
+ *  `rosterchange` window event with `{ classId, names, added, removed }`.
+ *  @param {string} classId
+ *  @param {string[]} names */
 export function setRoster(classId, names) {
   const state = load();
   if (!Array.isArray(names)) {
@@ -411,12 +439,8 @@ export function setRoster(classId, names) {
 }
 
 /**
- * Rename a member of a class's roster. Migrates the call count from oldName
- * to newName. Dispatches a `rosterrename` window event so other tools (the
- * seating chart) can update any per-student metadata they own.
- *
- * Throws RosterDuplicateError if newName already exists in the class
- * (case-insensitive). Returns the trimmed new name on success.
+ * Thrown by `renameStudent` when the new name already exists in the class
+ * (case-insensitive). Tools can detect this via `e.name === 'RosterDuplicateError'`.
  */
 export class RosterDuplicateError extends Error {
   constructor(message) {
@@ -425,6 +449,23 @@ export class RosterDuplicateError extends Error {
   }
 }
 
+/**
+ * Rename one student in a class's roster. Migrates the call count and rekeys
+ * every tool's per-student metadata (`tools[*].students[classId][name]`)
+ * automatically — no per-tool cleanup wiring required. Dispatches a
+ * `rosterrename` window event so subscribers can react.
+ *
+ * Idempotent: if `oldName === newName.trim()` or the class/oldName isn't
+ * found, no event is dispatched.
+ *
+ * @param {string} classId
+ * @param {string} oldName
+ * @param {string} newName  Trimmed before use.
+ * @returns {string}        The trimmed new name.
+ * @throws {TypeError}            If either name is not a string.
+ * @throws {Error}                If `newName` trims to empty.
+ * @throws {RosterDuplicateError} If `newName` already exists in the class.
+ */
 export function renameStudent(classId, oldName, newName) {
   if (typeof oldName !== 'string' || typeof newName !== 'string') {
     throw new TypeError('renameStudent: names must be strings');
@@ -510,7 +551,9 @@ export function listPeriods() {
 // any seating-chart-only classes so every tool can list them.
 // -------------------------------------------------------------
 
-/** @returns {string|null} */
+/** Display name for a class. Canonical first; falls back to seating-chart blob.
+ *  @param {string} classId
+ *  @returns {string|null} */
 export function getClassName(classId) {
   const state = load();
   // Canonical first.
@@ -528,6 +571,10 @@ export function getClassName(classId) {
   return null;
 }
 
+/** Persist a canonical class name. Idempotent — a no-op when nothing changed.
+ *  Dispatches `classmeta` window event with `{ classId, name, isNew, previousName }`.
+ *  @param {string} classId
+ *  @param {string} name */
 export function setClassName(classId, name) {
   if (typeof name !== 'string') {
     throw new TypeError('setClassName: name must be a string');
@@ -555,6 +602,7 @@ export function setClassName(classId, name) {
  *   - 'canonical'      → the suite owns this class metadata
  *   - 'seating-chart'  → the class only exists in the seating chart's blob
  * If a class exists both canonically and in seating-chart, canonical wins.
+ * @returns {{ id: string, name: string, source: 'canonical' | 'seating-chart' }[]}
  */
 export function listClasses() {
   const state = load();
@@ -591,8 +639,16 @@ export function listClasses() {
 
 /**
  * Remove canonical class metadata + the canonical roster + call counts for
- * a classId. Does NOT touch seating-chart-owned classes (they live inside
- * tools["seating-chart"] and must be deleted from the seating chart itself).
+ * a classId, plus every tool's per-student bucket for that class. The
+ * seating chart's own class blob is NOT touched here — when a class
+ * originated in the seating chart, deletion has to happen there, and the
+ * seating chart's mirror block then propagates the removal back to canonical.
+ *
+ * Idempotent: if nothing matches the classId anywhere, no event is
+ * dispatched. Otherwise dispatches a `classdelete` window event with
+ * `{ detail: { classId } }`.
+ *
+ * @param {string} classId
  */
 export function deleteClass(classId) {
   const state = load();
@@ -630,12 +686,20 @@ export function deleteClass(classId) {
 // -------------------------------------------------------------
 // Call counts (for future name-picker fairness)
 // -------------------------------------------------------------
+/** Per-name call count for a class (used by the picker for fairness logic).
+ *  @param {string} classId
+ *  @param {string} name
+ *  @returns {number} */
 export function getCallCount(classId, name) {
   const state = load();
   const bucket = state.callCounts[classId];
   return bucket && typeof bucket[name] === 'number' ? bucket[name] : 0;
 }
 
+/** Increment a per-name call count and return the new value.
+ *  @param {string} classId
+ *  @param {string} name
+ *  @returns {number} */
 export function incrementCallCount(classId, name) {
   const state = load();
   if (!state.callCounts[classId]) state.callCounts[classId] = {};
@@ -647,12 +711,19 @@ export function incrementCallCount(classId, name) {
 // -------------------------------------------------------------
 // Tool state (opaque blob per tool)
 // -------------------------------------------------------------
+/** Get an opaque per-tool state blob. Each tool owns the shape of its blob.
+ *  @template T
+ *  @param {string} toolName
+ *  @returns {T | null} */
 export function getToolState(toolName) {
   const state = load();
   const v = state.tools[toolName];
   return v == null ? null : v;
 }
 
+/** Replace (or clear, when value == null) a tool's state blob.
+ *  @param {string} toolName
+ *  @param {unknown} value */
 export function setToolState(toolName, value) {
   const state = load();
   if (value == null) {
@@ -685,7 +756,16 @@ function ensureToolStudentBucket(state, toolName, classId) {
   return state.tools[toolName].students[classId];
 }
 
-/** Read a tool's per-student metadata. Returns undefined if not set. */
+/**
+ * Read a tool's per-student metadata. Storage path is
+ * `state.tools[toolName].students[classId][name]`.
+ *
+ * @template T
+ * @param {string} toolName
+ * @param {string} classId
+ * @param {string} name      Canonical roster name (matches `getRoster(classId)`).
+ * @returns {T | undefined}  Undefined if the tool / class / name has no metadata yet.
+ */
 export function getToolMeta(toolName, classId, name) {
   const state = load();
   const tool = state.tools[toolName];
@@ -695,7 +775,19 @@ export function getToolMeta(toolName, classId, name) {
   return bucket[name];
 }
 
-/** Replace a tool's per-student metadata for one name. */
+/**
+ * Replace a tool's per-student metadata for one name. Lazy-creates the
+ * tool/class buckets — tools don't need to bootstrap any structure.
+ *
+ * Auto-cleanup: this metadata is dropped automatically by `setRoster` (when
+ * the name is removed), `renameStudent` (rekeyed), and `deleteClass` (whole
+ * class bucket removed). Tools therefore don't need their own cleanup hooks.
+ *
+ * @param {string} toolName
+ * @param {string} classId
+ * @param {string} name
+ * @param {unknown} value
+ */
 export function setToolMeta(toolName, classId, name, value) {
   const state = load();
   const bucket = ensureToolStudentBucket(state, toolName, classId);
@@ -703,7 +795,15 @@ export function setToolMeta(toolName, classId, name, value) {
   save();
 }
 
-/** Shallow-merge a partial update into a tool's per-student metadata. */
+/**
+ * Shallow-merge a partial update into a tool's per-student metadata. If no
+ * value exists yet, behaves like `setToolMeta(toolName, classId, name, patch)`.
+ *
+ * @param {string} toolName
+ * @param {string} classId
+ * @param {string} name
+ * @param {object} patch
+ */
 export function patchToolMeta(toolName, classId, name, patch) {
   const state = load();
   const bucket = ensureToolStudentBucket(state, toolName, classId);
@@ -711,7 +811,13 @@ export function patchToolMeta(toolName, classId, name, patch) {
   save();
 }
 
-/** Drop a tool's metadata for a single student. */
+/**
+ * Drop a tool's metadata for a single student. No-op if no metadata exists.
+ *
+ * @param {string} toolName
+ * @param {string} classId
+ * @param {string} name
+ */
 export function removeToolMeta(toolName, classId, name) {
   const state = load();
   const tool = state.tools[toolName];
@@ -740,6 +846,23 @@ function forEachToolStudentBucket(state, classId, transform) {
 const EXPORT_FORMAT_ID = 'teachersdesk-classroom-export';
 const EXPORT_FORMAT_VERSION = 1;
 
+/**
+ * Build a portable JSON snapshot of the user's data — preferences, rosters,
+ * call counts, and every tool's blob. Use `downloadExport()` to push it as
+ * a file the user can save; use `importClassroom()` to restore it.
+ *
+ * @returns {{
+ *   format: 'teachersdesk-classroom-export',
+ *   version: number,
+ *   exportedAt: string,
+ *   data: {
+ *     rosters: object,
+ *     callCounts: object,
+ *     preferences: object,
+ *     tools: object,
+ *   }
+ * }}
+ */
 export function exportClassroom() {
   const state = load();
   return {
@@ -757,8 +880,16 @@ export function exportClassroom() {
 
 /**
  * Import a previously-exported classroom JSON.
- * @param {object} json   Parsed JSON (not a string).
- * @param {'replace'|'merge'} mode
+ *
+ * @param {object} json   Parsed JSON (not a string). Must match the shape
+ *                        produced by `exportClassroom()`.
+ * @param {'replace' | 'merge'} [mode='replace']
+ *   - `'replace'`: discard current state, install the import wholesale.
+ *   - `'merge'`: per-key union — rosters union by classId (incoming wins on
+ *      conflict), call counts sum, preferences shallow-merge (incoming wins),
+ *      tool blobs use a tool-specific merge (`mergeToolState`).
+ * @throws {ImportFormatError} If the payload is missing/wrong format, has no
+ *   version, or was made with a newer suite version than this one.
  */
 export function importClassroom(json, mode = 'replace') {
   if (!json || typeof json !== 'object') {
@@ -878,8 +1009,10 @@ function mergeToolState(toolName, existing, incoming) {
 }
 
 /**
- * Trigger a browser download of the current classroom export.
- * Filename: teachersdesk-classroom-YYYY-MM-DD.json
+ * Trigger a browser download of the current classroom export. Wraps
+ * `exportClassroom()` in a JSON Blob and clicks an anchor.
+ *
+ * Filename: `teachersdesk-classroom-YYYY-MM-DD.json`.
  */
 export function downloadExport() {
   const payload = exportClassroom();
