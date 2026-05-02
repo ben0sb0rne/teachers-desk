@@ -26,8 +26,9 @@ Three working tools (Math Bingo, Name Picker, Seating Chart Designer) plus the s
 │       └── view-router.js      ← createViewRouter({a, b}) — show/current/onChange helper
 ├── bingo/                      ← Math Bingo (vanilla)
 ├── picker/                     ← Name Picker (vanilla)
-├── rosters/                    ← Suite-wide class roster manager (vanilla)
+├── rosters/                    ← Stub: redirects to seating-chart/ (canonical roster manager)
 ├── seating-chart/              ← Seating Chart Designer (React + Vite + Tailwind)
+│                                  Owns the canonical roster editor at /classes/:id/roster
 │   └── src/lib/use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
 ├── assets/
 │   ├── renders/                ← future Blender output, empty for now
@@ -126,10 +127,12 @@ Subscribe via `shared/roster-bridge.js`: `onClassesChange`, `onClassDelete`, `on
 |------------------|--------------------------------|-------------|
 | `bingo/`         | Vanilla HTML/CSS/JS (ES modules) | No |
 | `picker/`        | Vanilla HTML/CSS/JS (ES modules) | No |
-| `rosters/`       | Vanilla HTML/CSS/JS (ES modules) | No |
+| `rosters/`       | Static redirect to `seating-chart/` | No |
 | `seating-chart/` | React 18 + TypeScript + Vite + Tailwind + Konva + Zustand | Yes (`npm run build`) |
 
 The seating chart is the **only** tool with a build step. Treat it as the existing exception, not a precedent. New tools should be vanilla.
+
+The seating chart's classes index page (`/seating-chart/`) is the canonical roster manager for the suite — every "Rosters" link in the suite points there. The vanilla `rosters/` folder is now a stub redirect kept around so existing bookmarks (or any in-the-wild deep link) don't 404.
 
 Each tool folder contains:
 - `index.html` — the entry point

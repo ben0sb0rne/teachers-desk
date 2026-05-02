@@ -87,8 +87,11 @@ export default function AppShell() {
           )}
         </div>
         <div className="suite-topstrip-right">
-          {/* Cross-tool nav: suite-level Rosters page (vanilla, leaves React app). */}
-          <a className="suite-topstrip-link" href="../rosters/">Rosters</a>
+          {/* Cross-tool "Rosters" entry — points at this app's classes index,
+              which IS the canonical roster manager (the suite-wide /rosters/
+              vanilla page now redirects here). Uses <Link> for in-app SPA nav
+              instead of a full reload. */}
+          <Link className="suite-topstrip-link" to="/">Rosters</Link>
           <button
             type="button"
             className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
