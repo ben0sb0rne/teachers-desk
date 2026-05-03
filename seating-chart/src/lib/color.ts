@@ -14,7 +14,7 @@
  *  becomes a paint chip aisle, not a curated palette. */
 export const SWATCHES: readonly string[] = [
   "#f8fafc", // slate-50 (default-ish)
-  "#fde68a", // soft amber
+  "#d6b288", // wood-tone tan (matches the default teacher desk + bookshelf)
   "#fca5a5", // soft red
   "#bbf7d0", // soft green
   "#bfdbfe", // soft blue

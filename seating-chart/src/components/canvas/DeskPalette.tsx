@@ -543,12 +543,6 @@ function FurnitureIcon({ kind }: { kind: FurnitureKind }) {
           <circle cx="10" cy="10" r="6" fill={fill} stroke={stroke} />
         </svg>
       );
-    case "chair":
-      return (
-        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
-          <rect x="6" y="6" width="8" height="8" fill={fill} stroke={stroke} rx="1" />
-        </svg>
-      );
     case "tv":
       return (
         <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>

@@ -16,8 +16,8 @@ export const FURNITURE_DEFAULTS: Record<FurnitureKind, FurnitureDefault> = {
     width: 180,
     height: 80,
     label: "Teacher",
-    fill: "#c8a07a", // warm brown
-    stroke: "#7a4f2a",
+    fill: "#d6b288", // matches the bookshelf tan — wood-toned, reads as a desk
+    stroke: "#8a5a2c",
   },
   bookshelf: {
     width: 140,
@@ -54,13 +54,6 @@ export const FURNITURE_DEFAULTS: Record<FurnitureKind, FurnitureDefault> = {
     fill: "#a7d8a3",
     stroke: "#3f7a3a",
   },
-  chair: {
-    width: 30,
-    height: 30,
-    label: "",
-    fill: "#c8a07a", // wood, matches the teacher desk family
-    stroke: "#7a4f2a",
-  },
   tv: {
     width: 80,
     height: 14,
@@ -93,7 +86,6 @@ export const FURNITURE_DEFAULTS: Record<FurnitureKind, FurnitureDefault> = {
 
 export const FURNITURE_KINDS: FurnitureKind[] = [
   "teacher-desk",
-  "chair",
   "bookshelf",
   "window",
   "whiteboard",
@@ -113,7 +105,6 @@ export function furnitureLabel(kind: FurnitureKind): string {
     case "whiteboard": return "Whiteboard";
     case "door": return "Door";
     case "plant": return "Plant";
-    case "chair": return "Chair";
     case "tv": return "TV";
     case "screen": return "Screen";
     case "box": return "Box";

@@ -339,21 +339,6 @@ function FurnitureShape({
         />
       );
     }
-    case "chair":
-      // A chair is just a small rounded rect — keeps the icon footprint
-      // recognizable without burning render budget on a real silhouette.
-      return (
-        <Rect
-          x={0}
-          y={0}
-          width={w}
-          height={h}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          cornerRadius={3}
-        />
-      );
     case "tv": {
       // Outer bezel + a slightly inset darker screen panel, so the symbol
       // reads as "TV" even at small sizes.

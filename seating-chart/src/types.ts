@@ -56,7 +56,6 @@ export type FurnitureKind =
   | "whiteboard"
   | "door"
   | "plant"
-  | "chair"
   | "tv"
   | "screen"
   | "box"
