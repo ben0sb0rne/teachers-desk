@@ -504,6 +504,38 @@ export default function RoomDesigner() {
     assignSeatStore(klass.id, seatId, studentId);
   }
 
+  /**
+   * Apply a fill color (or clear it back to the kind default when fill is
+   * undefined) to every selected desk + furniture item. Stroke + text-color
+   * for the affected items derive automatically inside DeskNode/FurnitureNode.
+   */
+  function applyColorToSelection(fill: string | undefined) {
+    if (!klass || selectedItemIds.length === 0) return;
+    for (const id of selectedItemIds) {
+      const isDesk = klass.room.desks.some((d) => d.id === id);
+      if (isDesk) updateDesk(klass.id, id, { fill });
+      else updateFurniture(klass.id, id, { fill });
+    }
+  }
+
+  function handleSetColor(fill: string) { applyColorToSelection(fill); }
+  function handleResetColor() { applyColorToSelection(undefined); }
+
+  /**
+   * Box / circle furniture have a user-typed label drawn inside the shape.
+   * Right-click + double-click on those shapes route here. Simple prompt()
+   * for v1; a proper inline editor would be a Phase 6 polish.
+   */
+  function handleRequestFurnitureRename(furnitureId: string) {
+    if (!klass) return;
+    const item = klass.room.furniture?.find((f) => f.id === furnitureId);
+    if (!item || (item.kind !== "box" && item.kind !== "circle")) return;
+    const next = window.prompt("Label:", item.label ?? "");
+    if (next == null) return; // cancel
+    const trimmed = next.trim();
+    updateFurniture(klass.id, item.id, { label: trimmed.length > 0 ? trimmed : undefined });
+  }
+
   return (
     <div className="flex h-full min-h-0">
       <DeskPalette
@@ -522,6 +554,8 @@ export default function RoomDesigner() {
         onDistributeHorizontal={handleDistributeHorizontal}
         onFlipHorizontal={handleFlipHorizontal}
         onFlipVertical={handleFlipVertical}
+        onSetColor={handleSetColor}
+        onResetColor={handleResetColor}
         locked={locked}
         onToggleLocked={() => setLocked((l) => !l)}
         showGrid={showGrid}
@@ -536,6 +570,7 @@ export default function RoomDesigner() {
           students={klass.students}
           assignments={assignments}
           onAssignSeat={handleAssignSeat}
+          onRequestFurnitureRename={handleRequestFurnitureRename}
           classId={klass.id}
           locked={locked}
           showGrid={showGrid}

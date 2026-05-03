@@ -66,6 +66,8 @@ interface Props {
   students: Student[];
   assignments: Record<SeatId, StudentId>;
   onAssignSeat: (seatId: SeatId, studentId: StudentId | null) => void;
+  /** Box / circle furniture: caller handles the rename UX (a prompt() in v1). */
+  onRequestFurnitureRename?: (furnitureId: string) => void;
   classId: ClassId;
   locked: boolean;
   showGrid: boolean;
@@ -92,6 +94,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     students,
     assignments,
     onAssignSeat,
+    onRequestFurnitureRename,
     classId,
     locked,
     showGrid,
@@ -389,7 +392,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             y={0}
             width={room.width}
             height={room.height}
-            fill={PAPER_CREAM}
+            fill={room.background ?? PAPER_CREAM}
             stroke={NEUTRAL_LINE}
             strokeWidth={2 / safeScale}
           />
@@ -425,6 +428,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               onDragStart={(id) => handleItemDragStart(id)}
               onDragMove={(id, x, y) => snapItemDrag(id, x, y)}
               onDragEnd={handleItemDragEnd}
+              onRequestRename={onRequestFurnitureRename}
               classId={classId}
             />
           ))}

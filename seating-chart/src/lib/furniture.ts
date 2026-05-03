@@ -54,15 +54,55 @@ export const FURNITURE_DEFAULTS: Record<FurnitureKind, FurnitureDefault> = {
     fill: "#a7d8a3",
     stroke: "#3f7a3a",
   },
+  chair: {
+    width: 30,
+    height: 30,
+    label: "",
+    fill: "#c8a07a", // wood, matches the teacher desk family
+    stroke: "#7a4f2a",
+  },
+  tv: {
+    width: 80,
+    height: 14,
+    label: "",
+    fill: "#1f2937", // dark slate (TV face)
+    stroke: "#0f172a",
+  },
+  screen: {
+    width: 200,
+    height: 12,
+    label: "",
+    fill: "#f5f5f4", // pull-down projection screen
+    stroke: "#737373",
+  },
+  box: {
+    width: 80,
+    height: 80,
+    label: "",
+    fill: "#e7e5e4", // neutral, expects user to recolor + label
+    stroke: "#78716c",
+  },
+  circle: {
+    width: 80,
+    height: 80,
+    label: "",
+    fill: "#e7e5e4",
+    stroke: "#78716c",
+  },
 };
 
 export const FURNITURE_KINDS: FurnitureKind[] = [
   "teacher-desk",
+  "chair",
   "bookshelf",
   "window",
   "whiteboard",
   "door",
   "plant",
+  "tv",
+  "screen",
+  "box",
+  "circle",
 ];
 
 export function furnitureLabel(kind: FurnitureKind): string {
@@ -73,12 +113,19 @@ export function furnitureLabel(kind: FurnitureKind): string {
     case "whiteboard": return "Whiteboard";
     case "door": return "Door";
     case "plant": return "Plant";
+    case "chair": return "Chair";
+    case "tv": return "TV";
+    case "screen": return "Screen";
+    case "box": return "Box";
+    case "circle": return "Circle";
   }
 }
 
 export interface FurnitureOptions {
   /** Window-only: number of sashes. */
   paneCount?: number;
+  /** Box / circle: initial label. */
+  label?: string;
 }
 
 export function makeFurniture(
@@ -99,6 +146,9 @@ export function makeFurniture(
   };
   if (kind === "window" && options.paneCount != null) {
     f.paneCount = options.paneCount;
+  }
+  if ((kind === "box" || kind === "circle") && options.label != null) {
+    f.label = options.label;
   }
   return f;
 }

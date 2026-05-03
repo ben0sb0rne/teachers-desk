@@ -3,6 +3,7 @@ import type { DeskKind, FurnitureKind, Room, Wall } from "@/types";
 import { cn } from "@/lib/cn";
 import Icon from "@/components/Icon";
 import { FURNITURE_DEFAULTS, FURNITURE_KINDS, furnitureLabel } from "@/lib/furniture";
+import { SWATCHES } from "@/lib/color";
 
 export type PaletteDragType = "single-desk" | "multi-desk" | "furniture";
 
@@ -28,6 +29,11 @@ interface Props {
   onDistributeHorizontal: () => void;
   onFlipHorizontal: () => void;
   onFlipVertical: () => void;
+  /** Per-object color override. Receives a CSS color string from a swatch
+   *  or the native color picker. Applied to every selected item. */
+  onSetColor: (fill: string) => void;
+  /** Reset every selected item's `fill` back to undefined (kind defaults). */
+  onResetColor: () => void;
   locked: boolean;
   onToggleLocked: () => void;
   showGrid: boolean;
@@ -69,6 +75,8 @@ export default function DeskPalette({
   onDistributeHorizontal,
   onFlipHorizontal,
   onFlipVertical,
+  onSetColor,
+  onResetColor,
   locked,
   onToggleLocked,
   showGrid,
@@ -83,6 +91,7 @@ export default function DeskPalette({
   const canDistribute = selectionSize >= 3 && !locked;
   // Flip works on a single item (mirror its own seat layout) or any group.
   const canFlip = selectionSize >= 1 && !locked;
+  const canColor = selectionSize >= 1 && !locked;
   const isDefaultRoom = room.width === DEFAULT_ROOM_W && room.height === DEFAULT_ROOM_H;
 
   if (collapsed) {
@@ -218,7 +227,17 @@ export default function DeskPalette({
             <span className="text-xs">Flip V</span>
           </button>
         </div>
-        <p className="mb-4 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>
+        <p className="mb-2 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>
+
+        <ColorPanel
+          enabled={canColor}
+          onPick={onSetColor}
+          onReset={onResetColor}
+        />
+        <p className="mb-4 mt-1 text-[10px] text-ink-muted">
+          Color applies to every selected desk or piece of furniture. The
+          stroke and any text inside follow automatically.
+        </p>
 
         <div className="mb-4 grid grid-cols-2 gap-1">
           <button
@@ -270,6 +289,28 @@ export default function DeskPalette({
             <div>
               <label className="label">Front of room</label>
               <FrontWallPicker value={room.frontWall ?? "top"} onChange={(wall) => onUpdateRoom({ frontWall: wall })} />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="label">Background</label>
+                {room.background && (
+                  <button
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-slate-100"
+                    onClick={() => onUpdateRoom({ background: undefined })}
+                    title="Reset background to the default cream"
+                  >
+                    <Icon name="rotate-ccw" size={10} />
+                    Reset
+                  </button>
+                )}
+              </div>
+              <ColorPanel
+                enabled
+                compact
+                currentColor={room.background}
+                onPick={(fill) => onUpdateRoom({ background: fill })}
+                onReset={() => onUpdateRoom({ background: undefined })}
+              />
             </div>
           </div>
         )}
@@ -326,6 +367,73 @@ function WallButton({ wall, current, onClick }: { wall: Wall; current: Wall; onC
     >
       {wall}
     </button>
+  );
+}
+
+/** Tiny color picker: a row of preset suite swatches + a native picker +
+ *  an explicit reset. Used twice — once for the per-object color override,
+ *  once inside Room Options for the canvas background. The compact layout
+ *  works in both spots without taking too much vertical room. */
+function ColorPanel({
+  enabled,
+  currentColor,
+  onPick,
+  onReset,
+  compact,
+}: {
+  enabled: boolean;
+  currentColor?: string;
+  onPick: (fill: string) => void;
+  onReset: () => void;
+  compact?: boolean;
+}) {
+  const swatchSize = compact ? 18 : 20;
+  return (
+    <div className={cn("flex flex-wrap items-center gap-1.5", !enabled && "opacity-50 pointer-events-none")}>
+      {SWATCHES.map((color) => (
+        <button
+          key={color}
+          type="button"
+          aria-label={`Set color ${color}`}
+          title={color}
+          onClick={() => onPick(color)}
+          style={{ width: swatchSize, height: swatchSize, background: color }}
+          className={cn(
+            "rounded border transition",
+            currentColor && currentColor.toLowerCase() === color.toLowerCase()
+              ? "border-ink shadow-sm"
+              : "border-ink/30 hover:border-ink/70",
+          )}
+        />
+      ))}
+      <label
+        className={cn(
+          "flex cursor-pointer items-center justify-center rounded border border-dashed border-ink/40 hover:border-ink",
+          "relative overflow-hidden",
+        )}
+        style={{ width: swatchSize, height: swatchSize }}
+        title="Pick any color"
+      >
+        <Icon name="plus" size={10} />
+        <input
+          type="color"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          value={currentColor ?? "#ffffff"}
+          onChange={(e) => onPick(e.target.value)}
+        />
+      </label>
+      {!compact && (
+        <button
+          type="button"
+          className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-slate-100"
+          onClick={onReset}
+          title="Reset to the default color"
+        >
+          <Icon name="rotate-ccw" size={10} />
+          Reset
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -394,6 +502,38 @@ function FurnitureIcon({ kind }: { kind: FurnitureKind }) {
       return (
         <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
           <circle cx="10" cy="10" r="6" fill={fill} stroke={stroke} />
+        </svg>
+      );
+    case "chair":
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
+          <rect x="6" y="6" width="8" height="8" fill={fill} stroke={stroke} rx="1" />
+        </svg>
+      );
+    case "tv":
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
+          <rect x="2" y="7" width="16" height="6" fill={fill} stroke={stroke} rx="0.5" />
+          <rect x="3" y="8" width="14" height="4" fill="#0b1220" />
+        </svg>
+      );
+    case "screen":
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
+          <rect x="2" y="9" width="16" height="2" fill={fill} stroke={stroke} />
+          <rect x="9" y="11" width="2" height="1.5" fill={stroke} />
+        </svg>
+      );
+    case "box":
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
+          <rect x="3" y="3" width="14" height="14" fill={fill} stroke={stroke} rx="1.5" />
+        </svg>
+      );
+    case "circle":
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden>
+          <circle cx="10" cy="10" r="7" fill={fill} stroke={stroke} />
         </svg>
       );
   }

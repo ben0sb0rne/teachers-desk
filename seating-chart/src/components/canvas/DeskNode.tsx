@@ -4,6 +4,7 @@ import type Konva from "konva";
 import type { Desk, SeatId, Student, StudentId, ClassId } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
+import { deriveStroke, deriveTextColor } from "@/lib/color";
 
 // DeskNode reads theme values statically because the desk's own slate fill
 // (STROKE/FILL below) is hardcoded slate that doesn't flip — flipping the
@@ -166,9 +167,14 @@ export default function DeskNode({
   const allFront = desk.seats.length > 0 && desk.seats.every((s) => s.isFrontRow);
   const anyFront = desk.seats.some((s) => s.isFrontRow);
   const nameW = nameBoxWidth(desk);
-  const fill = selected ? FILL_SELECTED : FILL;
-  const stroke = selected ? STROKE_SELECTED : STROKE;
+  // Per-desk color override mirrors the furniture path: when fill is set,
+  // the stroke + name-text color are auto-derived from it.
+  const baseFill = desk.fill ?? FILL;
+  const baseStroke = desk.fill ? deriveStroke(desk.fill) : STROKE;
+  const fill = selected ? FILL_SELECTED : baseFill;
+  const stroke = selected ? STROKE_SELECTED : baseStroke;
   const strokeWidth = selected ? STROKE_WIDTH_SELECTED : STROKE_WIDTH;
+  const nameColor = desk.fill ? deriveTextColor(desk.fill) : PAPER_EDGE;
   const markerPos = frontRowMarkerPos(desk);
 
   return (
@@ -305,7 +311,7 @@ export default function DeskNode({
                 text={student.name}
                 fontSize={NAME_FONT_SIZE}
                 fontStyle="bold"
-                fill={PAPER_EDGE}
+                fill={nameColor}
                 width={nameW}
                 height={NAME_BOX_HEIGHT}
                 align="center"

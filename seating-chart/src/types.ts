@@ -41,6 +41,10 @@ export interface Desk {
   perSide?: number;     // multi-square
   seatCount?: number;   // multi-circle
   seats: Seat[];
+  /** Optional per-desk fill override. When set, stroke + name-text colors
+   *  are derived automatically (lib/color.ts). Unset = use the default
+   *  slate fill from DeskNode. */
+  fill?: string;
 }
 
 export type Wall = "top" | "right" | "bottom" | "left";
@@ -51,7 +55,12 @@ export type FurnitureKind =
   | "window"
   | "whiteboard"
   | "door"
-  | "plant";
+  | "plant"
+  | "chair"
+  | "tv"
+  | "screen"
+  | "box"
+  | "circle";
 
 export type FurnitureId = string;
 
@@ -67,6 +76,13 @@ export interface Furniture {
    *  vertical divider, matching the previous hardcoded render). Drawn as
    *  paneCount-1 dividers spaced evenly along the window's long axis. */
   paneCount?: number;
+  /** Optional per-object fill override. When set, stroke + label-text colors
+   *  are derived from it via lib/color.ts (so the user only picks one color).
+   *  Unset = use the kind's default fill from FURNITURE_DEFAULTS. */
+  fill?: string;
+  /** Box / circle: user-typed label drawn inside the shape. Other kinds
+   *  ignore this field. */
+  label?: string;
 }
 
 export interface Room {
@@ -76,6 +92,10 @@ export interface Room {
   frontWall: Wall;
   desks: Desk[];
   furniture: Furniture[];
+  /** Optional canvas background color override. When set, the room-bg rect
+   *  uses this fill (and the print export honors it). Unset = the suite's
+   *  default cream paper. */
+  background?: string;
 }
 
 export interface Arrangement {
