@@ -24,7 +24,7 @@ export default function Roster() {
     return klass.students.filter((s) => s.name.toLowerCase().includes(q));
   }, [klass, filter]);
 
-  if (!klass) return <div className="p-6 text-paper/70">Class not found.</div>;
+  if (!klass) return <div className="p-6 text-paper-on-wood/70">Class not found.</div>;
 
   function handleAddSingle() {
     const name = newStudentName.trim();
@@ -37,9 +37,9 @@ export default function Roster() {
     <div className="mx-auto max-w-5xl p-6">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          {/* Heading sits on wood-bg — use cream text. */}
-          <h1 className="text-xl font-bold text-paper">Roster · {klass.name}</h1>
-          <p className="text-sm text-paper/70">
+          {/* Heading sits on wood-bg — use the always-light cream token. */}
+          <h1 className="text-xl font-bold text-paper-on-wood">Roster · {klass.name}</h1>
+          <p className="text-sm text-paper-on-wood/70">
             {klass.students.length} students
             {filter && filtered.length !== klass.students.length && (
               <> · {filtered.length} match "{filter}"</>

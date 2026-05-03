@@ -25,6 +25,11 @@
   --paper-edge:        26  22  20;   /* #1A1614  ink, primary text */
   --accent-blue:       30  91 255;   /* #1E5BFF  the one accent, used sparingly */
   --accent-yellow:    255 224  58;   /* #FFE03A  sticky notes */
+  /* -- paper-on-wood: light cream that does NOT theme. Use for text that
+     sits on .wood-bg (which stays brown-ish in both modes). The themed
+     --paper-cream goes dark in dark mode and would lose contrast against
+     dark walnut wood; --paper-on-wood stays light to preserve readability. -- */
+  --paper-on-wood:    248 238 214;   /* #F8EED6  always-light cream */
 
   /* -- Composed values -- */
   --ink-muted:        rgb(var(--paper-edge) / 0.65);

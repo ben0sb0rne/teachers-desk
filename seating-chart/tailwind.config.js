@@ -27,6 +27,11 @@ export default {
           muted:   'rgb(var(--paper-edge) / 0.65)',
         },
         paper:        'rgb(var(--paper-cream) / <alpha-value>)',
+        // Light cream that does NOT theme — for text on .wood-bg, which is
+        // brown in both light + dark mode. text-paper goes dark in dark mode
+        // and loses contrast against dark walnut wood. Use text-paper-on-wood
+        // for any heading or paragraph that sits directly on the wood surface.
+        'paper-on-wood': 'rgb(var(--paper-on-wood) / <alpha-value>)',
         wood:         'rgb(var(--desk-wood) / <alpha-value>)',
         'wood-dark':  'rgb(var(--desk-wood-dark) / <alpha-value>)',
         'accent-blue':   'rgb(var(--accent-blue) / <alpha-value>)',
