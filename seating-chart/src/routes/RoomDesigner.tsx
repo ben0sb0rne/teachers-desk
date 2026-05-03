@@ -37,7 +37,6 @@ export default function RoomDesigner() {
   const addDesk = useAppStore((s) => s.addDesk);
   const addDesks = useAppStore((s) => s.addDesks);
   const removeDesks = useAppStore((s) => s.removeDesks);
-  const updateDesk = useAppStore((s) => s.updateDesk);
   const updateRoomItems = useAppStore((s) => s.updateRoomItems);
   const addFurniture = useAppStore((s) => s.addFurniture);
   const addFurnitures = useAppStore((s) => s.addFurnitures);
@@ -304,8 +303,12 @@ export default function RoomDesigner() {
     for (const it of items) {
       const patch = patchFor(it);
       if (!patch) continue;
-      if (it.kind === "desk") deskPatches[it.entity.id] = patch;
-      else furniturePatches[it.entity.id] = patch;
+      // The cast is safe: the caller's patchFor returns shapes matching
+      // it.kind, and the union type only loses the discriminator across
+      // the function boundary. We assign by kind, so the runtime types
+      // are always correct.
+      if (it.kind === "desk") deskPatches[it.entity.id] = patch as Partial<Desk>;
+      else furniturePatches[it.entity.id] = patch as Partial<Furniture>;
     }
     updateRoomItems(klass.id, deskPatches, furniturePatches);
   }
