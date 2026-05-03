@@ -52,6 +52,10 @@ export default {
       },
       boxShadow: {
         topbar: 'var(--shadow-paper)',
+        // Suite-shared shadow tokens. Names mirror shared/desk.css's
+        // --shadow-paper / --shadow-lift so the design system stays unified.
+        paper: 'var(--shadow-paper)',
+        lift:  'var(--shadow-lift)',
       },
     },
   },
