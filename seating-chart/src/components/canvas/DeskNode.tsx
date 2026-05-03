@@ -40,7 +40,6 @@ const SEAT_DOT_RADIUS = 8;
 const STROKE = "#334155";
 const STROKE_SELECTED = ACCENT_BLUE;
 const FILL = "#f8fafc";
-const FILL_SELECTED = "#e0f2fe";
 const STROKE_WIDTH = 2;
 const STROKE_WIDTH_SELECTED = 3;
 const MIN_DESK_DIM = 40;
@@ -207,11 +206,14 @@ export default function DeskNode({
   const allFront = desk.seats.length > 0 && desk.seats.every((s) => s.isFrontRow);
   const anyFront = desk.seats.some((s) => s.isFrontRow);
   const nameW = nameBoxWidth(desk);
-  // Per-desk color override mirrors the furniture path: when fill is set,
-  // the stroke + name-text color are auto-derived from it.
+  // Per-desk color override. The user's fill always wins — selection state
+  // signals only via the stroke (thicker accent-blue) + the Transformer
+  // handles. Replacing the fill with a "selected blue" was hiding whatever
+  // color the user picked from the Color panel, making it impossible to see
+  // the actual color while editing.
   const baseFill = desk.fill ?? FILL;
   const baseStroke = desk.fill ? deriveStroke(desk.fill) : STROKE;
-  const fill = selected ? FILL_SELECTED : baseFill;
+  const fill = baseFill;
   const stroke = selected ? STROKE_SELECTED : baseStroke;
   const strokeWidth = selected ? STROKE_WIDTH_SELECTED : STROKE_WIDTH;
   const nameColor = desk.fill ? deriveTextColor(desk.fill) : PAPER_EDGE;

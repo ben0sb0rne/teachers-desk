@@ -13,7 +13,7 @@ import { assign } from "@/lib/assign";
 import { exportStageAsPng } from "@/lib/exportPng";
 import { pageToRoom } from "@/lib/canvasCoords";
 import Icon from "@/components/Icon";
-import type { Desk, DeskKind, Furniture, FurnitureKind, SeatId, StudentId } from "@/types";
+import type { Desk, DeskId, DeskKind, Furniture, FurnitureId, FurnitureKind, SeatId, StudentId } from "@/types";
 
 const PASTE_OFFSET = 20;
 /** Mouse must move this many pixels after mousedown before a palette drag begins. */
@@ -38,6 +38,7 @@ export default function RoomDesigner() {
   const addDesks = useAppStore((s) => s.addDesks);
   const removeDesks = useAppStore((s) => s.removeDesks);
   const updateDesk = useAppStore((s) => s.updateDesk);
+  const updateRoomItems = useAppStore((s) => s.updateRoomItems);
   const addFurniture = useAppStore((s) => s.addFurniture);
   const addFurnitures = useAppStore((s) => s.addFurnitures);
   const updateFurniture = useAppStore((s) => s.updateFurniture);
@@ -290,39 +291,47 @@ export default function RoomDesigner() {
     });
   }
 
+  /** Build per-item patch maps from a list of SelectedItems and pipe them
+   *  into the bulk store action so the temporal middleware records ONE
+   *  history entry per user action (not N entries for N items). */
+  function applyItemPatches(
+    items: SelectedItem[],
+    patchFor: (it: SelectedItem) => Partial<Desk> | Partial<Furniture> | null,
+  ) {
+    if (!klass) return;
+    const deskPatches: Record<DeskId, Partial<Desk>> = {};
+    const furniturePatches: Record<FurnitureId, Partial<Furniture>> = {};
+    for (const it of items) {
+      const patch = patchFor(it);
+      if (!patch) continue;
+      if (it.kind === "desk") deskPatches[it.entity.id] = patch;
+      else furniturePatches[it.entity.id] = patch;
+    }
+    updateRoomItems(klass.id, deskPatches, furniturePatches);
+  }
+
   function handleAlignVertical() {
     if (!klass || selectedItemIds.length < 2) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
-    // Align centers (X-center) — items end up in a vertical column with their
-    // centers on the same X line, regardless of width. Reference is the
-    // bounding box center, so the group stays where it was.
     const minX = Math.min(...items.map((it) => it.entity.x));
     const maxX = Math.max(...items.map((it) => it.entity.x + it.entity.width));
     const centerX = (minX + maxX) / 2;
-    for (const it of items) {
+    applyItemPatches(items, (it) => {
       const newX = Math.round(centerX - it.entity.width / 2);
-      if (it.entity.x !== newX) {
-        if (it.kind === "desk") updateDesk(klass.id, it.entity.id, { x: newX });
-        else updateFurniture(klass.id, it.entity.id, { x: newX });
-      }
-    }
+      return it.entity.x === newX ? null : { x: newX };
+    });
   }
 
   function handleAlignHorizontal() {
     if (!klass || selectedItemIds.length < 2) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
-    // Align centers (Y-center) — items end up in a row with their centers on
-    // the same Y line, regardless of height.
     const minY = Math.min(...items.map((it) => it.entity.y));
     const maxY = Math.max(...items.map((it) => it.entity.y + it.entity.height));
     const centerY = (minY + maxY) / 2;
-    for (const it of items) {
+    applyItemPatches(items, (it) => {
       const newY = Math.round(centerY - it.entity.height / 2);
-      if (it.entity.y !== newY) {
-        if (it.kind === "desk") updateDesk(klass.id, it.entity.id, { y: newY });
-        else updateFurniture(klass.id, it.entity.id, { y: newY });
-      }
-    }
+      return it.entity.y === newY ? null : { y: newY };
+    });
   }
 
   function handleDistributeVertical() {
@@ -333,12 +342,11 @@ export default function RoomDesigner() {
     const minY = items[0].entity.y;
     const maxY = items[items.length - 1].entity.y;
     const step = (maxY - minY) / (items.length - 1);
-    items.forEach((it, i) => {
-      const newY = Math.round(minY + i * step);
-      if (it.entity.y !== newY) {
-        if (it.kind === "desk") updateDesk(klass.id, it.entity.id, { y: newY });
-        else updateFurniture(klass.id, it.entity.id, { y: newY });
-      }
+    const targetY = new Map<string, number>();
+    items.forEach((it, i) => targetY.set(it.entity.id, Math.round(minY + i * step)));
+    applyItemPatches(items, (it) => {
+      const newY = targetY.get(it.entity.id);
+      return newY == null || newY === it.entity.y ? null : { y: newY };
     });
   }
 
@@ -350,12 +358,11 @@ export default function RoomDesigner() {
     const minX = items[0].entity.x;
     const maxX = items[items.length - 1].entity.x;
     const step = (maxX - minX) / (items.length - 1);
-    items.forEach((it, i) => {
-      const newX = Math.round(minX + i * step);
-      if (it.entity.x !== newX) {
-        if (it.kind === "desk") updateDesk(klass.id, it.entity.id, { x: newX });
-        else updateFurniture(klass.id, it.entity.id, { x: newX });
-      }
+    const targetX = new Map<string, number>();
+    items.forEach((it, i) => targetX.set(it.entity.id, Math.round(minX + i * step)));
+    applyItemPatches(items, (it) => {
+      const newX = targetX.get(it.entity.id);
+      return newX == null || newX === it.entity.x ? null : { x: newX };
     });
   }
 
@@ -375,20 +382,16 @@ export default function RoomDesigner() {
     const minX = Math.min(...items.map((it) => it.entity.x));
     const maxX = Math.max(...items.map((it) => it.entity.x + it.entity.width));
     const centerX = (minX + maxX) / 2;
-    for (const it of items) {
+    applyItemPatches(items, (it) => {
       const newX = Math.round(2 * centerX - (it.entity.x + it.entity.width));
       const newRotation = normalizeAngle(-it.entity.rotation);
       if (it.kind === "desk") {
         const desk = it.entity;
-        const seats = desk.seats.map((seat) => ({
-          ...seat,
-          offsetX: desk.width - seat.offsetX,
-        }));
-        updateDesk(klass.id, desk.id, { x: newX, rotation: newRotation, seats });
-      } else {
-        updateFurniture(klass.id, it.entity.id, { x: newX, rotation: newRotation });
+        const seats = desk.seats.map((seat) => ({ ...seat, offsetX: desk.width - seat.offsetX }));
+        return { x: newX, rotation: newRotation, seats };
       }
-    }
+      return { x: newX, rotation: newRotation };
+    });
   }
 
   // Vertical flip = horizontal flip composed with a 180° rotation, so:
@@ -400,20 +403,16 @@ export default function RoomDesigner() {
     const minY = Math.min(...items.map((it) => it.entity.y));
     const maxY = Math.max(...items.map((it) => it.entity.y + it.entity.height));
     const centerY = (minY + maxY) / 2;
-    for (const it of items) {
+    applyItemPatches(items, (it) => {
       const newY = Math.round(2 * centerY - (it.entity.y + it.entity.height));
       const newRotation = normalizeAngle(180 - it.entity.rotation);
       if (it.kind === "desk") {
         const desk = it.entity;
-        const seats = desk.seats.map((seat) => ({
-          ...seat,
-          offsetY: desk.height - seat.offsetY,
-        }));
-        updateDesk(klass.id, desk.id, { y: newY, rotation: newRotation, seats });
-      } else {
-        updateFurniture(klass.id, it.entity.id, { y: newY, rotation: newRotation });
+        const seats = desk.seats.map((seat) => ({ ...seat, offsetY: desk.height - seat.offsetY }));
+        return { y: newY, rotation: newRotation, seats };
       }
-    }
+      return { y: newY, rotation: newRotation };
+    });
   }
 
   function normalizeAngle(deg: number): number {
@@ -511,11 +510,8 @@ export default function RoomDesigner() {
    */
   function applyColorToSelection(fill: string | undefined) {
     if (!klass || selectedItemIds.length === 0) return;
-    for (const id of selectedItemIds) {
-      const isDesk = klass.room.desks.some((d) => d.id === id);
-      if (isDesk) updateDesk(klass.id, id, { fill });
-      else updateFurniture(klass.id, id, { fill });
-    }
+    const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
+    applyItemPatches(items, () => ({ fill }));
   }
 
   function handleSetColor(fill: string) { applyColorToSelection(fill); }

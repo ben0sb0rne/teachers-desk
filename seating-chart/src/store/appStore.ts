@@ -47,6 +47,14 @@ interface AppActions {
   addDesk: (classId: ClassId, desk: Desk) => void;
   addDesks: (classId: ClassId, desks: Desk[]) => void;
   updateDesk: (classId: ClassId, deskId: DeskId, patch: Partial<Desk>) => void;
+  /** Apply many desk + furniture patches as a SINGLE store mutation. Used by
+   *  multi-item handlers (align / distribute / flip / color) so the temporal
+   *  middleware records one undo step per user action instead of N. */
+  updateRoomItems: (
+    classId: ClassId,
+    deskPatches: Record<DeskId, Partial<Desk>>,
+    furniturePatches: Record<FurnitureId, Partial<Furniture>>,
+  ) => void;
   removeDesks: (classId: ClassId, deskIds: DeskId[]) => void;
   updateRoom: (classId: ClassId, patch: Partial<Room>) => void;
   setSeatFrontRow: (classId: ClassId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
@@ -287,6 +295,31 @@ export const useAppStore = create<AppStore>()(
               ...c,
               room: { ...c.room, desks: c.room.desks.map((d) => (d.id === deskId ? { ...d, ...patch } : d)) },
             })),
+          ),
+
+        updateRoomItems: (classId, deskPatches, furniturePatches) =>
+          set((s) =>
+            withClass(s, classId, (c) => {
+              const hasDeskPatches = Object.keys(deskPatches).length > 0;
+              const hasFurniturePatches = Object.keys(furniturePatches).length > 0;
+              if (!hasDeskPatches && !hasFurniturePatches) return c;
+              return {
+                ...c,
+                room: {
+                  ...c.room,
+                  desks: hasDeskPatches
+                    ? c.room.desks.map((d) =>
+                        deskPatches[d.id] ? { ...d, ...deskPatches[d.id] } : d,
+                      )
+                    : c.room.desks,
+                  furniture: hasFurniturePatches
+                    ? (c.room.furniture ?? []).map((f) =>
+                        furniturePatches[f.id] ? { ...f, ...furniturePatches[f.id] } : f,
+                      )
+                    : c.room.furniture,
+                },
+              };
+            }),
           ),
 
         removeDesks: (classId, deskIds) =>

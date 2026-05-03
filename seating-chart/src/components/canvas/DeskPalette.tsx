@@ -227,8 +227,14 @@ export default function DeskPalette({
             <span className="text-xs">Flip V</span>
           </button>
         </div>
-        <p className="mb-2 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>
+        <p className="mb-3 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>
 
+        <div className="mb-2 flex items-center justify-between">
+          <span className="label">Color</span>
+          <span className="text-[10px] text-ink-muted">
+            {selectionSize === 0 ? "no selection" : `${selectionSize} item${selectionSize === 1 ? "" : "s"}`}
+          </span>
+        </div>
         <ColorPanel
           enabled={canColor}
           onPick={onSetColor}
