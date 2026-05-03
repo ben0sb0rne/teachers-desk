@@ -29,6 +29,15 @@ interface Props {
   classId: ClassId;
   draggable: boolean;
   registerNode: (id: string, node: Konva.Group | null) => void;
+  /** Render seated student names. Default true; ExportDialog flips off for
+   *  blank seating charts. */
+  showNames?: boolean;
+  /** Render the per-desk amber front-row corner dot. Default true. */
+  showFrontRowMarker?: boolean;
+  /** Render the empty-seat placeholder dot at unassigned seats. Default true
+   *  (editor needs them as click targets). ExportDialog flips off so the
+   *  exported PNG isn't peppered with stray circles. */
+  showEmptySeatDots?: boolean;
 }
 
 const NAME_FONT_SIZE = 13;
@@ -140,6 +149,9 @@ export default function DeskNode({
   classId,
   draggable,
   registerNode,
+  showNames = true,
+  showFrontRowMarker = true,
+  showEmptySeatDots = true,
 }: Props) {
   const groupRef = useRef<Konva.Group>(null);
   const updateDesk = useAppStore((s) => s.updateDesk);
@@ -342,14 +354,16 @@ export default function DeskNode({
             }}
           >
             {!student ? (
-              <Circle
-                name="empty-seat-dot"
-                radius={SEAT_DOT_RADIUS}
-                fill="#ffffff"
-                stroke="#94a3b8"
-                strokeWidth={1.5}
-              />
-            ) : (
+              showEmptySeatDots ? (
+                <Circle
+                  name="empty-seat-dot"
+                  radius={SEAT_DOT_RADIUS}
+                  fill="#ffffff"
+                  stroke="#94a3b8"
+                  strokeWidth={1.5}
+                />
+              ) : null
+            ) : showNames ? (
               <Text
                 name="seat-name-label"
                 text={student.name}
@@ -371,7 +385,7 @@ export default function DeskNode({
                 ellipsis
                 listening
               />
-            )}
+            ) : null}
           </Group>
         );
       })}
@@ -380,7 +394,7 @@ export default function DeskNode({
           never crosses a name. We aggregate "any seat is front-row" into a
           single dot per desk; the underlying per-seat isFrontRow flags are
           still what the solver reads, so behavior is unchanged. */}
-      {anyFront && (
+      {anyFront && showFrontRowMarker && (
         <Circle
           name="front-row-marker"
           x={markerPos.x}

@@ -78,6 +78,10 @@ interface AppActions {
   restoreArrangement: (classId: ClassId, arrangementId: ArrangementId) => void;
   saveArrangement: (classId: ClassId, label?: string) => { id: ArrangementId } | null;
   deleteArrangement: (classId: ClassId, arrangementId: ArrangementId) => void;
+  /** Update the human label of a saved arrangement. No-op if the arrangement
+   *  isn't found. Empty / whitespace-only labels resolve to undefined so the
+   *  History UI shows "(untitled)" rather than a blank entry. */
+  renameArrangement: (classId: ClassId, arrangementId: ArrangementId, label: string) => void;
 
   replaceState: (next: AppState) => void;
 }
@@ -457,6 +461,20 @@ export const useAppStore = create<AppStore>()(
               ...c,
               arrangements: c.arrangements.filter((a) => a.id !== arrangementId),
             })),
+          ),
+
+        renameArrangement: (classId, arrangementId, label) =>
+          set((s) =>
+            withClass(s, classId, (c) => {
+              const trimmed = label.trim();
+              const nextLabel = trimmed.length > 0 ? trimmed : undefined;
+              return {
+                ...c,
+                arrangements: c.arrangements.map((a) =>
+                  a.id === arrangementId ? { ...a, label: nextLabel } : a,
+                ),
+              };
+            }),
           ),
 
         replaceState: (next) => set(() => ({ ...next })),

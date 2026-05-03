@@ -12,8 +12,8 @@ interface Props {
   onRandomize: () => void;
   onClear: () => void;
   onSave: () => void;
-  onExportImage: () => void;
-  onExportPrint: () => void;
+  /** Open the unified Export dialog (PNG, print, BW, toggles all live there). */
+  onExport: () => void;
   /** Select the given desk on the canvas. Called when the user clicks a seat
    *  or a seated student row in this panel. */
   onSelectDesk?: (deskId: string) => void;
@@ -28,8 +28,7 @@ export default function AssignmentPanel({
   onRandomize,
   onClear,
   onSave,
-  onExportImage,
-  onExportPrint,
+  onExport,
   onSelectDesk,
 }: Props) {
   const seats = useMemo(() => roomSeats(klass.room), [klass.room]);
@@ -83,16 +82,14 @@ export default function AssignmentPanel({
           <Icon name="save" size={14} />
           Save this arrangement
         </button>
-        <div className="grid grid-cols-2 gap-2">
-          <button className="btn-secondary" onClick={onExportImage} title="Transparent PNG, good for screens">
-            <Icon name="image" size={14} />
-            <span className="text-xs">PNG</span>
-          </button>
-          <button className="btn-secondary" onClick={onExportPrint} title="White background, good for paper">
-            <Icon name="printer" size={14} />
-            <span className="text-xs">Print</span>
-          </button>
-        </div>
+        <button
+          className="btn-secondary w-full"
+          onClick={onExport}
+          title="PNG download or print preview, with toggles for names and markers"
+        >
+          <Icon name="download" size={14} />
+          Export…
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto p-3">

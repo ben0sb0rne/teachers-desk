@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
 import type Konva from "konva";
 import { useAppStore } from "@/store/appStore";
@@ -9,10 +8,10 @@ import AssignmentPanel from "@/components/canvas/AssignmentPanel";
 import MultiShapeParamsDialog, { type ConfigKind, type ConfigPayload } from "@/components/designer/MultiShapeParamsDialog";
 import TextInputDialog from "@/components/TextInputDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ExportDialog from "@/components/ExportDialog";
 import { cloneDeskWithFreshIds, defaultParamsFor, layoutDesk, makeDesk, type ShapeParams } from "@/lib/shapes";
 import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
-import { exportStageAsPng } from "@/lib/exportPng";
 import { pageToRoom } from "@/lib/canvasCoords";
 import Icon from "@/components/Icon";
 import type { Desk, DeskId, DeskKind, Furniture, FurnitureId, FurnitureKind, SeatId, StudentId } from "@/types";
@@ -78,6 +77,9 @@ export default function RoomDesigner() {
   });
   const [locked, setLocked] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
+  /** When true the unified Export dialog is open. The dialog renders its own
+   *  RoomStage preview and handles PNG download + print. */
+  const [exportOpen, setExportOpen] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [paletteDrag, setPaletteDrag] = useState<PaletteDragSession | null>(null);
@@ -504,36 +506,6 @@ export default function RoomDesigner() {
     setTextInput({ kind: "arrangement-label" });
   }
 
-  /**
-   * Wraps an export call so the active selection (which paints desks blue) is
-   * cleared before the snapshot, then restored. flushSync forces React to
-   * commit the deselect before exportStageAsPng walks the Konva tree —
-   * without it, the React render is async and the snapshot would still see
-   * the selected fills.
-   */
-  function exportDeselected(filename: string, mode: "transparent" | "white") {
-    if (!stageRef.current) return;
-    const wasSelected = selectedItemIds;
-    flushSync(() => setSelectedItemIds([]));
-    try {
-      exportStageAsPng(stageRef.current, filename, { mode });
-    } finally {
-      setSelectedItemIds(wasSelected);
-    }
-  }
-
-  function handleExportImage() {
-    if (!klass) return;
-    const date = new Date().toISOString().slice(0, 10);
-    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "transparent");
-  }
-
-  function handleExportPrint() {
-    if (!klass) return;
-    const date = new Date().toISOString().slice(0, 10);
-    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "white");
-  }
-
   function handleAssignSeat(seatId: SeatId, studentId: StudentId | null) {
     if (!klass) return;
     assignSeatStore(klass.id, seatId, studentId);
@@ -653,9 +625,14 @@ export default function RoomDesigner() {
         onRandomize={handleRandomize}
         onClear={handleClear}
         onSave={handleSaveArrangement}
-        onExportImage={handleExportImage}
-        onExportPrint={handleExportPrint}
+        onExport={() => setExportOpen(true)}
         onSelectDesk={(deskId) => setSelectedItemIds([deskId])}
+      />
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        klass={klass}
+        arrangement={null}
       />
       <MultiShapeParamsDialog
         open={paramsDialog.open}

@@ -86,6 +86,17 @@ interface Props {
   /** Render the "Front of room" overlay label. Default true. The Export
    *  dialog flips this off when the user wants a clean PNG. */
   showFrontWallLabel?: boolean;
+  /** Render seated student names on each desk. Default true. */
+  showNames?: boolean;
+  /** Render the per-desk amber front-row corner dot. Default true. */
+  showFrontRowMarkers?: boolean;
+  /** Render empty-seat placeholder circles. Default true (editor needs them
+   *  as click targets); the export dialog flips off for clean charts. */
+  showEmptySeatDots?: boolean;
+  /** Override the room background fill. Default uses room.background, falling
+   *  back to paper-cream. Pass "rgba(0,0,0,0)" or any color to override —
+   *  used by the export preview to reflect the chosen background mode. */
+  roomBackgroundFill?: string;
 }
 
 interface Marquee {
@@ -119,6 +130,10 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     locked = false,
     showGrid = false,
     showFrontWallLabel = true,
+    showNames = true,
+    showFrontRowMarkers = true,
+    showEmptySeatDots = true,
+    roomBackgroundFill,
   },
   ref,
 ) {
@@ -422,7 +437,13 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }, [showGrid, room.width, room.height]);
 
   return (
-    <div ref={containerRef} className="relative min-h-0 flex-1 bg-slate-100" style={{ touchAction: "none" }}>
+    <div
+      ref={containerRef}
+      className={
+        "relative min-h-0 flex-1 " + (interactive ? "bg-slate-100" : "")
+      }
+      style={{ touchAction: "none" }}
+    >
       <Stage
         ref={stageRef}
         width={size.w}
@@ -441,7 +462,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             y={0}
             width={room.width}
             height={room.height}
-            fill={room.background ?? PAPER_CREAM}
+            fill={roomBackgroundFill ?? room.background ?? PAPER_CREAM}
             stroke={NEUTRAL_LINE}
             strokeWidth={2 / safeScale}
           />
@@ -501,6 +522,9 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               onDragMove={(id, x, y) => snapItemDrag(id, x, y)}
               onDragEnd={handleItemDragEnd}
               classId={classId}
+              showNames={showNames}
+              showFrontRowMarker={showFrontRowMarkers}
+              showEmptySeatDots={showEmptySeatDots}
             />
           ))}
 

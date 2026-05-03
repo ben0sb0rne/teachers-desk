@@ -16,7 +16,8 @@ export interface ExportOptions {
   /** Hide student names on seated desks before snapshotting. The exported
    *  PNG shows blank desks — useful for blank seating charts. Default false. */
   hideNames?: boolean;
-  /** Hide the per-desk amber front-row marker dots. Default false. */
+  /** Hide the per-desk amber front-row marker dots. Default true to match
+   *  the historical export behaviour (these are editor chrome, not data). */
   hideFrontRowMarkers?: boolean;
   /** Hide empty-seat placeholder dots (the small circles where no student is
    *  placed yet). Default true to match the historical export behaviour. */
@@ -29,25 +30,27 @@ export interface ExportOptions {
 type Hideable = { visible: (v?: boolean) => boolean | unknown };
 
 /**
- * Export the Konva stage as a PNG, with editor chrome stripped:
+ * Render the Konva stage to a PNG dataURL with editor chrome stripped:
  *   - the selection Transformer (handles, rotation knob, border)
  *   - empty-seat dots (placeholders for unassigned seats; toggleable)
  *   - front-row corner markers (the small amber dots; toggleable)
  *   - the alignment guide lines (if any are mid-drag)
  *   - student name labels (toggleable, for blank-chart exports)
  * The room background border also temporarily darkens so the room outline
- * reads clearly on both screen and paper.
+ * reads clearly on both screen and paper. State is restored afterwards.
+ *
+ * Used by exportStageAsPng (download) and the ExportDialog's Print button
+ * (which feeds the dataURL into a print window).
  */
-export function exportStageAsPng(
+export function renderStageToPngDataUrl(
   stage: Konva.Stage,
-  filename: string,
   options: ExportOptions = {},
-) {
+): string {
   const {
     mode = "transparent",
     blackAndWhite = false,
     hideNames = false,
-    hideFrontRowMarkers = false,
+    hideFrontRowMarkers = true,
     hideEmptySeatDots = true,
     pixelRatio = 2,
   } = options;
@@ -92,17 +95,9 @@ export function exportStageAsPng(
   stage.draw();
 
   try {
-    const dataUrl = blackAndWhite
+    return blackAndWhite
       ? grayscaleStageDataUrl(stage, pixelRatio)
       : stage.toDataURL({ mimeType: "image/png", pixelRatio });
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    const suffix = mode === "white" ? "_print" : "";
-    const bwSuffix = blackAndWhite ? "_bw" : "";
-    a.download = filename.endsWith(".png") ? filename : `${filename}${suffix}${bwSuffix}.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
   } finally {
     // Restore visibility.
     for (const [node, vis] of previousVisibility) node.visible(vis);
@@ -113,6 +108,26 @@ export function exportStageAsPng(
     }
     stage.draw();
   }
+}
+
+/** Render the stage to a PNG dataURL (via renderStageToPngDataUrl) and
+ *  trigger a browser download. Filename is auto-suffixed with the chosen
+ *  background + color modes for easy disambiguation. */
+export function exportStageAsPng(
+  stage: Konva.Stage,
+  filename: string,
+  options: ExportOptions = {},
+) {
+  const dataUrl = renderStageToPngDataUrl(stage, options);
+  const mode = options.mode ?? "transparent";
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  const suffix = mode === "white" ? "_print" : "";
+  const bwSuffix = options.blackAndWhite ? "_bw" : "";
+  a.download = filename.endsWith(".png") ? filename : `${filename}${suffix}${bwSuffix}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /** Render the stage to a 2D canvas, copy through a fresh canvas with
