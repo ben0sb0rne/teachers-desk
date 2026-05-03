@@ -36,7 +36,10 @@ interface AppActions {
   createClass: (name: string) => ClassId | null;
   renameClass: (id: ClassId, name: string) => boolean;
   deleteClass: (id: ClassId) => void;
-  duplicateClass: (id: ClassId) => ClassId | null;
+  /** Clone the source class's room layout into a fresh class with the given
+   *  name. The new class has no students, no arrangements, and no current
+   *  assignments. Returns the new class id, or null if the name collides. */
+  duplicateRoom: (id: ClassId, newName: string) => ClassId | null;
   setActiveClass: (id: ClassId | null) => void;
 
   addStudents: (classId: ClassId, names: string[]) => void;
@@ -95,76 +98,37 @@ function nameExists(state: AppState, name: string, excludeId?: ClassId): boolean
   );
 }
 
-/** Pick a unique class name by suffixing " (copy)" / " (copy 2)" etc. */
-function uniqueCopyName(state: AppState, base: string): string {
-  const suffix = " (copy)";
-  let candidate = `${base}${suffix}`;
-  if (!nameExists(state, candidate)) return candidate;
-  let n = 2;
-  while (nameExists(state, `${base}${suffix.replace(")", "")} ${n})`)) n++;
-  return `${base}${suffix.replace(")", "")} ${n})`;
-}
-
-/** Deep-clone a class, generating fresh IDs everywhere. Arrangement seat-ID
- * mappings are remapped so saved history still resolves to real seats. */
-function cloneClass(src: ClassRoom, newName: string): ClassRoom {
-  const newClassId = uid();
-
-  // Build student id remap
-  const studentIdMap = new Map<StudentId, StudentId>();
-  const newStudents: Student[] = src.students.map((st) => {
-    const newId = uid();
-    studentIdMap.set(st.id, newId);
-    return { ...st, id: newId, keepApart: [] };
-  });
-  // Pass 2: remap keepApart references
-  newStudents.forEach((st, i) => {
-    st.keepApart = src.students[i].keepApart
-      .map((id) => studentIdMap.get(id))
-      .filter((id): id is StudentId => !!id);
-  });
-
-  // Build seat id remap
-  const seatIdMap = new Map<SeatId, SeatId>();
-  const newDesks: Desk[] = src.room.desks.map((d) => ({
-    ...d,
-    id: uid(),
-    seats: d.seats.map((s) => {
-      const newSeatId = uid();
-      seatIdMap.set(s.id, newSeatId);
-      return { ...s, id: newSeatId };
-    }),
-  }));
-
-  const newFurniture: Furniture[] = (src.room.furniture ?? []).map((f) => ({ ...f, id: uid() }));
-
-  function remapAssignments(orig: Record<SeatId, StudentId>): Record<SeatId, StudentId> {
-    const out: Record<SeatId, StudentId> = {};
-    for (const [seatId, studentId] of Object.entries(orig)) {
-      const newSeatId = seatIdMap.get(seatId);
-      const newStudentId = studentIdMap.get(studentId);
-      if (newSeatId && newStudentId) out[newSeatId] = newStudentId;
-    }
-    return out;
-  }
-
+/**
+ * Build a new ClassRoom that reuses the source class's *room layout* (desks,
+ * furniture, dimensions, front wall, background, advanced-alignment toggle)
+ * with fresh ids — and pairs it with an empty roster, no arrangements, and
+ * no assignments. This is what the user wants when they say "I have one
+ * physical classroom and 5 different periods": same desk layout, separate
+ * lists of students and seating histories per period.
+ *
+ * A previous full-deep-clone variant existed (cloned the roster + history
+ * too) but it wasn't useful in practice — duplicating with the same names
+ * led to confusion and the seating history rarely transferred meaningfully.
+ */
+function cloneRoomOnly(src: ClassRoom, newName: string): ClassRoom {
   return {
-    id: newClassId,
+    id: uid(),
     name: newName,
-    students: newStudents,
+    students: [],
     room: {
-      width: src.room.width,
-      height: src.room.height,
-      frontWall: src.room.frontWall,
-      desks: newDesks,
-      furniture: newFurniture,
+      // Spread first so any Room field we add later (Phase 3 background,
+      // Phase 4 advancedAlignment, …) automatically gets copied without
+      // needing a code change here.
+      ...src.room,
+      desks: src.room.desks.map((d) => ({
+        ...d,
+        id: uid(),
+        seats: d.seats.map((s) => ({ ...s, id: uid() })),
+      })),
+      furniture: (src.room.furniture ?? []).map((f) => ({ ...f, id: uid() })),
     },
-    arrangements: src.arrangements.map((a) => ({
-      ...a,
-      id: uid(),
-      assignments: remapAssignments(a.assignments),
-    })),
-    currentAssignments: remapAssignments(src.currentAssignments ?? {}),
+    arrangements: [],
+    currentAssignments: {},
   };
 }
 
@@ -208,11 +172,13 @@ export const useAppStore = create<AppStore>()(
             activeClassId: s.activeClassId === id ? null : s.activeClassId,
           })),
 
-        duplicateClass: (id) => {
+        duplicateRoom: (id, newName) => {
+          const trimmed = newName.trim();
+          if (!trimmed) return null;
           const src = findClass(get(), id);
           if (!src) return null;
-          const newName = uniqueCopyName(get(), src.name);
-          const cloned = cloneClass(src, newName);
+          if (nameExists(get(), trimmed)) return null;
+          const cloned = cloneRoomOnly(src, trimmed);
           set((s) => ({ ...s, classes: [...s.classes, cloned] }));
           return cloned.id;
         },

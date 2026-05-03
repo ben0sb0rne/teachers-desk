@@ -4,19 +4,42 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "@/store/appStore";
 import Icon from "@/components/Icon";
 import { cn } from "@/lib/cn";
+import TextInputDialog from "@/components/TextInputDialog";
 
 export default function ClassesIndex() {
   const navigate = useNavigate();
   const classes = useAppStore((s) => s.classes);
   const createClass = useAppStore((s) => s.createClass);
   const renameClass = useAppStore((s) => s.renameClass);
-  const duplicateClass = useAppStore((s) => s.duplicateClass);
+  const duplicateRoom = useAppStore((s) => s.duplicateRoom);
   const deleteClass = useAppStore((s) => s.deleteClass);
   const [newName, setNewName] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  /** When set, the duplicate-room dialog is open for this source class. */
+  const [duplicateSource, setDuplicateSource] = useState<{ id: string; name: string } | null>(null);
+
+  /** Pick a non-colliding default name for a duplicated room: `${base} (copy)`,
+   *  bumping to `(copy 2)`, `(copy 3)`, … if needed. */
+  function defaultCopyName(base: string): string {
+    const taken = new Set(classes.map((c) => c.name.trim().toLowerCase()));
+    const first = `${base} (copy)`;
+    if (!taken.has(first.toLowerCase())) return first;
+    for (let n = 2; n < 100; n++) {
+      const candidate = `${base} (copy ${n})`;
+      if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
+    return first;
+  }
+
+  function handleDuplicateConfirm(newName: string) {
+    if (!duplicateSource) return;
+    const newId = duplicateRoom(duplicateSource.id, newName);
+    setDuplicateSource(null);
+    if (newId) navigate(`/classes/${newId}/roster`);
+  }
 
   function handleCreate() {
     const name = newName.trim();
@@ -90,7 +113,30 @@ export default function ClassesIndex() {
 
       {classes.length === 0 ? (
         <div className="card p-8 text-center text-ink-muted">No classes yet — add one above.</div>
-      ) : (
+      ) : null}
+
+      <TextInputDialog
+        open={duplicateSource != null}
+        onOpenChange={(open) => { if (!open) setDuplicateSource(null); }}
+        title="Duplicate room"
+        description={
+          duplicateSource
+            ? `Clone the room layout from "${duplicateSource.name}" into a fresh class with no students or seating history. Tweak the name below.`
+            : ""
+        }
+        placeholder="e.g. Period 4 Math"
+        initialValue={duplicateSource ? defaultCopyName(duplicateSource.name) : ""}
+        submitLabel="Duplicate"
+        validate={(v) => {
+          if (classes.some((c) => c.name.trim().toLowerCase() === v.trim().toLowerCase())) {
+            return "A class with that name already exists.";
+          }
+          return null;
+        }}
+        onSubmit={handleDuplicateConfirm}
+      />
+
+      {classes.length > 0 && (
         <ul className="space-y-2">
           {classes.map((c) => (
             <li key={c.id} className="card p-4">
@@ -152,10 +198,7 @@ export default function ClassesIndex() {
                     </Link>
                     <ClassMenu
                       onRename={() => startRename(c.id, c.name)}
-                      onDuplicate={() => {
-                        const newId = duplicateClass(c.id);
-                        if (newId) navigate(`/classes/${newId}/roster`);
-                      }}
+                      onDuplicateRoom={() => setDuplicateSource({ id: c.id, name: c.name })}
                       onDelete={() => {
                         if (confirm(`Delete "${c.name}"? This cannot be undone.`)) deleteClass(c.id);
                       }}
@@ -177,11 +220,11 @@ function pluralise(n: number, word: string): string {
 
 function ClassMenu({
   onRename,
-  onDuplicate,
+  onDuplicateRoom,
   onDelete,
 }: {
   onRename: () => void;
-  onDuplicate: () => void;
+  onDuplicateRoom: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -195,10 +238,10 @@ function ClassMenu({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="z-50 w-40 rounded-md border border-slate-200 bg-white p-1 text-sm shadow-lg"
+          className="z-50 w-48 rounded-md border border-slate-200 bg-white p-1 text-sm shadow-lg"
         >
           <MenuItem onSelect={onRename} icon="edit" label="Rename" />
-          <MenuItem onSelect={onDuplicate} icon="copy" label="Duplicate" />
+          <MenuItem onSelect={onDuplicateRoom} icon="copy" label="Duplicate room" />
           <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
           <MenuItem onSelect={onDelete} icon="trash" label="Delete" danger />
         </DropdownMenu.Content>
