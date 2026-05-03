@@ -61,16 +61,31 @@ function FrontOfRoomLabel({ frontWall }: { frontWall: Wall }) {
 
 interface Props {
   room: Room;
-  selectedItemIds: string[];
-  onSelectionChange: (ids: string[]) => void;
   students: Student[];
   assignments: Record<SeatId, StudentId>;
-  onAssignSeat: (seatId: SeatId, studentId: StudentId | null) => void;
-  /** Box / circle furniture: caller handles the rename UX (a prompt() in v1). */
-  onRequestFurnitureRename?: (furnitureId: string) => void;
   classId: ClassId;
-  locked: boolean;
-  showGrid: boolean;
+  /** When false the stage renders for display only — no Transformer, no
+   *  marquee, no drag, no seat picker, no alignment guides. Editor-only props
+   *  (selection, locked, showGrid, callbacks) are ignored in that mode. The
+   *  actual desk + furniture render output is identical, so History
+   *  thumbnails and the live editor share the same visuals. Defaults to true. */
+  interactive?: boolean;
+  /** Editor only: current selection. Ignored in read-only mode. */
+  selectedItemIds?: string[];
+  /** Editor only. */
+  onSelectionChange?: (ids: string[]) => void;
+  /** Editor only. */
+  onAssignSeat?: (seatId: SeatId, studentId: StudentId | null) => void;
+  /** Box / circle furniture: caller handles the rename UX. Editor only. */
+  onRequestFurnitureRename?: (furnitureId: string) => void;
+  /** Editor only — disables drag + transform when true. Read-only mode also
+   *  behaves as "locked" regardless of this prop. */
+  locked?: boolean;
+  /** Editor only — show the snap grid dots. */
+  showGrid?: boolean;
+  /** Render the "Front of room" overlay label. Default true. The Export
+   *  dialog flips this off when the user wants a clean PNG. */
+  showFrontWallLabel?: boolean;
 }
 
 interface Marquee {
@@ -86,21 +101,30 @@ interface DragSession {
   initialPositions: Map<string, { x: number; y: number }>;
 }
 
+const NOOP_SELECTION_CHANGE = (_ids: string[]) => {};
+const NOOP_ASSIGN_SEAT = (_seatId: SeatId, _studentId: StudentId | null) => {};
+const EMPTY_SELECTION: string[] = [];
+
 const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   {
     room,
-    selectedItemIds,
-    onSelectionChange,
     students,
     assignments,
-    onAssignSeat,
-    onRequestFurnitureRename,
     classId,
-    locked,
-    showGrid,
+    interactive = true,
+    selectedItemIds = EMPTY_SELECTION,
+    onSelectionChange = NOOP_SELECTION_CHANGE,
+    onAssignSeat = NOOP_ASSIGN_SEAT,
+    onRequestFurnitureRename,
+    locked = false,
+    showGrid = false,
+    showFrontWallLabel = true,
   },
   ref,
 ) {
+  // Read-only mode behaves as a permanently locked editor for the purposes of
+  // drag / transform / pointer handlers. `effectiveLocked` collapses the two.
+  const effectiveLocked = locked || !interactive;
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const layerRef = useRef<Konva.Layer>(null);
@@ -157,7 +181,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   useEffect(() => {
     const tr = transformerRef.current;
     if (!tr) return;
-    if (locked) {
+    if (effectiveLocked) {
       tr.nodes([]);
       return;
     }
@@ -228,7 +252,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       node.off("transform.guides");
       node.off("transformend.guides");
     };
-  }, [selectedItemIds, locked, room.desks, room.furniture]);
+  }, [selectedItemIds, effectiveLocked, room.desks, room.furniture]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -273,6 +297,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }
 
   function handleStagePointerDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+    if (!interactive) return;
     if (e.target !== e.target.getStage() && e.target.attrs.id !== "room-bg") return;
     const pt = pointerToRoom();
     if (!pt) return;
@@ -281,6 +306,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }
 
   function handleStagePointerMove() {
+    if (!interactive) return;
     if (!marquee) return;
     const pt = pointerToRoom();
     if (!pt) return;
@@ -305,6 +331,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }
 
   function handleStagePointerUp() {
+    if (!interactive) return;
     setMarquee(null);
   }
 
@@ -443,14 +470,14 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             <FurnitureNode
               key={f.id}
               furniture={f}
-              selected={selectedItemIds.includes(f.id)}
-              onSelect={(additive) => handleSelectItem(f.id, additive)}
+              selected={interactive && selectedItemIds.includes(f.id)}
+              onSelect={(additive) => interactive && handleSelectItem(f.id, additive)}
               registerNode={registerNode}
-              draggable={!locked}
+              draggable={!effectiveLocked}
               onDragStart={(id) => handleItemDragStart(id)}
               onDragMove={(id, x, y) => snapItemDrag(id, x, y)}
               onDragEnd={handleItemDragEnd}
-              onRequestRename={onRequestFurnitureRename}
+              onRequestRename={interactive ? onRequestFurnitureRename : undefined}
               classId={classId}
             />
           ))}
@@ -459,13 +486,14 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             <DeskNode
               key={desk.id}
               desk={desk}
-              selected={selectedItemIds.includes(desk.id)}
-              onSelect={(additive) => handleSelectItem(desk.id, additive)}
+              selected={interactive && selectedItemIds.includes(desk.id)}
+              onSelect={(additive) => interactive && handleSelectItem(desk.id, additive)}
               students={students}
               assignments={assignments}
               registerNode={registerNode}
-              draggable={!locked}
+              draggable={!effectiveLocked}
               onSeatClick={(seatId, x, y) => {
+                if (!interactive) return;
                 const rect = containerRef.current?.getBoundingClientRect();
                 setPicker({ seatId, x: (rect?.left ?? 0) + x, y: (rect?.top ?? 0) + y });
               }}
@@ -476,29 +504,31 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             />
           ))}
 
-          {/* Hold Shift to snap rotation aggressively to every 45°.
-              Otherwise the existing 5° tolerance keeps cardinal angles smooth
-              without forcing them. */}
-          <Transformer
-            ref={transformerRef}
-            rotateEnabled={!locked}
-            resizeEnabled={!locked}
-            keepRatio={transformerKeepRatio}
-            // For multi-select, scale/rotate pivots from the group's center
-            // (the bounding box's geometric middle) instead of the corner
-            // opposite the dragged anchor. Single-select keeps default
-            // corner-anchored scaling.
-            centeredScaling={selectedItemIds.length > 1}
-            rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-            rotationSnapTolerance={shiftHeld ? 23 : 5}
-            borderStroke={ACCENT_BLUE}
-            anchorStroke={ACCENT_BLUE}
-            anchorFill="#ffffff"
-            anchorStrokeWidth={2}
-            anchorSize={10}
-          />
+          {interactive && (
+            // Hold Shift to snap rotation aggressively to every 45°.
+            // Otherwise the existing 5° tolerance keeps cardinal angles smooth
+            // without forcing them.
+            <Transformer
+              ref={transformerRef}
+              rotateEnabled={!effectiveLocked}
+              resizeEnabled={!effectiveLocked}
+              keepRatio={transformerKeepRatio}
+              // For multi-select, scale/rotate pivots from the group's center
+              // (the bounding box's geometric middle) instead of the corner
+              // opposite the dragged anchor. Single-select keeps default
+              // corner-anchored scaling.
+              centeredScaling={selectedItemIds.length > 1}
+              rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+              rotationSnapTolerance={shiftHeld ? 23 : 5}
+              borderStroke={ACCENT_BLUE}
+              anchorStroke={ACCENT_BLUE}
+              anchorFill="#ffffff"
+              anchorStrokeWidth={2}
+              anchorSize={10}
+            />
+          )}
 
-          {guides.map((g, i) => {
+          {interactive && guides.map((g, i) => {
             // Distinct stroke per guide kind so the user can tell at a
             // glance whether they're snapping to a peer (edge), to a
             // distribution rhythm, or to the room's own centerline.
@@ -533,7 +563,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             );
           })}
 
-          {marquee && (
+          {interactive && marquee && (
             <Rect
               x={Math.min(marquee.x1, marquee.x2)}
               y={Math.min(marquee.y1, marquee.y2)}
@@ -548,8 +578,8 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           )}
         </Layer>
       </Stage>
-      <FrontOfRoomLabel frontWall={room.frontWall ?? "top"} />
-      {picker && (
+      {showFrontWallLabel && <FrontOfRoomLabel frontWall={room.frontWall ?? "top"} />}
+      {interactive && picker && (
         <SeatPicker
           x={picker.x}
           y={picker.y}

@@ -351,6 +351,7 @@ export default function DeskNode({
               />
             ) : (
               <Text
+                name="seat-name-label"
                 text={student.name}
                 fontSize={NAME_FONT_SIZE}
                 fontStyle="bold"

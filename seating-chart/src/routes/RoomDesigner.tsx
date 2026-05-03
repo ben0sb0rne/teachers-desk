@@ -511,12 +511,12 @@ export default function RoomDesigner() {
    * without it, the React render is async and the snapshot would still see
    * the selected fills.
    */
-  function exportDeselected(filename: string, mode: "transparent" | "print") {
+  function exportDeselected(filename: string, mode: "transparent" | "white") {
     if (!stageRef.current) return;
     const wasSelected = selectedItemIds;
     flushSync(() => setSelectedItemIds([]));
     try {
-      exportStageAsPng(stageRef.current, filename, mode);
+      exportStageAsPng(stageRef.current, filename, { mode });
     } finally {
       setSelectedItemIds(wasSelected);
     }
@@ -531,7 +531,7 @@ export default function RoomDesigner() {
   function handleExportPrint() {
     if (!klass) return;
     const date = new Date().toISOString().slice(0, 10);
-    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "print");
+    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "white");
   }
 
   function handleAssignSeat(seatId: SeatId, studentId: StudentId | null) {
