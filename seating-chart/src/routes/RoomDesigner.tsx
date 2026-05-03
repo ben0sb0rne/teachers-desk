@@ -6,7 +6,7 @@ import { useAppStore } from "@/store/appStore";
 import RoomStage from "@/components/canvas/RoomStage";
 import DeskPalette, { type PaletteDragType } from "@/components/canvas/DeskPalette";
 import AssignmentPanel from "@/components/canvas/AssignmentPanel";
-import MultiShapeParamsDialog from "@/components/designer/MultiShapeParamsDialog";
+import MultiShapeParamsDialog, { type ConfigKind, type ConfigPayload } from "@/components/designer/MultiShapeParamsDialog";
 import { cloneDeskWithFreshIds, defaultParamsFor, layoutDesk, makeDesk, type ShapeParams } from "@/lib/shapes";
 import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
@@ -52,7 +52,7 @@ export default function RoomDesigner() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [paramsDialog, setParamsDialog] = useState<{
     open: boolean;
-    kind: DeskKind | null;
+    kind: ConfigKind | null;
     dropPoint: { x: number; y: number } | null;
   }>({ open: false, kind: null, dropPoint: null });
   const [warning, setWarning] = useState<string | null>(null);
@@ -106,7 +106,13 @@ export default function RoomDesigner() {
       if (session.type === "single-desk") {
         placeDeskAtPoint(session.kind as DeskKind, undefined, room.x, room.y);
       } else if (session.type === "furniture") {
-        placeFurnitureAtPoint(session.kind as FurnitureKind, room.x, room.y);
+        // Windows are configurable: route through the params dialog with the
+        // drop point so the user can pick pane count before placement.
+        if (session.kind === "window") {
+          setParamsDialog({ open: true, kind: "window", dropPoint: room });
+        } else {
+          placeFurnitureAtPoint(session.kind as FurnitureKind, room.x, room.y);
+        }
       } else if (session.type === "multi-desk") {
         // Multi-desk needs params first — open the dialog with the drop point;
         // confirm will place there.
@@ -223,17 +229,42 @@ export default function RoomDesigner() {
   }
 
   function handleConfirmMulti(
-    kind: DeskKind,
-    params: ShapeParams,
+    payload: ConfigPayload,
     dropPoint: { x: number; y: number } | null,
   ) {
-    const finalParams = params ?? defaultParamsFor(kind);
-    if (dropPoint) placeDeskAtPoint(kind, finalParams, dropPoint.x, dropPoint.y);
-    else placeDeskAtCenter(kind, finalParams);
+    if (payload.kind === "window") {
+      // Window flow: configure pane count → makeFurniture with that count.
+      placeWindow(payload.paneCount, dropPoint);
+      return;
+    }
+    const finalParams = payload.params ?? defaultParamsFor(payload.kind);
+    if (dropPoint) placeDeskAtPoint(payload.kind, finalParams, dropPoint.x, dropPoint.y);
+    else placeDeskAtCenter(payload.kind, finalParams);
+  }
+
+  function placeWindow(paneCount: number, dropPoint: { x: number; y: number } | null) {
+    if (!klass) return;
+    const item = makeFurniture("window", 0, 0, { paneCount });
+    if (dropPoint) {
+      item.x = Math.round((dropPoint.x - item.width / 2) / 10) * 10;
+      item.y = Math.round((dropPoint.y - item.height / 2) / 10) * 10;
+    } else {
+      const cx = klass.room.width / 2 - item.width / 2;
+      const cy = klass.room.height / 2 - item.height / 2;
+      item.x = Math.round(cx / 10) * 10;
+      item.y = Math.round(cy / 10) * 10;
+    }
+    addFurniture(klass.id, item);
   }
 
   function handlePlaceFurniture(kind: FurnitureKind) {
     if (!klass) return;
+    // Windows route through the params dialog so the user can pick pane count
+    // before placement, mirroring the multi-desk dialog flow.
+    if (kind === "window") {
+      setParamsDialog({ open: true, kind: "window", dropPoint: null });
+      return;
+    }
     const item = makeFurniture(kind, 0, 0);
     const cx = klass.room.width / 2 - item.width / 2;
     const cy = klass.room.height / 2 - item.height / 2;
@@ -389,6 +420,19 @@ export default function RoomDesigner() {
     return ((deg % 360) + 360) % 360;
   }
 
+  function handleClear() {
+    if (!klass) return;
+    const occupied = Object.keys(klass.currentAssignments ?? {}).length;
+    if (occupied === 0) return;
+    const ok = confirm(
+      `Empty all ${occupied} seat${occupied === 1 ? "" : "s"}? The desks themselves stay put — this only removes who's sitting where.`,
+    );
+    if (!ok) return;
+    setAssignmentsStore(klass.id, {});
+    setWarning(null);
+    setInfo(null);
+  }
+
   function handleRandomize() {
     if (!klass) return;
     setWarning(null);
@@ -520,6 +564,7 @@ export default function RoomDesigner() {
         assignments={assignments}
         onAssignSeat={handleAssignSeat}
         onRandomize={handleRandomize}
+        onClear={handleClear}
         onSave={handleSaveArrangement}
         onExportImage={handleExportImage}
         onExportPrint={handleExportPrint}

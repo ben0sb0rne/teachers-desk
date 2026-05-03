@@ -10,23 +10,40 @@ import {
   type ShapeParams,
 } from "@/lib/shapes";
 
+/** Kinds that need a pre-placement config dialog. The set has grown beyond
+ *  multi-* desks to include configurable furniture (windows). */
+export type ConfigKind = DeskKind | "window";
+
+/** Discriminated payload returned by `onConfirm`. Consumers switch on
+ *  `kind` to access the right params shape. */
+export type ConfigPayload =
+  | { kind: DeskKind; params: ShapeParams }
+  | { kind: "window"; paneCount: number };
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  kind: DeskKind | null;
-  /** Optional drop point in room coords. When set, the placed desk lands here instead of room center. */
+  kind: ConfigKind | null;
+  /** Optional drop point in room coords. When set, the placed item lands here instead of room center. */
   dropPoint?: { x: number; y: number } | null;
-  onConfirm: (kind: DeskKind, params: ShapeParams, dropPoint: { x: number; y: number } | null) => void;
+  onConfirm: (payload: ConfigPayload, dropPoint: { x: number; y: number } | null) => void;
 }
+
+const WINDOW_DEFAULT_PANES = 2;
 
 export default function MultiShapeParamsDialog({ open, onOpenChange, kind, dropPoint, onConfirm }: Props) {
   const [rect, setRect] = useState<MultiRectParams>({ rows: 2, cols: 3 });
   const [square, setSquare] = useState<MultiSquareParams>({ perSide: 2 });
   const [circle, setCircle] = useState<MultiCircleParams>({ seatCount: 6 });
+  const [paneCount, setPaneCount] = useState<number>(WINDOW_DEFAULT_PANES);
 
   // Reset to defaults when the dialog opens for a new kind.
   useEffect(() => {
     if (!open || !kind) return;
+    if (kind === "window") {
+      setPaneCount(WINDOW_DEFAULT_PANES);
+      return;
+    }
     const def = defaultParamsFor(kind);
     if (kind === "multi-rect" && def) setRect(def as MultiRectParams);
     if (kind === "multi-square" && def) setSquare(def as MultiSquareParams);
@@ -40,16 +57,26 @@ export default function MultiShapeParamsDialog({ open, onOpenChange, kind, dropP
     return undefined;
   }, [kind, rect, square, circle]);
 
-  const layout = useMemo(() => (kind ? layoutDesk(kind, params) : null), [kind, params]);
+  const layout = useMemo(() => {
+    if (!kind || kind === "window") return null;
+    return layoutDesk(kind, params);
+  }, [kind, params]);
 
   if (!kind) return null;
 
   const title =
-    kind === "multi-rect" ? "Rectangle table" : kind === "multi-square" ? "Square table" : "Circle table";
+    kind === "multi-rect" ? "Rectangle table" :
+    kind === "multi-square" ? "Square table" :
+    kind === "multi-circle" ? "Circle table" :
+    "Window";
 
   function handleConfirm() {
     if (!kind) return;
-    onConfirm(kind, params, dropPoint ?? null);
+    if (kind === "window") {
+      onConfirm({ kind: "window", paneCount }, dropPoint ?? null);
+    } else {
+      onConfirm({ kind, params }, dropPoint ?? null);
+    }
     onOpenChange(false);
   }
 
@@ -116,12 +143,28 @@ export default function MultiShapeParamsDialog({ open, onOpenChange, kind, dropP
                   </p>
                 </div>
               )}
+              {kind === "window" && (
+                <div className="space-y-2">
+                  <NumberField
+                    label="Number of panes"
+                    value={paneCount}
+                    min={1}
+                    max={8}
+                    onChange={(v) => setPaneCount(v)}
+                  />
+                  <p className="text-sm text-ink-muted">
+                    The window is drawn with {paneCount === 1 ? "no" : paneCount - 1} divider
+                    {paneCount - 1 === 1 ? "" : "s"} along its long axis.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="label">Preview</label>
               <div className="mt-1 flex h-56 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
-                {layout && <ShapePreview kind={kind} layout={layout} />}
+                {layout && kind !== "window" && <ShapePreview kind={kind as DeskKind} layout={layout} />}
+                {kind === "window" && <WindowPreview paneCount={paneCount} />}
               </div>
             </div>
           </div>
@@ -168,6 +211,26 @@ function NumberField({
         }}
       />
     </div>
+  );
+}
+
+function WindowPreview({ paneCount }: { paneCount: number }) {
+  // Mirrors FurnitureNode's window rendering at preview-scale: a thin rect
+  // with paneCount-1 vertical dividers. Uses the suite-friendly bluish fill
+  // from FURNITURE_DEFAULTS so the preview matches the canvas appearance.
+  const w = 220;
+  const h = 22;
+  const dividers: number[] = [];
+  for (let i = 1; i < paneCount; i++) dividers.push((i / paneCount) * w);
+  return (
+    <svg width={w} height={h * 2} viewBox={`0 0 ${w} ${h * 2}`}>
+      <g transform={`translate(0 ${h / 2})`}>
+        <rect x={0} y={0} width={w} height={h} fill="#bfdcec" stroke="#5a8aa9" strokeWidth={2} />
+        {dividers.map((dx, i) => (
+          <line key={i} x1={dx} y1={0} x2={dx} y2={h} stroke="#5a8aa9" strokeWidth={1.5} />
+        ))}
+      </g>
+    </svg>
   );
 }
 

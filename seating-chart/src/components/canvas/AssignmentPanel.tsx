@@ -10,6 +10,7 @@ interface Props {
   assignments: Record<SeatId, StudentId>;
   onAssignSeat: (seatId: SeatId, studentId: StudentId | null) => void;
   onRandomize: () => void;
+  onClear: () => void;
   onSave: () => void;
   onExportImage: () => void;
   onExportPrint: () => void;
@@ -25,6 +26,7 @@ export default function AssignmentPanel({
   assignments,
   onAssignSeat,
   onRandomize,
+  onClear,
   onSave,
   onExportImage,
   onExportPrint,
@@ -67,6 +69,15 @@ export default function AssignmentPanel({
         <button className="btn-primary w-full" onClick={onRandomize}>
           <Icon name="shuffle" size={14} />
           Randomize seating
+        </button>
+        <button
+          className="btn-secondary w-full"
+          onClick={onClear}
+          disabled={Object.keys(assignments).length === 0}
+          title="Empty every seat (the desks themselves stay put)"
+        >
+          <Icon name="x" size={14} />
+          Clear assignments
         </button>
         <button className="btn-secondary w-full" onClick={onSave}>
           <Icon name="save" size={14} />

@@ -63,6 +63,10 @@ export interface Furniture {
   rotation: number;
   width: number;
   height: number;
+  /** Window-only: how many sashes (defaults to 2 for backwards compat — gives one
+   *  vertical divider, matching the previous hardcoded render). Drawn as
+   *  paneCount-1 dividers spaced evenly along the window's long axis. */
+  paneCount?: number;
 }
 
 export interface Room {

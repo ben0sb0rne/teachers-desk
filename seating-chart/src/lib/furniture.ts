@@ -76,9 +76,19 @@ export function furnitureLabel(kind: FurnitureKind): string {
   }
 }
 
-export function makeFurniture(kind: FurnitureKind, x: number, y: number): Furniture {
+export interface FurnitureOptions {
+  /** Window-only: number of sashes. */
+  paneCount?: number;
+}
+
+export function makeFurniture(
+  kind: FurnitureKind,
+  x: number,
+  y: number,
+  options: FurnitureOptions = {},
+): Furniture {
   const def = FURNITURE_DEFAULTS[kind];
-  return {
+  const f: Furniture = {
     id: uid(),
     kind,
     x,
@@ -87,6 +97,10 @@ export function makeFurniture(kind: FurnitureKind, x: number, y: number): Furnit
     width: def.width,
     height: def.height,
   };
+  if (kind === "window" && options.paneCount != null) {
+    f.paneCount = options.paneCount;
+  }
+  return f;
 }
 
 /** Clone a furniture piece with a fresh ID and an applied position offset. */

@@ -20,7 +20,11 @@ interface Props {
 
 // accent-blue stays the same in light + dark modes, so a static reference is fine.
 const STROKE_SELECTED = lightTokens.accentBlue;
-const MIN_DIM = 24;
+// Allow furniture to stay genuinely thin. Default windows (h=14) and
+// whiteboards (h=16) used to clamp UP to 24 the moment the user touched a
+// resize handle, which made them visibly thicker. 8 keeps them workable
+// without letting anything collapse to nothing.
+const MIN_DIM = 8;
 
 export default function FurnitureNode({
   furniture,
@@ -164,7 +168,14 @@ function FurnitureShape({
           <Line points={[0, h * 0.66, w, h * 0.66]} stroke={stroke} strokeWidth={1} listening={false} />
         </>
       );
-    case "window":
+    case "window": {
+      // paneCount is the user-chosen sash count; default 2 keeps existing
+      // windows visually unchanged (1 vertical divider). The dividers are
+      // distributed evenly along the window's long axis (assumed +x; if the
+      // user rotates the window 90°, the dividers rotate with it).
+      const paneCount = furniture.paneCount ?? 2;
+      const dividers: number[] = [];
+      for (let i = 1; i < paneCount; i++) dividers.push((i / paneCount) * w);
       return (
         <>
           <Rect
@@ -176,9 +187,18 @@ function FurnitureShape({
             stroke={stroke}
             strokeWidth={strokeWidth}
           />
-          <Line points={[w / 2, 0, w / 2, h]} stroke={stroke} strokeWidth={1.5} listening={false} />
+          {dividers.map((dx, i) => (
+            <Line
+              key={i}
+              points={[dx, 0, dx, h]}
+              stroke={stroke}
+              strokeWidth={1.5}
+              listening={false}
+            />
+          ))}
         </>
       );
+    }
     case "whiteboard":
       return (
         <Rect
@@ -195,7 +215,9 @@ function FurnitureShape({
     case "door":
       return (
         <>
+          {/* Wall the door is set into. */}
           <Line points={[0, 0, w, 0]} stroke={stroke} strokeWidth={3} listening={false} />
+          {/* Swing arc + light fill (the path the door sweeps through). */}
           <Shape
             width={w}
             height={h}
@@ -210,6 +232,17 @@ function FurnitureShape({
               ctx.closePath();
               ctx.fillStrokeShape(shape);
             }}
+          />
+          {/* The door panel itself, drawn in its open position (perpendicular
+              to the wall, length = swing radius). Without this the symbol
+              read as "wall + arc" rather than "door". */}
+          <Rect
+            x={-1.5}
+            y={0}
+            width={3}
+            height={w}
+            fill={stroke}
+            listening={false}
           />
         </>
       );

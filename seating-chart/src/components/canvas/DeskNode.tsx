@@ -31,9 +31,10 @@ interface Props {
 }
 
 const NAME_FONT_SIZE = 13;
-const NAME_BOX_WIDTH = 88;
+const NAME_BOX_MAX_WIDTH = 96;
 /** Tall enough for two wrapped lines (with verticalAlign="middle" they stay centered on the seat). */
 const NAME_BOX_HEIGHT = NAME_FONT_SIZE * 2.4;
+const NAME_BOX_MIN_WIDTH = 36;
 const SEAT_DOT_RADIUS = 8;
 const STROKE = "#334155";
 const STROKE_SELECTED = ACCENT_BLUE;
@@ -42,6 +43,65 @@ const FILL_SELECTED = "#e0f2fe";
 const STROKE_WIDTH = 2;
 const STROKE_WIDTH_SELECTED = 3;
 const MIN_DESK_DIM = 40;
+const FRONT_MARKER_RADIUS = 4;
+
+/**
+ * Per-kind name-box width for a single seat. Multi-rect cells are MODULE
+ * wide, multi-square seats sit on a perimeter ~MODULE apart, multi-circle
+ * seats are spaced by chord length 2r·sin(π/n). Singles get the full box.
+ * Returns the sizing that lets the seat label stay inside its share of the
+ * desk's footprint, so big rosters don't crash names into each other and
+ * circle-table names don't spill off the disk.
+ */
+function nameBoxWidth(desk: Desk): number {
+  const seatCount = desk.seats.length;
+  if (seatCount <= 1) return NAME_BOX_MAX_WIDTH;
+
+  switch (desk.kind) {
+    case "multi-rect": {
+      const cols = desk.cols ?? 1;
+      const cellW = desk.width / cols;
+      return clampBox(cellW - 6);
+    }
+    case "multi-square": {
+      // Seats arranged on the perimeter; each side fits perSide labels.
+      const perSide = desk.perSide ?? 1;
+      const cellW = desk.width / Math.max(1, perSide);
+      return clampBox(cellW - 6);
+    }
+    case "multi-circle": {
+      const r = desk.width * 0.42;
+      const chord = 2 * r * Math.sin(Math.PI / seatCount);
+      return clampBox(chord - 4);
+    }
+    default:
+      return NAME_BOX_MAX_WIDTH;
+  }
+}
+
+function clampBox(w: number): number {
+  return Math.max(NAME_BOX_MIN_WIDTH, Math.min(NAME_BOX_MAX_WIDTH, Math.floor(w)));
+}
+
+/**
+ * Where to place the per-desk front-row dot. For rectangular desks (incl.
+ * multi-rect / multi-square / triangle) the inset top-right corner; for the
+ * circle table, the upper-right point on the rim.
+ */
+function frontRowMarkerPos(desk: Desk): { x: number; y: number } {
+  if (desk.kind === "multi-circle") {
+    const cx = desk.width / 2;
+    const cy = desk.height / 2;
+    const r = desk.width / 2;
+    // 45° above the +x axis on the rim.
+    return { x: cx + r * Math.cos(-Math.PI / 4), y: cy + r * Math.sin(-Math.PI / 4) };
+  }
+  if (desk.kind === "single-triangle") {
+    // Apex is at top-center; right-base corner reads as a "corner".
+    return { x: desk.width - 6, y: desk.height - 8 };
+  }
+  return { x: desk.width - 6, y: 6 };
+}
 
 export default function DeskNode({
   desk,
@@ -69,41 +129,47 @@ export default function DeskNode({
   }, [desk.id, registerNode]);
 
   // Override getClientRect so the shared Transformer sizes its bounding
-  // box to the desk's visible footprint, not to decorative children. The
-  // default Group.getClientRect() unions every child's rect — front-row
-  // markers (at y = -12), future labels, and the per-seat sub-Groups all
-  // pad it, so the multi-select bbox sits offset above the desks. By
-  // delegating to the main shape's rect (the first child rendered by
-  // DeskShapeRenderer below), we get a tight bbox that matches the
-  // visible desk in any rotation/scale.
+  // box to the desk's own (width × height) footprint, accounting for the
+  // current rotation + scale. We compute this directly from the desk model
+  // instead of unioning child rects — that approach broke for multi-circle
+  // desks (the Circle node's reported bounds didn't track the desk square)
+  // and would also break as soon as we add decorative children like the
+  // front-row corner marker. This stays correct for any kind.
   useEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    type RectGetter = (config?: { relativeTo?: Konva.Container }) => {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (
-      this: Konva.Group,
-      config,
-    ) {
-      const main = this.getChildren()[0];
-      if (!main) {
-        return { x: this.x(), y: this.y(), width: 0, height: 0 };
-      }
-      return main.getClientRect({
-        ...config,
-        relativeTo: config?.relativeTo ?? (this.getParent() as Konva.Container),
-      });
+    type RectGetter = (config?: unknown) => { x: number; y: number; width: number; height: number };
+    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (this: Konva.Group) {
+      const x = this.x();
+      const y = this.y();
+      const sx = this.scaleX();
+      const sy = this.scaleY();
+      const w = desk.width * sx;
+      const h = desk.height * sy;
+      const rad = (this.rotation() * Math.PI) / 180;
+      const cosR = Math.cos(rad);
+      const sinR = Math.sin(rad);
+      // Map the four corners of the local rect to parent-frame coords.
+      const corners: Array<[number, number]> = [
+        [0, 0], [w, 0], [w, h], [0, h],
+      ];
+      const xs = corners.map(([lx, ly]) => x + lx * cosR - ly * sinR);
+      const ys = corners.map(([lx, ly]) => y + lx * sinR + ly * cosR);
+      const minX = Math.min.apply(null, xs);
+      const maxX = Math.max.apply(null, xs);
+      const minY = Math.min.apply(null, ys);
+      const maxY = Math.max.apply(null, ys);
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
     };
   });
 
   const allFront = desk.seats.length > 0 && desk.seats.every((s) => s.isFrontRow);
+  const anyFront = desk.seats.some((s) => s.isFrontRow);
+  const nameW = nameBoxWidth(desk);
   const fill = selected ? FILL_SELECTED : FILL;
   const stroke = selected ? STROKE_SELECTED : STROKE;
   const strokeWidth = selected ? STROKE_WIDTH_SELECTED : STROKE_WIDTH;
+  const markerPos = frontRowMarkerPos(desk);
 
   return (
     <Group
@@ -240,29 +306,37 @@ export default function DeskNode({
                 fontSize={NAME_FONT_SIZE}
                 fontStyle="bold"
                 fill={PAPER_EDGE}
-                width={NAME_BOX_WIDTH}
+                width={nameW}
                 height={NAME_BOX_HEIGHT}
                 align="center"
                 verticalAlign="middle"
-                offsetX={NAME_BOX_WIDTH / 2}
+                offsetX={nameW / 2}
                 offsetY={NAME_BOX_HEIGHT / 2}
+                wrap="word"
+                ellipsis
                 listening
-              />
-            )}
-            {seat.isFrontRow && (
-              <Circle
-                name="front-row-marker"
-                x={SEAT_DOT_RADIUS + 4}
-                y={-(SEAT_DOT_RADIUS + 4)}
-                radius={3.5}
-                fill={DOOR_FILL}
-                stroke={DOOR_STROKE}
-                strokeWidth={0.5}
               />
             )}
           </Group>
         );
       })}
+
+      {/* Per-desk front-row marker — sits at the desk's outer corner so it
+          never crosses a name. We aggregate "any seat is front-row" into a
+          single dot per desk; the underlying per-seat isFrontRow flags are
+          still what the solver reads, so behavior is unchanged. */}
+      {anyFront && (
+        <Circle
+          name="front-row-marker"
+          x={markerPos.x}
+          y={markerPos.y}
+          radius={FRONT_MARKER_RADIUS}
+          fill={DOOR_FILL}
+          stroke={DOOR_STROKE}
+          strokeWidth={0.5}
+          listening={false}
+        />
+      )}
     </Group>
   );
 }
