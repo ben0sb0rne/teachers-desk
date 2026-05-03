@@ -38,6 +38,9 @@ function room(desks: Desk[]): Room {
   return { width: 1000, height: 700, frontWall: "top", desks, furniture: [] };
 }
 
+// Phase 4: assign() now always returns { assignments, warnings }. The hard
+// constraints became soft — Randomize never refuses to place students; it
+// surfaces what couldn't be honored as warnings instead.
 describe("assign", () => {
   it("assigns when there are exactly enough seats", () => {
     counter = 0;
@@ -47,15 +50,17 @@ describe("assign", () => {
     const a = student("A");
     const b = student("B");
     const result = assign({ room: r, students: [a, b], history: [] });
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(Object.keys(result.assignments).sort()).toEqual([s1.id, s2.id].sort());
+    expect(result.warnings).toEqual([]);
+    expect(Object.keys(result.assignments).sort()).toEqual([s1.id, s2.id].sort());
   });
 
-  it("fails when too many students", () => {
+  it("warns about overflow when too many students for the seats", () => {
     counter = 0;
     const r = room([singleDesk(0, 0)]);
     const result = assign({ room: r, students: [student("A"), student("B")], history: [] });
-    expect(result.ok).toBe(false);
+    // One student goes unseated; the other still gets placed.
+    expect(Object.keys(result.assignments)).toHaveLength(1);
+    expect(result.warnings.join(" ")).toMatch(/won.?t be seated/i);
   });
 
   it("places front-row students in front-row seats only", () => {
@@ -75,14 +80,12 @@ describe("assign", () => {
     const y = student("Y");
     const z = student("Z");
     const result = assign({ room: r, students: [f, x, y, z], history: [] });
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      const fSeat = Object.entries(result.assignments).find(([, sid]) => sid === f.id)?.[0];
-      expect([front1.id, front2.id]).toContain(fSeat);
-    }
+    expect(result.warnings).toEqual([]);
+    const fSeat = Object.entries(result.assignments).find(([, sid]) => sid === f.id)?.[0];
+    expect([front1.id, front2.id]).toContain(fSeat);
   });
 
-  it("fails when more front-row students than front-row seats", () => {
+  it("warns when more front-row students than front-row seats but still places everyone", () => {
     counter = 0;
     const front = seat({ isFrontRow: true });
     const back = seat();
@@ -92,8 +95,9 @@ describe("assign", () => {
       students: [student("F1", { needsFrontRow: true }), student("F2", { needsFrontRow: true })],
       history: [],
     });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toMatch(/front/i);
+    // Both still get a seat; one is forced into the back row.
+    expect(Object.keys(result.assignments)).toHaveLength(2);
+    expect(result.warnings.join(" ")).toMatch(/front/i);
   });
 
   it("never seats Keep Apart pair in same multi-seat desk", () => {
@@ -118,17 +122,15 @@ describe("assign", () => {
     b.keepApart = [a.id];
     const c = student("C");
     const result = assign({ room: r, students: [a, b, c], history: [] });
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      const seatA = Object.entries(result.assignments).find(([, id]) => id === a.id)?.[0];
-      const seatB = Object.entries(result.assignments).find(([, id]) => id === b.id)?.[0];
-      // Same-desk seats are always neighbors, so A and B should never both end up there.
-      const sameDesk = (seatA === s1.id && seatB === s2.id) || (seatA === s2.id && seatB === s1.id);
-      expect(sameDesk).toBe(false);
-    }
+    expect(result.warnings).toEqual([]);
+    const seatA = Object.entries(result.assignments).find(([, id]) => id === a.id)?.[0];
+    const seatB = Object.entries(result.assignments).find(([, id]) => id === b.id)?.[0];
+    // Same-desk seats are always neighbors, so A and B should never both end up there.
+    const sameDesk = (seatA === s1.id && seatB === s2.id) || (seatA === s2.id && seatB === s1.id);
+    expect(sameDesk).toBe(false);
   });
 
-  it("fails when keep-apart graph is unsatisfiable for a single-desk room", () => {
+  it("falls back to a relaxed pass with a warning when keep-apart is unsatisfiable", () => {
     counter = 0;
     const s1 = seat({ offsetX: 12, offsetY: 20 });
     const s2 = seat({ offsetX: 38, offsetY: 20 });
@@ -138,14 +140,17 @@ describe("assign", () => {
     a.keepApart = [b.id];
     b.keepApart = [a.id];
     const result = assign({ room: r, students: [a, b], history: [] });
-    expect(result.ok).toBe(false);
+    // Both students still get placed (the only two seats are adjacent, so
+    // the constraint is impossible — but Randomize doesn't block).
+    expect(Object.keys(result.assignments)).toHaveLength(2);
+    expect(result.warnings.join(" ")).toMatch(/A and B|keep .* apart/i);
   });
 
   it("works with empty roster", () => {
     counter = 0;
     const r = room([singleDesk(0, 0)]);
     const result = assign({ room: r, students: [], history: [] });
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(Object.keys(result.assignments)).toHaveLength(0);
+    expect(result.warnings).toEqual([]);
+    expect(Object.keys(result.assignments)).toHaveLength(0);
   });
 });
