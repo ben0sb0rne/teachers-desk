@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useMatch, useParams } from "react-router-dom";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "@/store/appStore";
-import { exportStateToFile, readStateFromFile } from "@/lib/io";
 import { cn } from "@/lib/cn";
 import HelpDialog from "@/components/HelpDialog";
 import SuiteSettingsDialog from "@/components/SuiteSettingsDialog";
@@ -64,13 +62,14 @@ export default function AppShell() {
           <a className="suite-wordmark" href="../" title="Back to The Teacher's Desk">
             <span aria-hidden="true">&larr;</span> The Teacher's Desk
           </a>
-          {/* In-app link: returns to the classes index. */}
+          {/* In-app link: returns to the classes index. The arrow is the
+              affordance for "this is how you go back to your class list". */}
           <Link
             to="/"
             className="suite-tool-name hover:text-accent-blue"
             title="Back to all classes"
           >
-            Seating Chart
+            <span aria-hidden="true">&larr;</span> Classes
           </Link>
           {isClassRoute && klass && (
             <>
@@ -87,11 +86,8 @@ export default function AppShell() {
           )}
         </div>
         <div className="suite-topstrip-right">
-          {/* Cross-tool "Rosters" entry — points at this app's classes index,
-              which IS the canonical roster manager (the suite-wide /rosters/
-              vanilla page now redirects here). Uses <Link> for in-app SPA nav
-              instead of a full reload. */}
-          <Link className="suite-topstrip-link" to="/">Rosters</Link>
+          {/* Import / Export live in the suite settings dialog now —
+              the topbar "..." menu was removed to declutter. */}
           <button
             type="button"
             className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
@@ -109,7 +105,6 @@ export default function AppShell() {
             <Icon name="help-circle" size={14} />
             <span className="hidden md:inline">Help</span>
           </button>
-          <TopbarMenu />
         </div>
       </header>
       <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
@@ -118,101 +113,6 @@ export default function AppShell() {
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <SuiteSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
-  );
-}
-
-function TopbarMenu() {
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  function exportNow() {
-    // Exports the full Teacher's Desk classroom (every tool) — see io.ts.
-    exportStateToFile();
-  }
-
-  const handleImport: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const replace = confirm(
-        `Import "${file.name}"?\n\n` +
-          `OK = Replace all current data.\nCancel = Merge (add to current data).`,
-      );
-      const mode: "replace" | "merge" = replace ? "replace" : "merge";
-      const result = await readStateFromFile(file, mode);
-
-      if (result.warnings.length) {
-        alert(`Imported with notes:\n- ${result.warnings.join("\n- ")}`);
-      }
-
-      if (result.applied) {
-        // Full-suite import: shared module already mutated localStorage. Reload
-        // so every tool (including this one's Zustand store) re-hydrates.
-        location.reload();
-        return;
-      }
-
-      // Legacy seating-chart-only file — apply locally via the store.
-      if (result.state) {
-        const store = useAppStore.getState();
-        if (replace) {
-          store.replaceState(result.state);
-        } else {
-          store.replaceState({
-            classes: [...store.classes, ...result.state.classes],
-            activeClassId: store.activeClassId ?? result.state.activeClassId,
-            schemaVersion: store.schemaVersion,
-          });
-        }
-      }
-    } catch (err) {
-      alert(`Import failed: ${(err as Error).message}`);
-    } finally {
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  return (
-    <>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={handleImport}
-      />
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button
-            className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
-            title="Menu"
-          >
-            <Icon name="more-horizontal" size={16} />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="end"
-            sideOffset={6}
-            className="z-50 w-44 rounded-md border border-ink/15 bg-paper p-1 text-sm shadow-lg"
-          >
-            <DropdownMenu.Item
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-ink/5"
-              onSelect={() => fileRef.current?.click()}
-            >
-              <Icon name="upload" size={14} />
-              <span>Import…</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-ink/5"
-              onSelect={exportNow}
-            >
-              <Icon name="download" size={14} />
-              <span>Export…</span>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-    </>
   );
 }
 

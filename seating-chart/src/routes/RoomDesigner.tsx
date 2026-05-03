@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
 import type Konva from "konva";
 import { useAppStore } from "@/store/appStore";
@@ -424,16 +425,34 @@ export default function RoomDesigner() {
     setWarning(null);
   }
 
+  /**
+   * Wraps an export call so the active selection (which paints desks blue) is
+   * cleared before the snapshot, then restored. flushSync forces React to
+   * commit the deselect before exportStageAsPng walks the Konva tree —
+   * without it, the React render is async and the snapshot would still see
+   * the selected fills.
+   */
+  function exportDeselected(filename: string, mode: "transparent" | "print") {
+    if (!stageRef.current) return;
+    const wasSelected = selectedItemIds;
+    flushSync(() => setSelectedItemIds([]));
+    try {
+      exportStageAsPng(stageRef.current, filename, mode);
+    } finally {
+      setSelectedItemIds(wasSelected);
+    }
+  }
+
   function handleExportImage() {
-    if (!stageRef.current || !klass) return;
+    if (!klass) return;
     const date = new Date().toISOString().slice(0, 10);
-    exportStageAsPng(stageRef.current, `${klass.name.replace(/\s+/g, "_")}_${date}`, "transparent");
+    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "transparent");
   }
 
   function handleExportPrint() {
-    if (!stageRef.current || !klass) return;
+    if (!klass) return;
     const date = new Date().toISOString().slice(0, 10);
-    exportStageAsPng(stageRef.current, `${klass.name.replace(/\s+/g, "_")}_${date}`, "print");
+    exportDeselected(`${klass.name.replace(/\s+/g, "_")}_${date}`, "print");
   }
 
   function handleAssignSeat(seatId: SeatId, studentId: StudentId | null) {

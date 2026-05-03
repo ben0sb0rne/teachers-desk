@@ -18,7 +18,7 @@ import { snapPosition, type Guide, GRID } from "@/lib/snap";
 import { shouldKeepRatio } from "@/lib/shapes";
 import { useAppStore } from "@/store/appStore";
 import Icon, { type IconName } from "@/components/Icon";
-import { CHANNELS, lightTokens, useThemeTokens } from "@/lib/theme-tokens";
+import { CHANNELS, lightTokens } from "@/lib/theme-tokens";
 
 // Static (don't flip with theme): accent-blue is the same in light + dark;
 // marquee-stroke is functional/semantic.
@@ -106,13 +106,15 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   const dragSession = useRef<DragSession | null>(null);
   useImperativeHandle(ref, () => stageRef.current!, []);
 
-  // Theme tokens that flip with light/dark mode. The component re-renders
-  // when the user toggles theme (via shared/storage.setTheme) or the OS
-  // prefers-color-scheme changes, so Konva picks up the new colors.
-  const tokens = useThemeTokens();
-  const PAPER_CREAM = tokens.paperCream;
-  const PAPER_EDGE = tokens.paperEdge;
-  const NEUTRAL_LINE = tokens.neutralLine;
+  // Canvas chrome (room background, grid dots, front-wall line) is pinned
+  // to lightTokens regardless of the active theme. The "diorama" inside the
+  // canvas is meant to read like cream paper on a desk; flipping it dark in
+  // dark mode produced muddy contrast against the slate desks and the
+  // hardcoded white desk fills. Dark mode still applies to the chrome
+  // OUTSIDE the canvas (topstrip, page background).
+  const PAPER_CREAM = lightTokens.paperCream;
+  const PAPER_EDGE = lightTokens.paperEdge;
+  const NEUTRAL_LINE = lightTokens.neutralLine;
 
   const updateDesk = useAppStore((s) => s.updateDesk);
   const updateFurniture = useAppStore((s) => s.updateFurniture);
