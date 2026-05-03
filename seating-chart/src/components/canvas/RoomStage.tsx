@@ -166,6 +166,11 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       .map((id) => nodeRefs.current.get(id))
       .filter((n): n is Konva.Group => !!n);
     tr.nodes(nodes);
+    // Force the Transformer to recompute its bbox from the (newly assigned)
+    // nodes. Without this, the multi-select bbox sometimes inherits a stale
+    // union from the previous selection — visible as the box "going haywire"
+    // when you click between selections.
+    tr.forceUpdate();
     tr.getLayer()?.batchDraw();
 
     // Live alignment guides during resize. Single-select only — multi-select

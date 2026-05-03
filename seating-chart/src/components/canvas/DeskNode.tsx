@@ -46,13 +46,17 @@ const STROKE_WIDTH_SELECTED = 3;
 const MIN_DESK_DIM = 40;
 const FRONT_MARKER_RADIUS = 4;
 
+/** For multi-circle, the name label is rendered INWARD from the seat
+ *  position by this fraction of the radial distance to the disk center. The
+ *  seat dot still sits at the rim — it's the label that gets pulled in, so
+ *  the text fits inside the disk regardless of which sector it's in. */
+const CIRCLE_LABEL_INWARD = 0.4;
+
 /**
  * Per-kind name-box width for a single seat. Multi-rect cells are MODULE
  * wide, multi-square seats sit on a perimeter ~MODULE apart, multi-circle
- * seats are spaced by chord length 2r·sin(π/n). Singles get the full box.
- * Returns the sizing that lets the seat label stay inside its share of the
- * desk's footprint, so big rosters don't crash names into each other and
- * circle-table names don't spill off the disk.
+ * seats are spaced by chord length 2·r·sin(π/n) at the LABEL radius (which
+ * is pulled inward, see CIRCLE_LABEL_INWARD). Singles get the full box.
  */
 function nameBoxWidth(desk: Desk): number {
   const seatCount = desk.seats.length;
@@ -65,15 +69,21 @@ function nameBoxWidth(desk: Desk): number {
       return clampBox(cellW - 6);
     }
     case "multi-square": {
-      // Seats arranged on the perimeter; each side fits perSide labels.
+      // Seats live at the perimeter inset; the spacing between adjacent
+      // seats on a side is desk.width / (perSide + 1) — that's the actual
+      // budget per name. The previous desk.width / perSide formula was off
+      // by one and let names spill into the next seat's space.
       const perSide = desk.perSide ?? 1;
-      const cellW = desk.width / Math.max(1, perSide);
-      return clampBox(cellW - 6);
+      const cellW = desk.width / (perSide + 1);
+      return clampBox(cellW - 8);
     }
     case "multi-circle": {
-      const r = desk.width * 0.42;
+      // Labels sit at radius (1 − inward) × seatRadius. Use that radius to
+      // size the chord between adjacent labels, so they stop colliding even
+      // for tight seat counts.
+      const r = desk.width * 0.42 * (1 - CIRCLE_LABEL_INWARD);
       const chord = 2 * r * Math.sin(Math.PI / seatCount);
-      return clampBox(chord - 4);
+      return clampBox(chord - 6);
     }
     default:
       return NAME_BOX_MAX_WIDTH;
@@ -82,6 +92,20 @@ function nameBoxWidth(desk: Desk): number {
 
 function clampBox(w: number): number {
   return Math.max(NAME_BOX_MIN_WIDTH, Math.min(NAME_BOX_MAX_WIDTH, Math.floor(w)));
+}
+
+/** Offset applied to a seat's NAME (not its dot) inside the seat group. For
+ *  multi-circle desks we pull the name toward the disk center so it reads
+ *  inside the rim instead of spilling off. Other kinds put the name right
+ *  on the seat (offset 0). */
+function nameOffset(desk: Desk, seatX: number, seatY: number): { x: number; y: number } {
+  if (desk.kind !== "multi-circle") return { x: 0, y: 0 };
+  const cx = desk.width / 2;
+  const cy = desk.height / 2;
+  return {
+    x: (cx - seatX) * CIRCLE_LABEL_INWARD,
+    y: (cy - seatY) * CIRCLE_LABEL_INWARD,
+  };
 }
 
 /**
@@ -271,6 +295,7 @@ export default function DeskNode({
       {desk.seats.map((seat) => {
         const studentId = assignments[seat.id];
         const student = studentId ? students.find((s) => s.id === studentId) : undefined;
+        const labelShift = nameOffset(desk, seat.offsetX, seat.offsetY);
         return (
           <Group
             key={seat.id}
@@ -316,6 +341,11 @@ export default function DeskNode({
                 height={NAME_BOX_HEIGHT}
                 align="center"
                 verticalAlign="middle"
+                /* labelShift pulls the name inward for circle tables so it
+                   reads inside the disk; zero for every other kind so the
+                   label still centers on the seat. */
+                x={labelShift.x}
+                y={labelShift.y}
                 offsetX={nameW / 2}
                 offsetY={NAME_BOX_HEIGHT / 2}
                 wrap="word"

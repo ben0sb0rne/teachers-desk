@@ -50,6 +50,39 @@ export default function FurnitureNode({
     return () => registerNode(furniture.id, null);
   }, [furniture.id, registerNode]);
 
+  // Same getClientRect override pattern as DeskNode: compute a tight AABB
+  // from the furniture's own (width × height) rather than unioning child
+  // shapes. The default union pulls in the door's swing-arc Shape and the
+  // window dividers' bounding boxes, both of which can spill past the
+  // visible footprint and throw the multi-select Transformer's bbox off.
+  useEffect(() => {
+    const node = groupRef.current;
+    if (!node) return;
+    type RectGetter = (config?: unknown) => { x: number; y: number; width: number; height: number };
+    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (this: Konva.Group) {
+      const x = this.x();
+      const y = this.y();
+      const sx = this.scaleX();
+      const sy = this.scaleY();
+      const w = furniture.width * sx;
+      const h = furniture.height * sy;
+      const rad = (this.rotation() * Math.PI) / 180;
+      const cosR = Math.cos(rad);
+      const sinR = Math.sin(rad);
+      const corners: Array<[number, number]> = [
+        [0, 0], [w, 0], [w, h], [0, h],
+      ];
+      const xs = corners.map(([lx, ly]) => x + lx * cosR - ly * sinR);
+      const ys = corners.map(([lx, ly]) => y + lx * sinR + ly * cosR);
+      return {
+        x: Math.min.apply(null, xs),
+        y: Math.min.apply(null, ys),
+        width: Math.max.apply(null, xs) - Math.min.apply(null, xs),
+        height: Math.max.apply(null, ys) - Math.min.apply(null, ys),
+      };
+    };
+  });
+
   const def = FURNITURE_DEFAULTS[furniture.kind];
   // Per-object overrides: when a fill is set, derive stroke + text color
   // from it so the user only manages one channel and the result still has
