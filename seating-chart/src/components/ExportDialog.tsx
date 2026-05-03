@@ -3,6 +3,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import type Konva from "konva";
 import RoomStage from "@/components/canvas/RoomStage";
 import { exportStageAsPng, renderStageToPngDataUrl } from "@/lib/exportPng";
+import { rotatedItemAABB, unionAABB } from "@/lib/geometry";
 import type { Arrangement, ClassRoom } from "@/types";
 import Icon from "@/components/Icon";
 
@@ -25,29 +26,36 @@ interface Props {
   arrangement: Arrangement | null;
 }
 
-type Mode = "transparent" | "white";
+const DEFAULT_CLASS_LABEL_SIZE = 24;
 
 export default function ExportDialog({ open, onOpenChange, klass, arrangement }: Props) {
-  const [mode, setMode] = useState<Mode>("transparent");
+  const [showFloor, setShowFloor] = useState(true);
   const [blackAndWhite, setBlackAndWhite] = useState(false);
   const [showNames, setShowNames] = useState(true);
   const [showFrontRowMarkers, setShowFrontRowMarkers] = useState(false);
   const [showFrontWallLabel, setShowFrontWallLabel] = useState(true);
+  const [showClassName, setShowClassName] = useState(true);
+  const [classNameSize, setClassNameSize] = useState(DEFAULT_CLASS_LABEL_SIZE);
   const stageRef = useRef<Konva.Stage>(null);
 
   // Reset toggles to defaults each time the dialog opens so a previous
   // session's choices don't carry forward unexpectedly.
   useEffect(() => {
     if (open) {
-      setMode("transparent");
+      setShowFloor(true);
       setBlackAndWhite(false);
       setShowNames(true);
       setShowFrontRowMarkers(false);
       setShowFrontWallLabel(true);
+      setShowClassName(true);
+      setClassNameSize(DEFAULT_CLASS_LABEL_SIZE);
     }
   }, [open]);
 
   const assignments = arrangement?.assignments ?? klass.currentAssignments ?? {};
+  const roomBackgroundFill = showFloor
+    ? klass.room.background
+    : "rgba(0,0,0,0)";
 
   function buildFilename(): string {
     const date = new Date(arrangement?.createdAt ?? Date.now()).toISOString().slice(0, 10);
@@ -58,15 +66,8 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
 
   function handleDownload() {
     if (!stageRef.current) return;
-    // The visibility toggles already drive the preview render via RoomStage
-    // props — passing them again to exportStageAsPng would be redundant but
-    // not wrong. We keep the export call simple and let the rendered stage
-    // be the source of truth.
     exportStageAsPng(stageRef.current, buildFilename(), {
-      mode,
       blackAndWhite,
-      // RoomStage skips rendering names/markers when toggled off, but defend
-      // against any stray Konva nodes by matching the toggle state here too.
       hideNames: !showNames,
       hideFrontRowMarkers: !showFrontRowMarkers,
       pixelRatio: 4,
@@ -79,12 +80,17 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
     // the download path uses, then open it in a new window and trigger that
     // window's print dialog. The user gets a clean print of just the chart.
     const dataUrl = renderStageToPngDataUrl(stageRef.current, {
-      mode,
       blackAndWhite,
       hideNames: !showNames,
       hideFrontRowMarkers: !showFrontRowMarkers,
       pixelRatio: 4,
     });
+    // Pick page orientation that best fits the chart's actual rendered
+    // shape (room + items, including outward door arcs). Landscape if it's
+    // wider than tall, portrait otherwise. Keeping margin: 0 strips the
+    // browser's default URL/date/page-number headers + footers.
+    const fit = computeFitBounds(klass);
+    const orientation = fit.width >= fit.height ? "landscape" : "portrait";
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) return;
     const titleSafe = (klass.name + (arrangement?.label ? ` — ${arrangement.label}` : ""))
@@ -92,7 +98,13 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
       .replace(/</g, "&lt;");
     w.document.write(
       `<!doctype html><html><head><title>${titleSafe}</title>` +
-        `<style>html,body{margin:0;height:100%;background:#fff}body{display:flex;align-items:center;justify-content:center}img{max-width:100%;max-height:100%;object-fit:contain}@media print{html,body{background:#fff}}</style>` +
+        `<style>` +
+        `@page { size: ${orientation}; margin: 0; }` +
+        `html, body { margin: 0; height: 100%; background: #fff; }` +
+        `body { display: flex; align-items: center; justify-content: center; }` +
+        `img { max-width: 100%; max-height: 100%; object-fit: contain; }` +
+        `@media print { html, body { background: #fff; } }` +
+        `</style>` +
         `</head><body><img src="${dataUrl}" onload="window.focus();window.print();"/></body></html>`,
     );
     w.document.close();
@@ -127,15 +139,6 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
           <div className="grid min-h-[20rem] flex-1 grid-cols-[14rem_1fr] gap-4 overflow-hidden">
             <aside className="space-y-4 overflow-y-auto pr-2">
               <Segmented
-                label="Background"
-                options={[
-                  { value: "transparent", label: "Transparent" },
-                  { value: "white", label: "White" },
-                ]}
-                value={mode}
-                onChange={(v) => setMode(v as Mode)}
-              />
-              <Segmented
                 label="Color"
                 options={[
                   { value: "color", label: "Color" },
@@ -147,6 +150,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
               <fieldset>
                 <legend className="label mb-2">Show</legend>
                 <div className="space-y-1.5">
+                  <CheckboxRow label="Floor color" checked={showFloor} onChange={setShowFloor} />
                   <CheckboxRow label="Student names" checked={showNames} onChange={setShowNames} />
                   <CheckboxRow
                     label="Front-row markers"
@@ -158,25 +162,50 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                     checked={showFrontWallLabel}
                     onChange={setShowFrontWallLabel}
                   />
+                  <CheckboxRow
+                    label="Class name"
+                    checked={showClassName}
+                    onChange={setShowClassName}
+                  />
                 </div>
               </fieldset>
+              {/* Class-name size slider — only meaningful while the class
+                  name is shown, so disable when the toggle is off. */}
+              <div>
+                <div className="label mb-1 flex items-center justify-between">
+                  <span>Name size</span>
+                  <span className="font-mono text-[10px] text-ink-muted">
+                    {classNameSize}px
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={12}
+                  max={64}
+                  step={1}
+                  value={classNameSize}
+                  onChange={(e) => setClassNameSize(Number(e.target.value))}
+                  disabled={!showClassName}
+                  className="w-full"
+                />
+              </div>
             </aside>
 
             {/* Preview surface — a checker gradient reads "transparent"
-                under the canvas when transparent mode is active so the user
+                under the canvas when the floor color is hidden, so the user
                 can tell what the exported PNG's background will look like. */}
             <div
               className="min-h-0 overflow-hidden rounded border border-slate-200"
               style={
-                mode === "transparent"
-                  ? {
+                showFloor
+                  ? { backgroundColor: "#fff" }
+                  : {
                       backgroundColor: "#fff",
                       backgroundImage:
                         "linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)",
                       backgroundSize: "16px 16px",
                       backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
                     }
-                  : { backgroundColor: "#fff" }
               }
             >
               <RoomStage
@@ -190,7 +219,10 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                 showNames={showNames}
                 showFrontRowMarkers={showFrontRowMarkers}
                 showEmptySeatDots={false}
-                roomBackgroundFill={mode === "transparent" ? "rgba(0,0,0,0)" : "#ffffff"}
+                roomBackgroundFill={roomBackgroundFill}
+                fitContents
+                classNameLabel={showClassName ? klass.name : undefined}
+                classNameLabelSize={classNameSize}
               />
             </div>
           </div>
@@ -214,6 +246,15 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
   );
 }
 
+/** Compute the room+items camera frame that the preview uses, so the print
+ *  page orientation can be picked from the same shape the user sees. */
+function computeFitBounds(klass: ClassRoom): { width: number; height: number } {
+  let union = { x: 0, y: 0, width: klass.room.width, height: klass.room.height };
+  for (const d of klass.room.desks) union = unionAABB(union, rotatedItemAABB(d));
+  for (const f of klass.room.furniture ?? []) union = unionAABB(union, rotatedItemAABB(f));
+  return { width: union.width, height: union.height };
+}
+
 interface SegmentedProps {
   label: string;
   options: ReadonlyArray<{ value: string; label: string }>;
@@ -221,8 +262,8 @@ interface SegmentedProps {
   onChange: (value: string) => void;
 }
 
-/** Two-or-three-option segmented control. Used for Background and Color
- *  rather than a native <select> so the choices are always visible. */
+/** Two-or-three-option segmented control. Used for Color rather than a
+ *  native <select> so the choices are always visible. */
 function Segmented({ label, options, value, onChange }: SegmentedProps) {
   return (
     <div>

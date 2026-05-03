@@ -81,6 +81,7 @@ export default function History() {
                   showFrontWallLabel={false}
                   showFrontRowMarkers={false}
                   showEmptySeatDots={false}
+                  fitContents
                 />
               </div>
               <div className="p-3">

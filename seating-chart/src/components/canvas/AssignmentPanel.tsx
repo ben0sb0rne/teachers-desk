@@ -88,7 +88,7 @@ export default function AssignmentPanel({
           title="PNG download or print preview, with toggles for names and markers"
         >
           <Icon name="download" size={14} />
-          Export…
+          Download or print
         </button>
       </div>
 

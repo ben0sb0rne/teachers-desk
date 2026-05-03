@@ -1,15 +1,6 @@
 import type Konva from "konva";
 
-/** Background mode of the exported PNG.
- *  - `transparent`: room background is cleared so the area outside desks is
- *    see-through. Good for layering into other documents.
- *  - `white`: solid white fill. Prints cleanly.
- *  Legacy alias `print` resolves to `white`. */
-export type ExportMode = "transparent" | "white";
-
 export interface ExportOptions {
-  /** Background mode. Default `transparent`. */
-  mode?: ExportMode;
   /** When true the resulting PNG is desaturated to grayscale via a 2D-canvas
    *  pass after Konva rasterizes the stage. Default false. */
   blackAndWhite?: boolean;
@@ -36,8 +27,12 @@ type Hideable = { visible: (v?: boolean) => boolean | unknown };
  *   - front-row corner markers (the small amber dots; toggleable)
  *   - the alignment guide lines (if any are mid-drag)
  *   - student name labels (toggleable, for blank-chart exports)
- * The room background border also temporarily darkens so the room outline
- * reads clearly on both screen and paper. State is restored afterwards.
+ *
+ * The room background fill is intentionally NOT touched — callers (e.g.
+ * ExportDialog) drive the desired floor color via RoomStage's
+ * roomBackgroundFill prop, so transparency / floor color shows through
+ * end-to-end. The room border stroke does temporarily darken so the room
+ * outline reads clearly against either choice.
  *
  * Used by exportStageAsPng (download) and the ExportDialog's Print button
  * (which feeds the dataURL into a print window).
@@ -47,7 +42,6 @@ export function renderStageToPngDataUrl(
   options: ExportOptions = {},
 ): string {
   const {
-    mode = "transparent",
     blackAndWhite = false,
     hideNames = false,
     hideFrontRowMarkers = true,
@@ -56,7 +50,6 @@ export function renderStageToPngDataUrl(
   } = options;
 
   const roomBg = stage.findOne("#room-bg") as Konva.Rect | null;
-  const originalFill = roomBg?.fill();
   const originalStroke = roomBg?.stroke();
   const originalStrokeWidth = roomBg?.strokeWidth();
 
@@ -81,10 +74,9 @@ export function renderStageToPngDataUrl(
     node.visible(false);
   }
 
-  // Apply export-mode styling to the room background.
+  // Darken + thicken the room outline for export crispness. Don't touch the
+  // fill — callers control that via RoomStage's roomBackgroundFill prop.
   if (roomBg) {
-    if (mode === "transparent") roomBg.fill("rgba(0,0,0,0)");
-    else roomBg.fill("#ffffff");
     roomBg.stroke("#1e293b");
     if (typeof originalStrokeWidth === "number") {
       roomBg.strokeWidth(originalStrokeWidth * 1.5);
@@ -99,10 +91,9 @@ export function renderStageToPngDataUrl(
       ? grayscaleStageDataUrl(stage, pixelRatio)
       : stage.toDataURL({ mimeType: "image/png", pixelRatio });
   } finally {
-    // Restore visibility.
+    // Restore visibility + stroke styling.
     for (const [node, vis] of previousVisibility) node.visible(vis);
     if (roomBg) {
-      if (originalFill !== undefined) roomBg.fill(originalFill);
       if (originalStroke !== undefined) roomBg.stroke(originalStroke);
       if (typeof originalStrokeWidth === "number") roomBg.strokeWidth(originalStrokeWidth);
     }
@@ -111,20 +102,18 @@ export function renderStageToPngDataUrl(
 }
 
 /** Render the stage to a PNG dataURL (via renderStageToPngDataUrl) and
- *  trigger a browser download. Filename is auto-suffixed with the chosen
- *  background + color modes for easy disambiguation. */
+ *  trigger a browser download. Filename gains a "_bw" suffix when
+ *  black-and-white mode is on; otherwise no extra suffix. */
 export function exportStageAsPng(
   stage: Konva.Stage,
   filename: string,
   options: ExportOptions = {},
 ) {
   const dataUrl = renderStageToPngDataUrl(stage, options);
-  const mode = options.mode ?? "transparent";
   const a = document.createElement("a");
   a.href = dataUrl;
-  const suffix = mode === "white" ? "_print" : "";
   const bwSuffix = options.blackAndWhite ? "_bw" : "";
-  a.download = filename.endsWith(".png") ? filename : `${filename}${suffix}${bwSuffix}.png`;
+  a.download = filename.endsWith(".png") ? filename : `${filename}${bwSuffix}.png`;
   document.body.appendChild(a);
   a.click();
   a.remove();

@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Stage, Layer, Rect, Line, Transformer } from "react-konva";
+import { Stage, Layer, Rect, Line, Text, Transformer } from "react-konva";
 import type Konva from "konva";
 import type { ClassId, Room, SeatId, Student, StudentId, Wall } from "@/types";
 import DeskNode from "./DeskNode";
@@ -16,9 +16,18 @@ import FurnitureNode from "./FurnitureNode";
 import SeatPicker from "./SeatPicker";
 import { snapPosition, type Guide, type SnapItem, GRID } from "@/lib/snap";
 import { shouldKeepRatio } from "@/lib/shapes";
+import { rotatedItemAABB, unionAABB, type AABB } from "@/lib/geometry";
 import { useAppStore } from "@/store/appStore";
 import Icon, { type IconName } from "@/components/Icon";
 import { CHANNELS, lightTokens } from "@/lib/theme-tokens";
+
+/** Suite slab serif fallback chain — matches `var(--font-slab)` in
+ *  shared/desk.css. Konva renders text via canvas2d which respects the same
+ *  font fallback chain CSS uses. */
+const SLAB_FONT_FAMILY = "Rockwell, 'Roboto Slab', Georgia, serif";
+/** Padding (in room-coord units) used when fitContents expands the camera
+ *  frame, so items + label aren't tight against the canvas edge. */
+const FIT_CONTENTS_PADDING = 16;
 
 // Static (don't flip with theme): accent-blue is the same in light + dark;
 // marquee-stroke is functional/semantic.
@@ -97,6 +106,18 @@ interface Props {
    *  back to paper-cream. Pass "rgba(0,0,0,0)" or any color to override —
    *  used by the export preview to reflect the chosen background mode. */
   roomBackgroundFill?: string;
+  /** Expand the camera frame to include every desk + furniture's rotated
+   *  AABB, not just the room rectangle. Default false (editor uses the room
+   *  bounds so the canvas always frames the same area). The export preview +
+   *  History thumbnails enable this so items that sit outside the room — e.g.
+   *  doors with arcs swinging through the wall — aren't clipped. */
+  fitContents?: boolean;
+  /** When defined, render this string as a Konva text label in the top-right
+   *  of the camera frame. Used by the export preview to print the class name
+   *  on the chart. */
+  classNameLabel?: string;
+  /** Font size in room-coord units for `classNameLabel`. Default 24. */
+  classNameLabelSize?: number;
 }
 
 interface Marquee {
@@ -134,6 +155,9 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     showFrontRowMarkers = true,
     showEmptySeatDots = true,
     roomBackgroundFill,
+    fitContents = false,
+    classNameLabel,
+    classNameLabelSize = 24,
   },
   ref,
 ) {
@@ -281,13 +305,32 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }, []);
 
   const padding = 40;
+  // The camera frame ("viewBounds") is normally just the room rectangle, but
+  // when fitContents is on we expand it to include every item's rotated
+  // AABB so things like outward-swinging door arcs aren't clipped. The
+  // expansion gets a small padding so items aren't tight against the edge.
+  const viewBounds: AABB = useMemo(() => {
+    const roomBounds: AABB = { x: 0, y: 0, width: room.width, height: room.height };
+    if (!fitContents) return roomBounds;
+    let union = roomBounds;
+    for (const d of room.desks) union = unionAABB(union, rotatedItemAABB(d));
+    for (const f of room.furniture ?? []) union = unionAABB(union, rotatedItemAABB(f));
+    return {
+      x: union.x - FIT_CONTENTS_PADDING,
+      y: union.y - FIT_CONTENTS_PADDING,
+      width: union.width + FIT_CONTENTS_PADDING * 2,
+      height: union.height + FIT_CONTENTS_PADDING * 2,
+    };
+  }, [fitContents, room.width, room.height, room.desks, room.furniture]);
   const scale = Math.min(
-    (size.w - padding * 2) / room.width,
-    (size.h - padding * 2) / room.height,
+    (size.w - padding * 2) / viewBounds.width,
+    (size.h - padding * 2) / viewBounds.height,
   );
   const safeScale = isFinite(scale) && scale > 0 ? scale : 1;
-  const offsetX = (size.w - room.width * safeScale) / 2;
-  const offsetY = (size.h - room.height * safeScale) / 2;
+  // Layer offset — point (viewBounds.x, viewBounds.y) in room coords needs to
+  // land at the top-left of the centered camera frame on stage.
+  const offsetX = (size.w - viewBounds.width * safeScale) / 2 - viewBounds.x * safeScale;
+  const offsetY = (size.h - viewBounds.height * safeScale) / 2 - viewBounds.y * safeScale;
 
   function pointerToRoom(): { x: number; y: number } | null {
     const layer = layerRef.current;
@@ -597,6 +640,25 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               stroke={ACCENT_BLUE}
               strokeWidth={1 / safeScale}
               dash={[4 / safeScale, 3 / safeScale]}
+              listening={false}
+            />
+          )}
+
+          {/* Class-name label sits in the top-right of the camera frame. The
+              text is right-aligned within a band that spans the camera frame
+              width minus a small padding, so long names truncate gracefully
+              instead of running off the edge. */}
+          {classNameLabel && (
+            <Text
+              text={classNameLabel}
+              x={viewBounds.x + 8}
+              y={viewBounds.y + 8}
+              width={viewBounds.width - 16}
+              align="right"
+              fontFamily={SLAB_FONT_FAMILY}
+              fontStyle="bold"
+              fontSize={classNameLabelSize}
+              fill={PAPER_EDGE}
               listening={false}
             />
           )}
