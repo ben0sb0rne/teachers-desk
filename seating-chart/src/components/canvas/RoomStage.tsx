@@ -104,17 +104,22 @@ interface Props {
   showEmptySeatDots?: boolean;
   /** Override the room background fill. Default uses room.background, falling
    *  back to paper-cream. Pass "rgba(0,0,0,0)" or any color to override —
-   *  used by the export preview to reflect the chosen background mode. */
+   *  used by the export preview to control whether the floor color shows. */
   roomBackgroundFill?: string;
+  /** When set, render a Rect spanning the full camera frame BEHIND the room.
+   *  Use case: the export "background" toggle paints a solid white sheet
+   *  underneath the chart so the exported PNG has a non-transparent
+   *  background. Default undefined (no extra layer). */
+  backgroundFill?: string;
   /** Expand the camera frame to include every desk + furniture's rotated
    *  AABB, not just the room rectangle. Default false (editor uses the room
    *  bounds so the canvas always frames the same area). The export preview +
    *  History thumbnails enable this so items that sit outside the room — e.g.
    *  doors with arcs swinging through the wall — aren't clipped. */
   fitContents?: boolean;
-  /** When defined, render this string as a Konva text label in the top-right
-   *  of the camera frame. Used by the export preview to print the class name
-   *  on the chart. */
+  /** When defined, render this string as a Konva text label in the room's
+   *  top-right corner (not the camera frame's). Used by the export preview
+   *  to print the class name on the chart. */
   classNameLabel?: string;
   /** Font size in room-coord units for `classNameLabel`. Default 24. */
   classNameLabelSize?: number;
@@ -155,6 +160,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     showFrontRowMarkers = true,
     showEmptySeatDots = true,
     roomBackgroundFill,
+    backgroundFill,
     fitContents = false,
     classNameLabel,
     classNameLabelSize = 24,
@@ -499,6 +505,20 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
         onTouchEnd={handleStagePointerUp}
       >
         <Layer ref={layerRef} x={offsetX} y={offsetY} scaleX={safeScale} scaleY={safeScale}>
+          {/* Optional background sheet — sits BEHIND the room rect so a
+              solid color (e.g. white) shows through outside the room when
+              the user wants a non-transparent export. Listening is off so
+              clicks pass through to the marquee handler. */}
+          {backgroundFill && (
+            <Rect
+              x={viewBounds.x}
+              y={viewBounds.y}
+              width={viewBounds.width}
+              height={viewBounds.height}
+              fill={backgroundFill}
+              listening={false}
+            />
+          )}
           <Rect
             id="room-bg"
             x={0}
@@ -644,16 +664,17 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             />
           )}
 
-          {/* Class-name label sits in the top-right of the camera frame. The
-              text is right-aligned within a band that spans the camera frame
-              width minus a small padding, so long names truncate gracefully
-              instead of running off the edge. */}
+          {/* Class-name label sits in the room's top-right corner — anchored
+              to the room rectangle, not the camera frame, so it stays in a
+              natural corner even when fitContents expands the camera to
+              include outward door arcs. Right-aligned within the room width
+              so long names truncate gracefully toward the right edge. */}
           {classNameLabel && (
             <Text
               text={classNameLabel}
-              x={viewBounds.x + 8}
-              y={viewBounds.y + 8}
-              width={viewBounds.width - 16}
+              x={8}
+              y={8}
+              width={room.width - 16}
               align="right"
               fontFamily={SLAB_FONT_FAMILY}
               fontStyle="bold"

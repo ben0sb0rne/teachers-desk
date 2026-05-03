@@ -30,6 +30,7 @@ const DEFAULT_CLASS_LABEL_SIZE = 24;
 
 export default function ExportDialog({ open, onOpenChange, klass, arrangement }: Props) {
   const [showFloor, setShowFloor] = useState(true);
+  const [showBackground, setShowBackground] = useState(false);
   const [blackAndWhite, setBlackAndWhite] = useState(false);
   const [showNames, setShowNames] = useState(true);
   const [showFrontRowMarkers, setShowFrontRowMarkers] = useState(false);
@@ -43,6 +44,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
   useEffect(() => {
     if (open) {
       setShowFloor(true);
+      setShowBackground(false);
       setBlackAndWhite(false);
       setShowNames(true);
       setShowFrontRowMarkers(false);
@@ -56,6 +58,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
   const roomBackgroundFill = showFloor
     ? klass.room.background
     : "rgba(0,0,0,0)";
+  const backgroundFill = showBackground ? "#ffffff" : undefined;
 
   function buildFilename(): string {
     const date = new Date(arrangement?.createdAt ?? Date.now()).toISOString().slice(0, 10);
@@ -151,6 +154,11 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                 <legend className="label mb-2">Show</legend>
                 <div className="space-y-1.5">
                   <CheckboxRow label="Floor color" checked={showFloor} onChange={setShowFloor} />
+                  <CheckboxRow
+                    label="White background"
+                    checked={showBackground}
+                    onChange={setShowBackground}
+                  />
                   <CheckboxRow label="Student names" checked={showNames} onChange={setShowNames} />
                   <CheckboxRow
                     label="Front-row markers"
@@ -191,13 +199,15 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
               </div>
             </aside>
 
-            {/* Preview surface — a checker gradient reads "transparent"
-                under the canvas when the floor color is hidden, so the user
-                can tell what the exported PNG's background will look like. */}
+            {/* Preview surface. When the export will be transparent (no
+                "White background" toggle), we paint a checker pattern under
+                the Konva stage so the user can see where transparency lands.
+                The B&W toggle is rendered as a CSS grayscale filter so the
+                live preview matches the desaturated PNG output. */}
             <div
               className="min-h-0 overflow-hidden rounded border border-slate-200"
-              style={
-                showFloor
+              style={{
+                ...(showBackground
                   ? { backgroundColor: "#fff" }
                   : {
                       backgroundColor: "#fff",
@@ -205,8 +215,9 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                         "linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)",
                       backgroundSize: "16px 16px",
                       backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0",
-                    }
-              }
+                    }),
+                filter: blackAndWhite ? "grayscale(1)" : undefined,
+              }}
             >
               <RoomStage
                 ref={stageRef}
@@ -220,6 +231,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                 showFrontRowMarkers={showFrontRowMarkers}
                 showEmptySeatDots={false}
                 roomBackgroundFill={roomBackgroundFill}
+                backgroundFill={backgroundFill}
                 fitContents
                 classNameLabel={showClassName ? klass.name : undefined}
                 classNameLabelSize={classNameSize}
