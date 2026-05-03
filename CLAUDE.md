@@ -29,7 +29,14 @@ Three working tools (Math Bingo, Name Picker, Seating Chart Designer) plus the s
 ├── rosters/                    ← Stub: redirects to seating-chart/ (canonical roster manager)
 ├── seating-chart/              ← Seating Chart Designer (React + Vite + Tailwind)
 │                                  Owns the canonical roster editor at /classes/:id/roster
-│   └── src/lib/use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
+│   └── src/
+│       ├── components/
+│       │   ├── TextInputDialog.tsx   ← reusable single-line input modal (replaces window.prompt())
+│       │   ├── ConfirmDialog.tsx     ← reusable yes/no modal (replaces window.confirm())
+│       │   └── ClassSwitcher.tsx     ← in-class header dropdown for jumping between classes
+│       └── lib/
+│           ├── use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
+│           └── color.ts              ← deriveStroke / deriveTextColor / SWATCHES for per-object color overrides
 ├── assets/
 │   ├── renders/                ← future Blender output, empty for now
 │   └── sounds/bingo/           ← bingo audio (note: lowercase `bingo`)
@@ -141,6 +148,10 @@ Each tool folder contains:
 - `how-to.html` — SEO landing copy
 
 The seating chart deviates because Vite owns its file structure.
+
+### Seating chart canvas patterns
+
+Desks and furniture override Konva's `getClientRect` to return their own (width × height) footprint, respecting `skipTransform: true` so the Transformer composes the transform itself — without that, single-select bboxes render double-transformed (misaligned or invisible). Multi-item handlers (align / distribute / flip / color / paste / duplicate) batch through `updateRoomItems` / `addRoomItems` so Ctrl+Z undoes one user action, not N. New flows that touch many items at once should follow this pattern; calling `updateDesk` / `addFurniture` in a loop creates one history entry per item.
 
 ## Do not
 
