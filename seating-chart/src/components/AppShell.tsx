@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/appStore";
 import { cn } from "@/lib/cn";
 import HelpDialog from "@/components/HelpDialog";
 import SuiteSettingsDialog from "@/components/SuiteSettingsDialog";
+import ClassSwitcher from "@/components/ClassSwitcher";
 import Icon from "@/components/Icon";
 
 export default function AppShell() {
@@ -74,9 +75,7 @@ export default function AppShell() {
           {isClassRoute && klass && (
             <>
               <span className="h-5 w-px bg-ink/20" aria-hidden />
-              <h1 className="truncate text-base font-semibold text-ink" title={klass.name}>
-                {klass.name}
-              </h1>
+              <ClassSwitcher currentClassId={klass.id} currentClassName={klass.name} />
               <nav className="ml-2 flex items-center gap-0.5 rounded-md bg-ink/5 p-0.5">
                 <TabLink to={`/classes/${klass.id}/roster`}>Roster</TabLink>
                 <TabLink to={`/classes/${klass.id}/room`}>Room</TabLink>
