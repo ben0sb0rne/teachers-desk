@@ -148,8 +148,3 @@ export function makeFurniture(
 export function cloneFurnitureWithFreshId(f: Furniture, dx: number, dy: number): Furniture {
   return { ...f, id: uid(), x: f.x + dx, y: f.y + dy };
 }
-
-/** Furniture is purely decorative; no resize-ratio constraint. */
-export function shouldKeepFurnitureRatio(_kind: FurnitureKind): boolean {
-  return false;
-}

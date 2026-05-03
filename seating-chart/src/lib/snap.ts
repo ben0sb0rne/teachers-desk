@@ -306,7 +306,3 @@ function consistentGap(gaps: number[], tolerance: number): number | null {
   }
   return mid;
 }
-
-// Backwards-compat aliases (callers passed Desk[] before).
-export const snapDeskPosition = snapPosition;
-export const deskBounds = itemBounds;

@@ -36,11 +36,10 @@ export default function RoomDesigner() {
   const { id } = useParams();
   const klass = useAppStore((s) => (id ? s.classes.find((c) => c.id === id) : undefined));
   const addDesk = useAppStore((s) => s.addDesk);
-  const addDesks = useAppStore((s) => s.addDesks);
   const removeDesks = useAppStore((s) => s.removeDesks);
   const updateRoomItems = useAppStore((s) => s.updateRoomItems);
+  const addRoomItems = useAppStore((s) => s.addRoomItems);
   const addFurniture = useAppStore((s) => s.addFurniture);
-  const addFurnitures = useAppStore((s) => s.addFurnitures);
   const updateFurniture = useAppStore((s) => s.updateFurniture);
   const removeFurniture = useAppStore((s) => s.removeFurniture);
   const updateRoom = useAppStore((s) => s.updateRoom);
@@ -163,8 +162,7 @@ export default function RoomDesigner() {
         e.preventDefault();
         const newDesks = clipboard.desks.map((d) => cloneDeskWithFreshIds(d, PASTE_OFFSET, PASTE_OFFSET));
         const newFurn = clipboard.furniture.map((f) => cloneFurnitureWithFreshId(f, PASTE_OFFSET, PASTE_OFFSET));
-        if (newDesks.length) addDesks(klass.id, newDesks);
-        if (newFurn.length) addFurnitures(klass.id, newFurn);
+        addRoomItems(klass.id, newDesks, newFurn);
         setSelectedItemIds([...newDesks.map((d) => d.id), ...newFurn.map((f) => f.id)]);
         setClipboard({ desks: newDesks, furniture: newFurn });
       } else if (mod && e.key.toLowerCase() === "d" && selectedItemIds.length > 0) {
@@ -176,8 +174,7 @@ export default function RoomDesigner() {
         const furniture = (klass.room.furniture ?? [])
           .filter((f) => selectedItemIds.includes(f.id))
           .map((f) => cloneFurnitureWithFreshId(f, PASTE_OFFSET, PASTE_OFFSET));
-        if (desks.length) addDesks(klass.id, desks);
-        if (furniture.length) addFurnitures(klass.id, furniture);
+        addRoomItems(klass.id, desks, furniture);
         setSelectedItemIds([...desks.map((d) => d.id), ...furniture.map((f) => f.id)]);
       } else if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
@@ -194,8 +191,7 @@ export default function RoomDesigner() {
     klass,
     removeDesks,
     removeFurniture,
-    addDesks,
-    addFurnitures,
+    addRoomItems,
     clipboard,
     locked,
   ]);

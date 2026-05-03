@@ -26,7 +26,7 @@ export const SWATCHES: readonly string[] = [
 /** Parse a CSS hex color (#rgb, #rrggbb, with or without the #) into 0-255
  *  channels. Returns null for anything else (rgb()/named/etc.) — those
  *  aren't currently allowed via the picker. */
-export function parseHex(hex: string): { r: number; g: number; b: number } | null {
+function parseHex(hex: string): { r: number; g: number; b: number } | null {
   const s = hex.trim().replace(/^#/, "");
   if (s.length === 3) {
     const r = parseInt(s[0] + s[0], 16);
@@ -50,7 +50,7 @@ function toHex(n: number): string {
 }
 
 /** Perceptual luminance, 0-1, using the standard sRGB weights. */
-export function luminance(hex: string): number {
+function luminance(hex: string): number {
   const c = parseHex(hex);
   if (!c) return 1;
   return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;

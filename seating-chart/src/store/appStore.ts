@@ -48,7 +48,6 @@ interface AppActions {
   toggleKeepApart: (classId: ClassId, a: StudentId, b: StudentId) => void;
 
   addDesk: (classId: ClassId, desk: Desk) => void;
-  addDesks: (classId: ClassId, desks: Desk[]) => void;
   updateDesk: (classId: ClassId, deskId: DeskId, patch: Partial<Desk>) => void;
   /** Apply many desk + furniture patches as a SINGLE store mutation. Used by
    *  multi-item handlers (align / distribute / flip / color) so the temporal
@@ -58,6 +57,9 @@ interface AppActions {
     deskPatches: Record<DeskId, Partial<Desk>>,
     furniturePatches: Record<FurnitureId, Partial<Furniture>>,
   ) => void;
+  /** Add many desks + furniture in a SINGLE store mutation. Used by paste +
+   *  duplicate so a mixed-content paste is one undo step, not two. */
+  addRoomItems: (classId: ClassId, desks: Desk[], furniture: Furniture[]) => void;
   removeDesks: (classId: ClassId, deskIds: DeskId[]) => void;
   updateRoom: (classId: ClassId, patch: Partial<Room>) => void;
   setSeatFrontRow: (classId: ClassId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
@@ -65,7 +67,6 @@ interface AppActions {
   updateSeat: (classId: ClassId, deskId: DeskId, seatId: SeatId, patch: Partial<Seat>) => void;
 
   addFurniture: (classId: ClassId, item: Furniture) => void;
-  addFurnitures: (classId: ClassId, items: Furniture[]) => void;
   updateFurniture: (classId: ClassId, furnitureId: FurnitureId, patch: Partial<Furniture>) => void;
   removeFurniture: (classId: ClassId, furnitureIds: FurnitureId[]) => void;
 
@@ -249,9 +250,6 @@ export const useAppStore = create<AppStore>()(
         addDesk: (classId, desk) =>
           set((s) => withClass(s, classId, (c) => ({ ...c, room: { ...c.room, desks: [...c.room.desks, desk] } }))),
 
-        addDesks: (classId, desks) =>
-          set((s) => withClass(s, classId, (c) => ({ ...c, room: { ...c.room, desks: [...c.room.desks, ...desks] } }))),
-
         updateRoom: (classId, patch) =>
           set((s) => withClass(s, classId, (c) => ({ ...c, room: { ...c.room, ...patch } }))),
 
@@ -282,6 +280,23 @@ export const useAppStore = create<AppStore>()(
                     ? (c.room.furniture ?? []).map((f) =>
                         furniturePatches[f.id] ? { ...f, ...furniturePatches[f.id] } : f,
                       )
+                    : c.room.furniture,
+                },
+              };
+            }),
+          ),
+
+        addRoomItems: (classId, desks, furniture) =>
+          set((s) =>
+            withClass(s, classId, (c) => {
+              if (desks.length === 0 && furniture.length === 0) return c;
+              return {
+                ...c,
+                room: {
+                  ...c.room,
+                  desks: desks.length ? [...c.room.desks, ...desks] : c.room.desks,
+                  furniture: furniture.length
+                    ? [...(c.room.furniture ?? []), ...furniture]
                     : c.room.furniture,
                 },
               };
@@ -362,14 +377,6 @@ export const useAppStore = create<AppStore>()(
             withClass(s, classId, (c) => ({
               ...c,
               room: { ...c.room, furniture: [...(c.room.furniture ?? []), item] },
-            })),
-          ),
-
-        addFurnitures: (classId, items) =>
-          set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: { ...c.room, furniture: [...(c.room.furniture ?? []), ...items] },
             })),
           ),
 
