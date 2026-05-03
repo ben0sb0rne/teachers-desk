@@ -8,6 +8,7 @@ import DeskPalette, { type PaletteDragType } from "@/components/canvas/DeskPalet
 import AssignmentPanel from "@/components/canvas/AssignmentPanel";
 import MultiShapeParamsDialog, { type ConfigKind, type ConfigPayload } from "@/components/designer/MultiShapeParamsDialog";
 import TextInputDialog from "@/components/TextInputDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { cloneDeskWithFreshIds, defaultParamsFor, layoutDesk, makeDesk, type ShapeParams } from "@/lib/shapes";
 import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
@@ -62,6 +63,13 @@ export default function RoomDesigner() {
     | { kind: "arrangement-label" }
     | { kind: "furniture-label"; furnitureId: FurnitureId; initial: string };
   const [textInput, setTextInput] = useState<TextInputState | null>(null);
+  /** Confirmation modal — replaces window.confirm() callers. The `kind`
+   *  discriminates which action runs on confirm. `occupied` is captured at
+   *  open-time so the prompt copy reflects the count the user clicked on. */
+  type ConfirmState =
+    | { kind: "clear"; occupied: number }
+    | { kind: "randomize"; occupied: number };
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<{ desks: Desk[]; furniture: Furniture[] }>({
@@ -441,10 +449,11 @@ export default function RoomDesigner() {
     if (!klass) return;
     const occupied = Object.keys(klass.currentAssignments ?? {}).length;
     if (occupied === 0) return;
-    const ok = confirm(
-      `Empty all ${occupied} seat${occupied === 1 ? "" : "s"}? The desks themselves stay put — this only removes who's sitting where.`,
-    );
-    if (!ok) return;
+    setConfirmState({ kind: "clear", occupied });
+  }
+
+  function performClear() {
+    if (!klass) return;
     setAssignmentsStore(klass.id, {});
     setWarning(null);
     setInfo(null);
@@ -452,15 +461,18 @@ export default function RoomDesigner() {
 
   function handleRandomize() {
     if (!klass) return;
-    setWarning(null);
-    setInfo(null);
     const occupied = Object.keys(klass.currentAssignments ?? {}).length;
     if (occupied > 0) {
-      const ok = confirm(
-        `This will overwrite the current arrangement (${occupied} student${occupied === 1 ? "" : "s"} placed). Continue?`,
-      );
-      if (!ok) return;
+      setConfirmState({ kind: "randomize", occupied });
+      return;
     }
+    performRandomize();
+  }
+
+  function performRandomize() {
+    if (!klass) return;
+    setWarning(null);
+    setInfo(null);
     // assign() now always returns assignments + a (possibly empty) warnings
     // list — Randomize never blocks on infeasible Keep Apart. Surface the
     // warnings instead of refusing the placement.
@@ -474,6 +486,12 @@ export default function RoomDesigner() {
     if (emptySeats > 0 && klass.students.length <= totalSeats) {
       setInfo(`${emptySeats} seat${emptySeats === 1 ? "" : "s"} left empty (more seats than students).`);
     }
+  }
+
+  function handleConfirmStateConfirm() {
+    if (!confirmState) return;
+    if (confirmState.kind === "clear") performClear();
+    else performRandomize();
   }
 
   function handleSaveArrangement() {
@@ -670,6 +688,27 @@ export default function RoomDesigner() {
         submitLabel={textInput?.kind === "arrangement-label" ? "Save" : "Update"}
         allowEmpty={textInput?.kind !== "arrangement-label"}
         onSubmit={handleTextInputSubmit}
+      />
+      <ConfirmDialog
+        open={confirmState != null}
+        onOpenChange={(open) => { if (!open) setConfirmState(null); }}
+        title={
+          confirmState?.kind === "clear"
+            ? `Empty ${confirmState.occupied} seat${confirmState.occupied === 1 ? "" : "s"}?`
+            : confirmState?.kind === "randomize"
+              ? "Overwrite the current arrangement?"
+              : ""
+        }
+        description={
+          confirmState?.kind === "clear"
+            ? "The desks themselves stay put — this only removes who's sitting where."
+            : confirmState?.kind === "randomize"
+              ? `${confirmState.occupied} student${confirmState.occupied === 1 ? "" : "s"} ${confirmState.occupied === 1 ? "is" : "are"} placed. Randomize will replace the current seating.`
+              : undefined
+        }
+        confirmLabel={confirmState?.kind === "clear" ? "Empty seats" : "Randomize"}
+        danger={confirmState?.kind === "clear"}
+        onConfirm={handleConfirmStateConfirm}
       />
       {paletteDrag?.active && (
         <div

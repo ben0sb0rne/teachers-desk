@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/appStore";
 import Icon from "@/components/Icon";
 import { cn } from "@/lib/cn";
 import TextInputDialog from "@/components/TextInputDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function ClassesIndex() {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ export default function ClassesIndex() {
   const [editError, setEditError] = useState<string | null>(null);
   /** When set, the duplicate-room dialog is open for this source class. */
   const [duplicateSource, setDuplicateSource] = useState<{ id: string; name: string } | null>(null);
+  /** When set, the delete-class confirmation is open for this class. */
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   /** Pick a non-colliding default name for a duplicated room: `${base} (copy)`,
    *  bumping to `(copy 2)`, `(copy 3)`, … if needed. */
@@ -136,6 +139,18 @@ export default function ClassesIndex() {
         onSubmit={handleDuplicateConfirm}
       />
 
+      <ConfirmDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title={pendingDelete ? `Delete "${pendingDelete.name}"?` : ""}
+        description="This deletes the class along with its roster, room layout, and seating history. This cannot be undone."
+        confirmLabel="Delete class"
+        danger
+        onConfirm={() => {
+          if (pendingDelete) deleteClass(pendingDelete.id);
+        }}
+      />
+
       {classes.length > 0 && (
         <ul className="space-y-2">
           {classes.map((c) => (
@@ -199,9 +214,7 @@ export default function ClassesIndex() {
                     <ClassMenu
                       onRename={() => startRename(c.id, c.name)}
                       onDuplicateRoom={() => setDuplicateSource({ id: c.id, name: c.name })}
-                      onDelete={() => {
-                        if (confirm(`Delete "${c.name}"? This cannot be undone.`)) deleteClass(c.id);
-                      }}
+                      onDelete={() => setPendingDelete({ id: c.id, name: c.name })}
                     />
                   </div>
                 </div>

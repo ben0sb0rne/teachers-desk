@@ -4,6 +4,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { useAppStore } from "@/store/appStore";
 import PasteNamesDialog from "@/components/roster/PasteNamesDialog";
 import KeepApartEditor from "@/components/roster/KeepApartEditor";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/Icon";
 
 export default function Roster() {
@@ -16,6 +17,8 @@ export default function Roster() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [newStudentName, setNewStudentName] = useState("");
+  /** When set, the remove-student confirmation is open for this student. */
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; name: string } | null>(null);
 
   const filtered = useMemo(() => {
     if (!klass) return [];
@@ -131,9 +134,7 @@ export default function Roster() {
                   <td className="px-4 py-2 text-right">
                     <button
                       className="btn-secondary"
-                      onClick={() => {
-                        if (confirm(`Remove ${st.name}?`)) removeStudent(klass.id, st.id);
-                      }}
+                      onClick={() => setPendingRemove({ id: st.id, name: st.name })}
                     >
                       Remove
                     </button>
@@ -171,6 +172,18 @@ export default function Roster() {
       </div>
 
       <PasteNamesDialog open={pasteOpen} onOpenChange={setPasteOpen} classId={klass.id} />
+
+      <ConfirmDialog
+        open={pendingRemove != null}
+        onOpenChange={(open) => { if (!open) setPendingRemove(null); }}
+        title={pendingRemove ? `Remove ${pendingRemove.name}?` : ""}
+        description="This drops the student from the roster. Their assignments in saved arrangements stay intact."
+        confirmLabel="Remove"
+        danger
+        onConfirm={() => {
+          if (pendingRemove) removeStudent(klass.id, pendingRemove.id);
+        }}
+      />
     </div>
   );
 }

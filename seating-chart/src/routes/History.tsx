@@ -3,9 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useAppStore } from "@/store/appStore";
 import { FURNITURE_DEFAULTS } from "@/lib/furniture";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/Icon";
 import type { Arrangement, ClassRoom, Desk, Furniture } from "@/types";
 import { lightTokens, useThemeTokens } from "@/lib/theme-tokens";
+
+/** Discriminated state for the History route's confirm dialog. `restore` is
+ *  only triggered when the live arrangement isn't empty (else we just restore
+ *  silently). `delete` is always confirmed. */
+type PendingConfirm =
+  | { kind: "restore"; arrangementId: string }
+  | { kind: "delete"; arrangementId: string };
 
 // accent-blue stays the same in light + dark, so a static reference is fine.
 const ACCENT_BLUE = lightTokens.accentBlue;
@@ -17,8 +25,30 @@ export default function History() {
   const deleteArrangement = useAppStore((s) => s.deleteArrangement);
   const restoreArrangement = useAppStore((s) => s.restoreArrangement);
   const [viewing, setViewing] = useState<Arrangement | null>(null);
+  const [pending, setPending] = useState<PendingConfirm | null>(null);
 
   if (!klass) return <div className="p-6 text-paper-on-wood/70">Class not found.</div>;
+
+  function handleRestoreClick(arrangementId: string) {
+    if (!klass) return;
+    const hasLive = Object.keys(klass.currentAssignments ?? {}).length > 0;
+    if (hasLive) {
+      setPending({ kind: "restore", arrangementId });
+      return;
+    }
+    restoreArrangement(klass.id, arrangementId);
+    navigate(`/classes/${klass.id}/room`);
+  }
+
+  function handlePendingConfirm() {
+    if (!klass || !pending) return;
+    if (pending.kind === "restore") {
+      restoreArrangement(klass.id, pending.arrangementId);
+      navigate(`/classes/${klass.id}/room`);
+    } else {
+      deleteArrangement(klass.id, pending.arrangementId);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -58,24 +88,13 @@ export default function History() {
                   </button>
                   <button
                     className="btn-secondary"
-                    onClick={() => {
-                      if (
-                        Object.keys(klass.currentAssignments ?? {}).length > 0 &&
-                        !confirm("This will replace the current arrangement. Continue?")
-                      ) {
-                        return;
-                      }
-                      restoreArrangement(klass.id, arr.id);
-                      navigate(`/classes/${klass.id}/room`);
-                    }}
+                    onClick={() => handleRestoreClick(arr.id)}
                   >
                     Restore
                   </button>
                   <button
                     className="btn-danger"
-                    onClick={() => {
-                      if (confirm("Delete this arrangement?")) deleteArrangement(klass.id, arr.id);
-                    }}
+                    onClick={() => setPending({ kind: "delete", arrangementId: arr.id })}
                   >
                     Delete
                   </button>
@@ -90,6 +109,28 @@ export default function History() {
         klass={klass}
         arrangement={viewing}
         onOpenChange={(open) => !open && setViewing(null)}
+      />
+
+      <ConfirmDialog
+        open={pending != null}
+        onOpenChange={(open) => { if (!open) setPending(null); }}
+        title={
+          pending?.kind === "restore"
+            ? "Replace the current arrangement?"
+            : pending?.kind === "delete"
+              ? "Delete this arrangement?"
+              : ""
+        }
+        description={
+          pending?.kind === "restore"
+            ? "This swaps the live seating on the room canvas for the saved one. The live state isn't auto-saved, so unsaved placements will be lost."
+            : pending?.kind === "delete"
+              ? "This removes the saved arrangement from history. This cannot be undone."
+              : undefined
+        }
+        confirmLabel={pending?.kind === "delete" ? "Delete" : "Restore"}
+        danger={pending?.kind === "delete"}
+        onConfirm={handlePendingConfirm}
       />
     </div>
   );
