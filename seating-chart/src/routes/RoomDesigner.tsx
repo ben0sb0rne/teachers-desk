@@ -313,26 +313,37 @@ export default function RoomDesigner() {
     updateRoomItems(klass.id, deskPatches, furniturePatches);
   }
 
+  /**
+   * Align V / Align H now also work on a single selected item — they snap it
+   * to the room's vertical / horizontal center axis. With 2+ items the
+   * behavior is the original "make their centers share an axis" but using
+   * the rotated bounding box centers, so a rotated desk's visible center
+   * (not its model origin) is what gets aligned.
+   */
   function handleAlignVertical() {
-    if (!klass || selectedItemIds.length < 2) return;
+    if (!klass || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
-    const minX = Math.min(...items.map((it) => it.entity.x));
-    const maxX = Math.max(...items.map((it) => it.entity.x + it.entity.width));
-    const centerX = (minX + maxX) / 2;
+    const targetCenterX = items.length === 1
+      ? klass.room.width / 2
+      : centerOfBBoxes(items.map(rotatedAABB)).x;
     applyItemPatches(items, (it) => {
-      const newX = Math.round(centerX - it.entity.width / 2);
+      const aabb = rotatedAABB(it);
+      const delta = targetCenterX - aabb.centerX;
+      const newX = Math.round(it.entity.x + delta);
       return it.entity.x === newX ? null : { x: newX };
     });
   }
 
   function handleAlignHorizontal() {
-    if (!klass || selectedItemIds.length < 2) return;
+    if (!klass || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(klass.room.desks, klass.room.furniture ?? [], selectedItemIds);
-    const minY = Math.min(...items.map((it) => it.entity.y));
-    const maxY = Math.max(...items.map((it) => it.entity.y + it.entity.height));
-    const centerY = (minY + maxY) / 2;
+    const targetCenterY = items.length === 1
+      ? klass.room.height / 2
+      : centerOfBBoxes(items.map(rotatedAABB)).y;
     applyItemPatches(items, (it) => {
-      const newY = Math.round(centerY - it.entity.height / 2);
+      const aabb = rotatedAABB(it);
+      const delta = targetCenterY - aabb.centerY;
+      const newY = Math.round(it.entity.y + delta);
       return it.entity.y === newY ? null : { y: newY };
     });
   }
@@ -446,15 +457,17 @@ export default function RoomDesigner() {
       );
       if (!ok) return;
     }
+    // assign() now always returns assignments + a (possibly empty) warnings
+    // list — Randomize never blocks on infeasible Keep Apart. Surface the
+    // warnings instead of refusing the placement.
     const result = assign({ room: klass.room, students: klass.students, history: klass.arrangements });
-    if (!result.ok) {
-      setWarning(result.reason);
-      return;
-    }
     setAssignmentsStore(klass.id, result.assignments);
+    if (result.warnings.length > 0) {
+      setWarning(result.warnings.join(" "));
+    }
     const totalSeats = klass.room.desks.reduce((n, d) => n + d.seats.length, 0);
     const emptySeats = totalSeats - Object.keys(result.assignments).length;
-    if (emptySeats > 0) {
+    if (emptySeats > 0 && klass.students.length <= totalSeats) {
       setInfo(`${emptySeats} seat${emptySeats === 1 ? "" : "s"} left empty (more seats than students).`);
     }
   }
@@ -638,4 +651,42 @@ function collectSelectedItems(
   for (const d of desks) if (selectedIds.includes(d.id)) out.push({ kind: "desk", entity: d });
   for (const f of furniture) if (selectedIds.includes(f.id)) out.push({ kind: "furniture", entity: f });
   return out;
+}
+
+interface RotatedAABB {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  centerX: number;
+  centerY: number;
+}
+
+/** Visible (rotated) bounding box of an item in room coords. Mirrors the
+ *  getClientRect override on DeskNode/FurnitureNode so Align math operates
+ *  on the rotated visual center, not the model origin. */
+function rotatedAABB(it: SelectedItem): RotatedAABB {
+  const { x, y, width: w, height: h, rotation } = it.entity;
+  const rad = (rotation * Math.PI) / 180;
+  const cosR = Math.cos(rad);
+  const sinR = Math.sin(rad);
+  const corners: Array<[number, number]> = [
+    [0, 0], [w, 0], [w, h], [0, h],
+  ];
+  const xs = corners.map(([lx, ly]) => x + lx * cosR - ly * sinR);
+  const ys = corners.map(([lx, ly]) => y + lx * sinR + ly * cosR);
+  const minX = Math.min.apply(null, xs);
+  const maxX = Math.max.apply(null, xs);
+  const minY = Math.min.apply(null, ys);
+  const maxY = Math.max.apply(null, ys);
+  return { minX, maxX, minY, maxY, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 };
+}
+
+function centerOfBBoxes(boxes: RotatedAABB[]): { x: number; y: number } {
+  if (boxes.length === 0) return { x: 0, y: 0 };
+  const minX = Math.min(...boxes.map((b) => b.minX));
+  const maxX = Math.max(...boxes.map((b) => b.maxX));
+  const minY = Math.min(...boxes.map((b) => b.minY));
+  const maxY = Math.max(...boxes.map((b) => b.maxY));
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 }

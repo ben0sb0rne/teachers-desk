@@ -10,9 +10,14 @@ export function snapToGrid(value: number): number {
   return Math.round(value / GRID) * GRID;
 }
 
+/** Discriminator so the renderer can paint each guide kind differently —
+ *  edge/distribution/center each carry a distinct meaning to the user. */
+export type GuideKind = "edge" | "distribution" | "roomCenter";
+
 export interface Guide {
   axis: "x" | "y";
   position: number;
+  kind: GuideKind;
 }
 
 export interface SnapResult {
@@ -30,12 +35,29 @@ export interface BoundingBox {
   centerY: number;
 }
 
+export type ItemKind = "desk" | "furniture";
+
 export interface SnapItem {
   id: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  /** Optional discriminator. When provided, peer-snap can be filtered to
+   *  same-kind only (so desks line up with desks and furniture with
+   *  furniture). Defaults to undefined which means "snap with anything". */
+  kind?: ItemKind;
+}
+
+export interface SnapOptions {
+  /** Room dimensions; when set, snap also offers the room's vertical and
+   *  horizontal centerlines as snap targets. Independent of any kind filter. */
+  roomWidth?: number;
+  roomHeight?: number;
+  /** When false (default), peer-snap only fires between items of the same
+   *  `kind`. When true, items snap across kinds — matches the pre-Phase-4
+   *  behavior. Hooked up to `Room.advancedAlignment` in RoomStage. */
+  crossType?: boolean;
 }
 
 export function itemBounds(item: SnapItem): BoundingBox {
@@ -53,16 +75,27 @@ export function itemBounds(item: SnapItem): BoundingBox {
  * Snap an item's proposed (x, y) to the grid AND to the edges/centers of any
  * other items in the same room. Used by both desks and furniture so they line
  * up against each other.
+ *
+ * By default peer-snap only fires between same-kind items (desks ↔ desks,
+ * furniture ↔ furniture). Pass `options.crossType: true` to allow
+ * cross-type snap. Room-center snap (when room dimensions are given) always
+ * fires regardless of kind — it's a property of the room, not the peers.
  */
 export function snapPosition(
   item: SnapItem,
   proposedX: number,
   proposedY: number,
   others: SnapItem[],
+  options: SnapOptions = {},
 ): SnapResult {
+  const { roomWidth, roomHeight, crossType = false } = options;
   const w = item.width;
   const h = item.height;
-  const otherBounds = others.filter((d) => d.id !== item.id).map(itemBounds);
+  // Filter peers by kind unless crossType is enabled. If the dragged item
+  // has no kind, fall back to "snap with anything" (preserves old API).
+  const peerFilter = (d: SnapItem) =>
+    d.id !== item.id && (crossType || !item.kind || !d.kind || d.kind === item.kind);
+  const otherBounds = others.filter(peerFilter).map(itemBounds);
 
   let bestX = snapToGrid(proposedX);
   let bestY = snapToGrid(proposedY);
@@ -84,7 +117,7 @@ export function snapPosition(
     for (const cand of myXCandidates(bestX)) {
       for (const b of otherBounds) {
         for (const target of [b.left, b.centerX, b.right]) {
-          if (Math.abs(target - cand.value) < 0.5) guides.push({ axis: "x", position: target });
+          if (Math.abs(target - cand.value) < 0.5) guides.push({ axis: "x", position: target, kind: "edge" });
         }
       }
     }
@@ -106,9 +139,31 @@ export function snapPosition(
     for (const cand of myYCandidates(bestY)) {
       for (const b of otherBounds) {
         for (const target of [b.top, b.centerY, b.bottom]) {
-          if (Math.abs(target - cand.value) < 0.5) guides.push({ axis: "y", position: target });
+          if (Math.abs(target - cand.value) < 0.5) guides.push({ axis: "y", position: target, kind: "edge" });
         }
       }
+    }
+  }
+
+  // Room-center snap. Always-on when dimensions are provided — the room's
+  // geometric center is a useful anchor regardless of peers or kind. Snaps
+  // either the dragged item's center or its own bbox center to the line.
+  if (typeof roomWidth === "number") {
+    const roomCx = roomWidth / 2;
+    const myCenterX = bestX + w / 2;
+    const delta = roomCx - myCenterX;
+    if (Math.abs(delta) <= SNAP_THRESHOLD) {
+      bestX = bestX + delta;
+      guides.push({ axis: "x", position: roomCx, kind: "roomCenter" });
+    }
+  }
+  if (typeof roomHeight === "number") {
+    const roomCy = roomHeight / 2;
+    const myCenterY = bestY + h / 2;
+    const delta = roomCy - myCenterY;
+    if (Math.abs(delta) <= SNAP_THRESHOLD) {
+      bestY = bestY + delta;
+      guides.push({ axis: "y", position: roomCy, kind: "roomCenter" });
     }
   }
 
@@ -147,7 +202,7 @@ export function snapPosition(
       if (Math.abs(gapLeft - gapRight) <= SNAP_THRESHOLD * 2) {
         const targetCenterX = (A.right + B.left) / 2;
         bestX = Math.round(targetCenterX - w / 2);
-        guides.push({ axis: "x", position: targetCenterX });
+        guides.push({ axis: "x", position: targetCenterX, kind: "distribution" });
         snappedBetween = true;
         break;
       }
@@ -167,16 +222,16 @@ export function snapPosition(
         const continueRight = rightmost.right + G;
         if (Math.abs(bestX - continueRight) <= SNAP_THRESHOLD) {
           bestX = Math.round(continueRight);
-          guides.push({ axis: "x", position: continueRight });
+          guides.push({ axis: "x", position: continueRight, kind: "distribution" });
           // Mark the existing edges so the run reads as a pattern visually.
-          for (const b of sameRow) guides.push({ axis: "x", position: b.right });
+          for (const b of sameRow) guides.push({ axis: "x", position: b.right, kind: "distribution" });
         } else {
           // Snap to a "previous step" position to the left.
           const continueLeft = leftmost.left - G;
           if (Math.abs((bestX + w) - continueLeft) <= SNAP_THRESHOLD) {
             bestX = Math.round(continueLeft - w);
-            guides.push({ axis: "x", position: continueLeft });
-            for (const b of sameRow) guides.push({ axis: "x", position: b.left });
+            guides.push({ axis: "x", position: continueLeft, kind: "distribution" });
+            for (const b of sameRow) guides.push({ axis: "x", position: b.left, kind: "distribution" });
           }
         }
       }
@@ -203,7 +258,7 @@ export function snapPosition(
       if (Math.abs(gapTop - gapBottom) <= SNAP_THRESHOLD * 2) {
         const targetCenterY = (A.bottom + B.top) / 2;
         bestY = Math.round(targetCenterY - h / 2);
-        guides.push({ axis: "y", position: targetCenterY });
+        guides.push({ axis: "y", position: targetCenterY, kind: "distribution" });
         snappedBetween = true;
         break;
       }
@@ -221,14 +276,14 @@ export function snapPosition(
         const continueDown = bottommost.bottom + G;
         if (Math.abs(bestY - continueDown) <= SNAP_THRESHOLD) {
           bestY = Math.round(continueDown);
-          guides.push({ axis: "y", position: continueDown });
-          for (const b of sameCol) guides.push({ axis: "y", position: b.bottom });
+          guides.push({ axis: "y", position: continueDown, kind: "distribution" });
+          for (const b of sameCol) guides.push({ axis: "y", position: b.bottom, kind: "distribution" });
         } else {
           const continueUp = topmost.top - G;
           if (Math.abs((bestY + h) - continueUp) <= SNAP_THRESHOLD) {
             bestY = Math.round(continueUp - h);
-            guides.push({ axis: "y", position: continueUp });
-            for (const b of sameCol) guides.push({ axis: "y", position: b.top });
+            guides.push({ axis: "y", position: continueUp, kind: "distribution" });
+            for (const b of sameCol) guides.push({ axis: "y", position: b.top, kind: "distribution" });
           }
         }
       }

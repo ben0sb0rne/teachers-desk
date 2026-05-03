@@ -96,6 +96,11 @@ export interface Room {
    *  uses this fill (and the print export honors it). Unset = the suite's
    *  default cream paper. */
   background?: string;
+  /** When true, peer-snap fires across desk + furniture (the pre-Phase-4
+   *  behavior). Default (false / undefined) keeps each kind in its own
+   *  alignment group — desks line up with desks, furniture with furniture.
+   *  Room-center snap fires regardless of this flag. */
+  advancedAlignment?: boolean;
 }
 
 export interface Arrangement {

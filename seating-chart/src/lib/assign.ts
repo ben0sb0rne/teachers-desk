@@ -7,32 +7,50 @@ export interface AssignInput {
   history: Arrangement[];
 }
 
-export type AssignResult =
-  | { ok: true; assignments: Record<SeatId, StudentId> }
-  | { ok: false; reason: string };
+/**
+ * The solver always returns SOMETHING placeable — it never blocks the
+ * Randomize button on infeasible constraints. If the strict pass can't
+ * satisfy every Keep Apart / front-row rule, it falls back to a relaxed
+ * pass and surfaces a `warnings` list describing what couldn't be honoured.
+ * Callers should display the warnings but keep the (best-effort) assignment.
+ */
+export interface AssignResult {
+  assignments: Record<SeatId, StudentId>;
+  warnings: string[];
+}
 
 /**
  * Backtracking solver with hard constraints:
  *  - front-row students go in front-row seats
  *  - keep-apart pairs are never seated in adjacent seats
  *  - prefer pairings the students haven't had recently (soft tiebreaker)
+ *
+ * If those hard constraints can't all be satisfied, the solver no longer
+ * gives up — it falls back to a relaxed pass (drops keep-apart, keeps
+ * front-row as a soft preference) and surfaces what got violated through
+ * the `warnings` array. Randomize never blocks on infeasible constraints.
  */
 export function assign(input: AssignInput): AssignResult {
   const { room, students, history } = input;
   const seatRefs = roomSeats(room);
   const seatIds = seatRefs.map((s) => s.seatId);
+  const warnings: string[] = [];
 
+  // Pre-flight diagnostics — these become warnings, not hard failures, so
+  // the caller still gets a placement they can show the room.
   if (students.length > seatIds.length) {
-    return { ok: false, reason: `${students.length} students but only ${seatIds.length} seats.` };
+    const overflow = students.length - seatIds.length;
+    warnings.push(
+      `${students.length} students but only ${seatIds.length} seats — ${overflow} student${overflow === 1 ? "" : "s"} won't be seated.`,
+    );
   }
 
   const frontRowSeatIds = new Set(seatRefs.filter((s) => s.isFrontRow).map((s) => s.seatId));
   const frontRowStudents = students.filter((s) => s.needsFrontRow);
   if (frontRowStudents.length > frontRowSeatIds.size) {
-    return {
-      ok: false,
-      reason: `${frontRowStudents.length} students need the front row, but only ${frontRowSeatIds.size} front-row seat${frontRowSeatIds.size === 1 ? "" : "s"} exist.`,
-    };
+    warnings.push(
+      `${frontRowStudents.length} students need the front row, but only ${frontRowSeatIds.size} front-row seat${frontRowSeatIds.size === 1 ? "" : "s"} exist — extras get a regular seat.`,
+    );
   }
 
   const adjPairs = adjacencyPairs(room);
@@ -157,14 +175,51 @@ export function assign(input: AssignInput): AssignResult {
   }
 
   const ok = backtrack(0, performance.now() + 2000);
-  if (!ok) {
-    return {
-      ok: false,
-      reason:
-        "Couldn't satisfy all Keep Apart and front-row constraints. Try removing a Keep Apart pair, marking more desks as front row, or reducing the number of front-row students.",
-    };
+  if (ok) {
+    return { assignments, warnings };
   }
-  return { ok: true, assignments };
+
+  // ----- Relaxed fallback ------------------------------------------------
+  // Strict backtracking failed (or timed out). Reset and place greedily,
+  // ignoring keep-apart but keeping the same scoring otherwise. Then audit
+  // which keep-apart pairs ended up adjacent and surface those as warnings.
+  for (const seat of Object.keys(assignments)) delete assignments[seat];
+  seatTakenBy.clear();
+  studentSeat.clear();
+
+  for (const student of orderedStudents) {
+    const candidates = candidateSeatsFor(student); // already sorted by score
+    if (candidates.length === 0) {
+      // No open seat at all — student goes unseated. Already warned above
+      // when we know there are more students than seats.
+      continue;
+    }
+    const seat = candidates[0];
+    seatTakenBy.set(seat, student.id);
+    studentSeat.set(student.id, seat);
+    assignments[seat] = student.id;
+  }
+
+  // Surface the keep-apart pairs that ended up adjacent in the relaxed pass.
+  const studentName = new Map(students.map((s) => [s.id, s.name]));
+  const reportedConflicts = new Set<string>();
+  for (const [a, b] of adjPairs) {
+    const sa = seatTakenBy.get(a);
+    const sb = seatTakenBy.get(b);
+    if (!sa || !sb) continue;
+    const apartA = keepApart.get(sa);
+    const apartB = keepApart.get(sb);
+    const violates = (apartA?.has(sb)) || (apartB?.has(sa));
+    if (!violates) continue;
+    const key = spairKey(sa, sb);
+    if (reportedConflicts.has(key)) continue;
+    reportedConflicts.add(key);
+    const nameA = studentName.get(sa) ?? "?";
+    const nameB = studentName.get(sb) ?? "?";
+    warnings.push(`Couldn't keep ${nameA} and ${nameB} apart.`);
+  }
+
+  return { assignments, warnings };
 }
 
 function spairKey(a: StudentId, b: StudentId): string {

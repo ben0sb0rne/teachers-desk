@@ -14,7 +14,7 @@ import type { ClassId, Room, SeatId, Student, StudentId, Wall } from "@/types";
 import DeskNode from "./DeskNode";
 import FurnitureNode from "./FurnitureNode";
 import SeatPicker from "./SeatPicker";
-import { snapPosition, type Guide, GRID } from "@/lib/snap";
+import { snapPosition, type Guide, type SnapItem, GRID } from "@/lib/snap";
 import { shouldKeepRatio } from "@/lib/shapes";
 import { useAppStore } from "@/store/appStore";
 import Icon, { type IconName } from "@/components/Icon";
@@ -189,20 +189,33 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     const baseH = desk?.height ?? furniture?.height;
     if (!baseW || !baseH) return;
 
-    const allItems = [
-      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height })),
-      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height })),
+    const isActiveDesk = !!desk;
+    const allItems: SnapItem[] = [
+      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height, kind: "desk" as const })),
+      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height, kind: "furniture" as const })),
     ];
+    const snapOpts = {
+      roomWidth: room.width,
+      roomHeight: room.height,
+      crossType: !!room.advancedAlignment,
+    };
 
     function onTransform() {
       const sx = node.scaleX();
       const sy = node.scaleY();
       const w = (baseW as number) * sx;
       const h = (baseH as number) * sy;
-      const me = { id: activeId, x: node.x(), y: node.y(), width: w, height: h };
+      const me: SnapItem = {
+        id: activeId,
+        x: node.x(),
+        y: node.y(),
+        width: w,
+        height: h,
+        kind: isActiveDesk ? "desk" : "furniture",
+      };
       // Reuse snapPosition and discard its returned x/y — for resize we just
       // SHOW guides; we don't snap the resize handle itself in v1.
-      const result = snapPosition(me, node.x(), node.y(), allItems);
+      const result = snapPosition(me, node.x(), node.y(), allItems, snapOpts);
       setGuides(result.guides);
     }
     function onTransformEndClear() {
@@ -312,13 +325,17 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }
 
   function snapItemDrag(itemId: string, x: number, y: number) {
-    const allItems = [
-      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height })),
-      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height })),
+    const allItems: SnapItem[] = [
+      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height, kind: "desk" as const })),
+      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height, kind: "furniture" as const })),
     ];
     const me = allItems.find((it) => it.id === itemId);
     if (!me) return { x, y };
-    const result = snapPosition({ ...me, x, y }, x, y, allItems);
+    const result = snapPosition({ ...me, x, y }, x, y, allItems, {
+      roomWidth: room.width,
+      roomHeight: room.height,
+      crossType: !!room.advancedAlignment,
+    });
     setGuides(result.guides);
 
     const session = dragSession.current;
@@ -481,27 +498,40 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             anchorSize={10}
           />
 
-          {guides.map((g, i) =>
-            g.axis === "x" ? (
+          {guides.map((g, i) => {
+            // Distinct stroke per guide kind so the user can tell at a
+            // glance whether they're snapping to a peer (edge), to a
+            // distribution rhythm, or to the room's own centerline.
+            const stroke =
+              g.kind === "roomCenter"
+                ? ACCENT_BLUE
+                : g.kind === "distribution"
+                  ? "#f59e0b" // amber — matches the door fill family
+                  : MARQUEE_STROKE;
+            const dash =
+              g.kind === "roomCenter"
+                ? [8 / safeScale, 4 / safeScale]
+                : [4 / safeScale, 3 / safeScale];
+            return g.axis === "x" ? (
               <Line
                 key={`gx-${i}`}
                 points={[g.position, 0, g.position, room.height]}
-                stroke={MARQUEE_STROKE}
-                strokeWidth={1 / safeScale}
-                dash={[4 / safeScale, 3 / safeScale]}
+                stroke={stroke}
+                strokeWidth={(g.kind === "roomCenter" ? 1.4 : 1) / safeScale}
+                dash={dash}
                 listening={false}
               />
             ) : (
               <Line
                 key={`gy-${i}`}
                 points={[0, g.position, room.width, g.position]}
-                stroke={MARQUEE_STROKE}
-                strokeWidth={1 / safeScale}
-                dash={[4 / safeScale, 3 / safeScale]}
+                stroke={stroke}
+                strokeWidth={(g.kind === "roomCenter" ? 1.4 : 1) / safeScale}
+                dash={dash}
                 listening={false}
               />
-            ),
-          )}
+            );
+          })}
 
           {marquee && (
             <Rect

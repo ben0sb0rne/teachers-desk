@@ -87,7 +87,9 @@ export default function DeskPalette({
   const [furnitureOpen, setFurnitureOpen] = useState(true);
   const [roomOptsOpen, setRoomOptsOpen] = useState(false);
 
-  const canAlign = selectionSize >= 2 && !locked;
+  // Align is now valid with one item (centers it on the room axis) or many
+  // items (lines their rotated centers on a shared axis).
+  const canAlign = selectionSize >= 1 && !locked;
   const canDistribute = selectionSize >= 3 && !locked;
   // Flip works on a single item (mirror its own seat layout) or any group.
   const canFlip = selectionSize >= 1 && !locked;
@@ -200,11 +202,25 @@ export default function DeskPalette({
           </span>
         </div>
         <div className="mb-2 grid grid-cols-2 gap-1">
-          <button className="btn-secondary justify-center" onClick={onAlignVertical} disabled={!canAlign} title="Align selected items to the same X">
+          <button
+            className="btn-secondary justify-center"
+            onClick={onAlignVertical}
+            disabled={!canAlign}
+            title={selectionSize === 1
+              ? "Center this item on the room's vertical axis"
+              : "Line up the selected items on a shared vertical axis"}
+          >
             <Icon name="align-vertical" size={14} />
             <span className="text-xs">Align V</span>
           </button>
-          <button className="btn-secondary justify-center" onClick={onAlignHorizontal} disabled={!canAlign} title="Align selected items to the same Y">
+          <button
+            className="btn-secondary justify-center"
+            onClick={onAlignHorizontal}
+            disabled={!canAlign}
+            title={selectionSize === 1
+              ? "Center this item on the room's horizontal axis"
+              : "Line up the selected items on a shared horizontal axis"}
+          >
             <Icon name="align-horizontal" size={14} />
             <span className="text-xs">Align H</span>
           </button>
@@ -317,6 +333,23 @@ export default function DeskPalette({
                 onPick={(fill) => onUpdateRoom({ background: fill })}
                 onReset={() => onUpdateRoom({ background: undefined })}
               />
+            </div>
+            <div>
+              <label className="flex cursor-pointer items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={!!room.advancedAlignment}
+                  onChange={(e) => onUpdateRoom({ advancedAlignment: e.target.checked })}
+                />
+                <span>
+                  <span className="font-medium text-ink">Advanced alignment</span>
+                  <span className="block text-[10px] text-ink-muted">
+                    Snap desks to furniture and vice-versa. Off by default — desks
+                    only snap to other desks, furniture only to furniture.
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
         )}
