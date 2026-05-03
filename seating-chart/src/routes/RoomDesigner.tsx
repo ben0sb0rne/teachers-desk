@@ -7,6 +7,7 @@ import RoomStage from "@/components/canvas/RoomStage";
 import DeskPalette, { type PaletteDragType } from "@/components/canvas/DeskPalette";
 import AssignmentPanel from "@/components/canvas/AssignmentPanel";
 import MultiShapeParamsDialog, { type ConfigKind, type ConfigPayload } from "@/components/designer/MultiShapeParamsDialog";
+import TextInputDialog from "@/components/TextInputDialog";
 import { cloneDeskWithFreshIds, defaultParamsFor, layoutDesk, makeDesk, type ShapeParams } from "@/lib/shapes";
 import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
@@ -55,6 +56,13 @@ export default function RoomDesigner() {
     kind: ConfigKind | null;
     dropPoint: { x: number; y: number } | null;
   }>({ open: false, kind: null, dropPoint: null });
+  /** Single-line text input modal — replaces window.prompt() callers. The
+   *  discriminated `kind` tells the submit handler which action to run when
+   *  the user confirms. null when no input dialog is open. */
+  type TextInputState =
+    | { kind: "arrangement-label" }
+    | { kind: "furniture-label"; furnitureId: FurnitureId; initial: string };
+  const [textInput, setTextInput] = useState<TextInputState | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<{ desks: Desk[]; furniture: Furniture[] }>({
@@ -479,9 +487,7 @@ export default function RoomDesigner() {
       setWarning("Nothing to save — assign students first (try Randomize).");
       return;
     }
-    const label = prompt("Label for this arrangement (optional):") ?? undefined;
-    saveArrangement(klass.id, label || undefined);
-    setWarning(null);
+    setTextInput({ kind: "arrangement-label" });
   }
 
   /**
@@ -535,17 +541,37 @@ export default function RoomDesigner() {
 
   /**
    * Box / circle furniture have a user-typed label drawn inside the shape.
-   * Right-click + double-click on those shapes route here. Simple prompt()
-   * for v1; a proper inline editor would be a Phase 6 polish.
+   * Right-click / double-click routes here, which opens the shared
+   * TextInputDialog. The actual store mutation happens in the dialog's
+   * onSubmit handler at the bottom of this component.
    */
   function handleRequestFurnitureRename(furnitureId: string) {
     if (!klass) return;
     const item = klass.room.furniture?.find((f) => f.id === furnitureId);
     if (!item || (item.kind !== "box" && item.kind !== "circle")) return;
-    const next = window.prompt("Label:", item.label ?? "");
-    if (next == null) return; // cancel
-    const trimmed = next.trim();
-    updateFurniture(klass.id, item.id, { label: trimmed.length > 0 ? trimmed : undefined });
+    setTextInput({ kind: "furniture-label", furnitureId, initial: item.label ?? "" });
+  }
+
+  /**
+   * Dispatcher for the TextInputDialog's onSubmit. Routes by `textInput.kind`
+   * to whatever store action that flow needs. Adding a new prompt-style flow
+   * means adding a `kind` to TextInputState above and a case here.
+   */
+  function handleTextInputSubmit(value: string) {
+    if (!klass || !textInput) return;
+    switch (textInput.kind) {
+      case "arrangement-label": {
+        saveArrangement(klass.id, value.length > 0 ? value : undefined);
+        setWarning(null);
+        return;
+      }
+      case "furniture-label": {
+        updateFurniture(klass.id, textInput.furnitureId, {
+          label: value.length > 0 ? value : undefined,
+        });
+        return;
+      }
+    }
   }
 
   return (
@@ -625,6 +651,29 @@ export default function RoomDesigner() {
         kind={paramsDialog.kind}
         dropPoint={paramsDialog.dropPoint}
         onConfirm={handleConfirmMulti}
+      />
+      <TextInputDialog
+        open={textInput != null}
+        onOpenChange={(open) => { if (!open) setTextInput(null); }}
+        title={
+          textInput?.kind === "arrangement-label"
+            ? "Save arrangement"
+            : "Rename"
+        }
+        description={
+          textInput?.kind === "arrangement-label"
+            ? "Give this seating arrangement a label so you can find it in History later."
+            : "Label drawn inside the shape. Leave blank to clear."
+        }
+        placeholder={
+          textInput?.kind === "arrangement-label"
+            ? "e.g. October seating chart"
+            : ""
+        }
+        initialValue={textInput?.kind === "furniture-label" ? textInput.initial : ""}
+        submitLabel={textInput?.kind === "arrangement-label" ? "Save" : "Update"}
+        allowEmpty={textInput?.kind !== "arrangement-label"}
+        onSubmit={handleTextInputSubmit}
       />
       {paletteDrag?.active && (
         <div
