@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Line, Shape, Text } from "react-konva";
 import type Konva from "konva";
 import type { ClassId, Furniture } from "@/types";
@@ -50,27 +50,37 @@ export default function FurnitureNode({
     return () => registerNode(furniture.id, null);
   }, [furniture.id, registerNode]);
 
-  // Same getClientRect override pattern as DeskNode: compute a tight AABB
-  // from the furniture's own (width × height) rather than unioning child
-  // shapes. The default union pulls in the door's swing-arc Shape and the
-  // window dividers' bounding boxes, both of which can spill past the
-  // visible footprint and throw the multi-select Transformer's bbox off.
-  useEffect(() => {
+  // Same getClientRect override as DeskNode (see comment there for the full
+  // rationale). Konva's Transformer queries with { skipTransform: true } and
+  // composes our transform itself, so the local-frame branch is the one
+  // that actually matters for selection bbox correctness.
+  useLayoutEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    type RectGetter = (config?: unknown) => { x: number; y: number; width: number; height: number };
-    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (this: Konva.Group) {
+    type RectGetter = (config?: { skipTransform?: boolean; relativeTo?: Konva.Container }) => {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (
+      this: Konva.Group,
+      config,
+    ) {
+      const w = furniture.width;
+      const h = furniture.height;
+      if (config?.skipTransform) {
+        return { x: 0, y: 0, width: w, height: h };
+      }
       const x = this.x();
       const y = this.y();
       const sx = this.scaleX();
       const sy = this.scaleY();
-      const w = furniture.width * sx;
-      const h = furniture.height * sy;
       const rad = (this.rotation() * Math.PI) / 180;
       const cosR = Math.cos(rad);
       const sinR = Math.sin(rad);
       const corners: Array<[number, number]> = [
-        [0, 0], [w, 0], [w, h], [0, h],
+        [0, 0], [w * sx, 0], [w * sx, h * sy], [0, h * sy],
       ];
       const xs = corners.map(([lx, ly]) => x + lx * cosR - ly * sinR);
       const ys = corners.map(([lx, ly]) => y + lx * sinR + ly * cosR);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Shape, Text } from "react-konva";
 import type Konva from "konva";
 import type { Desk, SeatId, Student, StudentId, ClassId } from "@/types";
@@ -153,30 +153,46 @@ export default function DeskNode({
     return () => registerNode(desk.id, null);
   }, [desk.id, registerNode]);
 
-  // Override getClientRect so the shared Transformer sizes its bounding
-  // box to the desk's own (width × height) footprint, accounting for the
-  // current rotation + scale. We compute this directly from the desk model
-  // instead of unioning child rects — that approach broke for multi-circle
-  // desks (the Circle node's reported bounds didn't track the desk square)
-  // and would also break as soon as we add decorative children like the
-  // front-row corner marker. This stays correct for any kind.
-  useEffect(() => {
+  // Override getClientRect so the Transformer + every other consumer sees
+  // the desk's own (width × height) footprint — not the children union.
+  // Konva's Transformer calls this with { skipTransform: true } and then
+  // applies the node's own getAbsoluteTransform() to the result. The
+  // critical detail: when skipTransform is true we MUST return bounds in
+  // the node's LOCAL frame (no rotation, no scale, no translation). The
+  // previous version of this override applied the rotation/scale itself,
+  // which Konva then applied AGAIN — that was the actual root cause of
+  // the misaligned single-select bbox bug.
+  useLayoutEffect(() => {
     const node = groupRef.current;
     if (!node) return;
-    type RectGetter = (config?: unknown) => { x: number; y: number; width: number; height: number };
-    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (this: Konva.Group) {
+    type RectGetter = (config?: { skipTransform?: boolean; relativeTo?: Konva.Container }) => {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    (node as unknown as { getClientRect: RectGetter }).getClientRect = function (
+      this: Konva.Group,
+      config,
+    ) {
+      const w = desk.width;
+      const h = desk.height;
+      if (config?.skipTransform) {
+        // Local-frame rect — caller will compose our transform on top.
+        return { x: 0, y: 0, width: w, height: h };
+      }
+      // Otherwise (rare path; mostly drag-snapping use cases) apply the
+      // node's transform ourselves so callers asking for parent-relative
+      // coords still get a correct AABB.
       const x = this.x();
       const y = this.y();
       const sx = this.scaleX();
       const sy = this.scaleY();
-      const w = desk.width * sx;
-      const h = desk.height * sy;
       const rad = (this.rotation() * Math.PI) / 180;
       const cosR = Math.cos(rad);
       const sinR = Math.sin(rad);
-      // Map the four corners of the local rect to parent-frame coords.
       const corners: Array<[number, number]> = [
-        [0, 0], [w, 0], [w, h], [0, h],
+        [0, 0], [w * sx, 0], [w * sx, h * sy], [0, h * sy],
       ];
       const xs = corners.map(([lx, ly]) => x + lx * cosR - ly * sinR);
       const ys = corners.map(([lx, ly]) => y + lx * sinR + ly * cosR);
