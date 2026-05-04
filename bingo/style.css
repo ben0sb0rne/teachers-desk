@@ -1371,3 +1371,95 @@ kbd {
 .pv-del-btn:hover { opacity: 1; color: #c62828; }
 #pv-add-row-row td { padding: 6px 4px; }
 #pv-add-row-btn { width: 100%; }
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile responsiveness — Phase 7a.
+
+   Two breakpoints:
+   - 768px: tablet/phone shared changes — stack the print view's
+     options + preview vertically, drop the 700px min-width on the
+     problem card, bump tap targets toward 44pt.
+   - 480px: phone-specific tweaks — recent-balls scale, tighter
+     paddings, smaller homepage h1, condensed bottom nav.
+
+   The caller view's --problem-font-size is set by JS based on
+   measured space, so it adapts automatically to the new container
+   widths — no override needed here.
+
+   The suite-topstrip has its own 480px rule in shared/desk.css
+   that hides .suite-tool-name and tightens padding.
+   ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  /* Print view: stack options on top of preview. The 280px-wide
+     options column would otherwise crowd the problem table. */
+  #pv-body { flex-direction: column; }
+  #pv-options {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 50vh;
+  }
+  /* Print topbar buttons: drop the 148px min so they shrink with viewport. */
+  #pv-host-btn, #pv-save-csv-btn { min-width: 0; }
+
+  /* Caller view: drop the 700px min on the problem card so it fits
+     narrow viewports without forcing horizontal overflow. */
+  #problem-card { max-width: 100%; }
+  #problem-area { padding: 12px; }
+
+  /* Bottom nav fits without overflow at narrower widths. */
+  #bottom-nav { padding: 0 12px; gap: 8px; }
+  .nav-btn { padding: 10px 14px; font-size: .92rem; }
+
+  /* Tap targets — bump small buttons toward 44pt minimum on touch. */
+  .icon-btn { min-height: 40px; padding: 8px 12px; }
+  .close-btn { min-width: 32px; min-height: 32px; padding: 6px; font-size: 1.2rem; }
+  .ca-col-btn { min-height: 44px; }
+  .seg-btn { padding: 8px 14px; min-height: 36px; }
+}
+
+@media (max-width: 480px) {
+  /* Recent-balls strip scale: balls were 90 * 1.5 = 135px each, so a
+     360px phone fit only 1-2. Drop the multiplier so 3-4 fit. */
+  :root { --rbs: 1.0; }
+
+  /* Topbar: tighter packing so all icons fit on 360px. */
+  #topbar { padding: 0 8px; gap: 4px; }
+  .topbar-right { gap: 4px; }
+  #topbar .center { font-size: .78rem; }
+
+  /* Homepage typography for narrow viewports. */
+  #hp-header h1 { font-size: 2rem; }
+  #hp-header p { font-size: .95rem; }
+  .hp-inner { padding: 24px 16px 40px; }
+
+  /* Print view: smaller options panel — 50vh of a small phone is
+     too much to give to options before the user even sees a problem. */
+  #pv-options { padding: 14px; gap: 14px; max-height: 44vh; }
+  .pv-style-card { padding: 8px 10px; }
+
+  /* Caller view: tighter problem-card spacing. */
+  #problem-card { gap: 10px; }
+
+  /* Cap the board strip on phones — at 200px (the lower clamp value)
+     it eats nearly a third of a 700px-tall screen. */
+  #board-panel { max-height: 160px; }
+
+  /* Board cells: smaller font + padding so columns aren't overcrowded. */
+  .board-col { padding: 3px 4px 4px; }
+  .board-cell { font-size: .82rem; padding: 2px 5px; }
+  .board-col-header { font-size: .92rem; padding: 2px 4px; }
+
+  /* Bottom nav buttons: even tighter than 768px. */
+  .nav-btn { padding: 9px 10px; font-size: .85rem; }
+
+  /* Modal panels: tighter chrome on phones. */
+  .panel-header { padding: 12px 14px 10px; }
+  .panel-body { padding: 12px 14px; }
+  .panel-header h2 { font-size: 1rem; }
+
+  /* Check Answers grid: keep 5 columns but tighten gaps. */
+  #ca-quick-checker { gap: 5px; }
+  .ca-col-btn { font-size: 1rem; }
+}
