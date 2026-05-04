@@ -14,7 +14,6 @@ import type {
   Furniture,
   FurnitureId,
   Room,
-  Seat,
   SeatId,
   Student,
   StudentId,
