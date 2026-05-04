@@ -100,14 +100,19 @@ export default function AppShell() {
             <Icon name="help-circle" size={14} />
             <span className="hidden md:inline">Help</span>
           </button>
+          {/* Use the shared .settings-button class so the gear matches the
+              36x36 paper-card square the bingo + picker tools render. The
+              shell rule lives in shared/desk.css; the inner Icon sizes to
+              18px to fill the same area as the .settings-button-icon SVG
+              the vanilla tools inject. */}
           <button
             type="button"
-            className="btn-secondary"
+            className="settings-button"
             onClick={() => setSettingsOpen(true)}
             title="Settings (S)"
             aria-label="Settings"
           >
-            <Icon name="settings" size={14} />
+            <Icon name="settings" size={18} />
           </button>
         </div>
       </header>
