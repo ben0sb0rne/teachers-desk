@@ -25,6 +25,12 @@ import { mountPasteBulk } from '../shared/components/paste-bulk.js';
 
 let activeClassUnsubscribe = null;
 
+// Cancels the pending transitionend listener for an in-flight spin. Set by
+// spin() at the start of a spin and cleared by onSpinEnd or abortPendingSpin.
+// Without this, navigating away mid-spin leaves an orphan listener that fires
+// on the next spin's transitionend and double-counts (or misattributes) picks.
+let pendingSpinController = null;
+
 mountSettingsButton();
 
 // -------------------------------------------------------------
@@ -73,7 +79,15 @@ function mountClassSelect() {
   });
 }
 
+function abortPendingSpin() {
+  if (!pendingSpinController) return;
+  pendingSpinController.abort();
+  pendingSpinController = null;
+  state.isSpinning = false;
+}
+
 function openClass(classId) {
+  abortPendingSpin();
   state.activeClassId = classId;
   state.activeClassName = storage.getClassName(classId) || '(unnamed)';
   state.activeRoster = storage.getRoster(classId).slice();
@@ -207,6 +221,7 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 // -------------------------------------------------------------
 
 document.getElementById('btn-back-classes').addEventListener('click', () => {
+  abortPendingSpin();
   showView('classSelect');
   if (activeClassUnsubscribe) {
     activeClassUnsubscribe();
@@ -221,6 +236,9 @@ const HUB_R = 14;
 const RIM_R = 96;
 const LABEL_OUTER_PAD = 8;
 const LABEL_INNER_PAD = 4;  // gap between text and the hub
+
+// World angle the pointer sits at. 0 = top of wheel, 90 = right side (3 o'clock).
+const POINTER_DEG = 90;
 
 /**
  * Build sector + label markup for the visible roster.
@@ -414,15 +432,16 @@ function spin() {
   const n = eligible.length;
   const sectorDeg = 360 / n;
   // Sector i's midpoint sits at world angle (i*sectorDeg + currentRotation),
-  // so to land its midpoint at the pointer (angle 0) we need rotation
-  // = -i*sectorDeg (mod 360). The previous (i + 0.5) factor used to be right
-  // when sectors were defined as [i*sectorDeg, (i+1)*sectorDeg]; the current
-  // layout centers sector i on i*sectorDeg, so the half-step shift was the
-  // bug that landed the pointer on every sector boundary.
+  // so to land its midpoint at the pointer (angle POINTER_DEG) we need
+  // rotation = POINTER_DEG - i*sectorDeg (mod 360). The previous (i + 0.5)
+  // factor used to be right when sectors were defined as [i*sectorDeg,
+  // (i+1)*sectorDeg]; the current layout centers sector i on i*sectorDeg, so
+  // the half-step shift was the bug that landed the pointer on every sector
+  // boundary.
   // A small jitter inside the sector (±35% of half-width) keeps it from
   // looking robotic without ever overlapping a neighbor.
   const jitter = (Math.random() - 0.5) * sectorDeg * 0.7;
-  const finalOffset = -(visibleIndex * sectorDeg) + jitter;
+  const finalOffset = POINTER_DEG - (visibleIndex * sectorDeg) + jitter;
   const turns = 6 + Math.floor(Math.random() * 4); // 6–9 full rotations
 
   const target =
@@ -436,10 +455,15 @@ function spin() {
   state.lastPickedName = null;
   renderWheel();
 
+  pendingSpinController = new AbortController();
   wheelSvg.style.transform = `rotate(${target}deg)`;
-  wheelSvg.addEventListener('transitionend', onSpinEnd, { once: true });
+  wheelSvg.addEventListener('transitionend', onSpinEnd, {
+    once: true,
+    signal: pendingSpinController.signal,
+  });
 
   function onSpinEnd() {
+    pendingSpinController = null;
     state.isSpinning = false;
     state.lastPickedName = pickedName;
     state.pickedThisSession.add(pickedName);

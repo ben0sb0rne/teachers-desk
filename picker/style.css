@@ -216,15 +216,15 @@ body { display: flex; flex-direction: column; }
   border-radius: 50%;
 }
 
-/* Downward-pointing arrow above the wheel — sits inside .wheel-frame so
-   it tracks the wheel's size. The polygon tip is at viewBox y=22/24, so
-   with `top: -6%` the tip lands just above the visible wheel rim
-   (rim top is at frame y ~2%, since the wheel circle is 96% of viewBox). */
+/* Leftward-pointing arrow on the right side of the wheel — sits inside
+   .wheel-frame so it tracks the wheel's size. The polygon tip is at viewBox
+   x=2/24, so with `right: -6%` the tip lands just past the visible wheel rim
+   (rim right is at frame x ~98%, since the wheel circle is 96% of viewBox). */
 .wheel-pointer {
   position: absolute;
-  top: -6%;
-  left: 50%;
-  transform: translate(-50%, 0);
+  top: 50%;
+  right: -6%;
+  transform: translateY(-50%);
   width: 8%;
   max-width: 56px;
   min-width: 28px;
