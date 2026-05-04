@@ -80,8 +80,16 @@ export default function RoomDesigner() {
   /** When true the unified Export dialog is open. The dialog renders its own
    *  RoomStage preview and handles PNG download + print. */
   const [exportOpen, setExportOpen] = useState(false);
-  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
-  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  // Default-collapse both side panels on phone-sized viewports so the
+  // canvas gets the full screen on first paint. Computed once at mount;
+  // user toggles override after. Resizing browser between desktop/mobile
+  // doesn't auto-flip — that would override an explicit user choice.
+  const [paletteCollapsed, setPaletteCollapsed] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768,
+  );
+  const [panelCollapsed, setPanelCollapsed] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768,
+  );
   const [paletteDrag, setPaletteDrag] = useState<PaletteDragSession | null>(null);
 
   const assignments = klass?.currentAssignments ?? {};
@@ -99,11 +107,12 @@ export default function RoomDesigner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Window-level listeners for palette drag (mousemove tracks cursor + crosses
-  // the threshold; mouseup either drops on the canvas or cancels).
+  // Window-level listeners for palette drag. Use Pointer Events so a single
+  // code path covers mouse + touch + pen — touch users on iPad/phone can drag
+  // a desk from the palette onto the canvas with the same flow as a mouse.
   useEffect(() => {
     if (!paletteDrag) return;
-    function onMove(e: MouseEvent) {
+    function onMove(e: PointerEvent) {
       setPaletteDrag((prev) => {
         if (!prev) return null;
         const dx = e.clientX - prev.startX;
@@ -112,10 +121,10 @@ export default function RoomDesigner() {
         return { ...prev, x: e.clientX, y: e.clientY, active };
       });
     }
-    function onUp(e: MouseEvent) {
+    function onUp(e: PointerEvent) {
       const session = paletteDrag;
       setPaletteDrag(null);
-      // If the drag never activated, this was a plain click — let the
+      // If the drag never activated, this was a plain tap — let the
       // button's own onClick handle it (no-op here).
       if (!session || !session.active) return;
       const room = pageToRoom(stageRef.current, e.clientX, e.clientY);
@@ -136,11 +145,11 @@ export default function RoomDesigner() {
         setParamsDialog({ open: true, kind: session.kind as DeskKind, dropPoint: room });
       }
     }
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paletteDrag, klass]);

@@ -28,6 +28,11 @@ const SLAB_FONT_FAMILY = "Rockwell, 'Roboto Slab', Georgia, serif";
 /** Padding (in room-coord units) used when fitContents expands the camera
  *  frame, so items + label aren't tight against the canvas edge. */
 const FIT_CONTENTS_PADDING = 16;
+/** True when the device exposes touch input. Used to bump Konva's Transformer
+ *  anchor handles to a finger-friendly size on touch hardware. Computed once
+ *  at module load so we don't re-check on every render. */
+const IS_TOUCH = typeof window !== "undefined" && "ontouchstart" in window;
+const ANCHOR_SIZE = IS_TOUCH ? 18 : 10;
 
 // Static (don't flip with theme): accent-blue is the same in light + dark;
 // marquee-stroke is functional/semantic.
@@ -622,7 +627,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               anchorStroke={ACCENT_BLUE}
               anchorFill="#ffffff"
               anchorStrokeWidth={2}
-              anchorSize={10}
+              anchorSize={ANCHOR_SIZE}
             />
           )}
 

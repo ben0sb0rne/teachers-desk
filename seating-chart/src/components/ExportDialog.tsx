@@ -148,7 +148,10 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
             </Dialog.Close>
           </div>
 
-          <div className="grid min-h-[20rem] flex-1 grid-cols-[14rem_1fr] gap-4 overflow-hidden">
+          {/* On phones the 14rem option column would crowd the preview;
+              switch to a single-column stack at < md so the controls sit
+              above a full-width preview canvas. */}
+          <div className="grid min-h-[20rem] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[14rem_1fr]">
             <aside className="space-y-4 overflow-y-auto pr-2">
               <Segmented
                 label="Color"

@@ -132,7 +132,7 @@ export default function DeskPalette({
                 <button
                   className="btn-secondary w-full justify-start"
                   onClick={() => onPlaceSingle(it.kind)}
-                  onMouseDown={(e) => {
+                  onPointerDown={(e) => {
                     if (e.button !== 0) return;
                     onPaletteDragStart(it.kind, "single-desk", e.clientX, e.clientY);
                   }}
@@ -154,7 +154,7 @@ export default function DeskPalette({
                 <button
                   className="btn-secondary w-full justify-start"
                   onClick={() => onOpenMulti(it.kind)}
-                  onMouseDown={(e) => {
+                  onPointerDown={(e) => {
                     if (e.button !== 0) return;
                     onPaletteDragStart(it.kind, "multi-desk", e.clientX, e.clientY);
                   }}
@@ -181,7 +181,7 @@ export default function DeskPalette({
                 <button
                   className="btn-secondary w-full justify-start"
                   onClick={() => onPlaceFurniture(kind)}
-                  onMouseDown={(e) => {
+                  onPointerDown={(e) => {
                     if (e.button !== 0) return;
                     onPaletteDragStart(kind, "furniture", e.clientX, e.clientY);
                   }}
