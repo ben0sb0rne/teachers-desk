@@ -94,6 +94,23 @@ body {
 .icon-btn:hover { background: var(--surface2); }
 .icon-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* When an .icon-btn lives inside the suite topstrip (Help, Fullscreen)
+   it adopts the same paper-card visual as .settings-button so all three
+   topstrip-right buttons share a height and treatment. The order across
+   tools is Help → Settings → Fullscreen, fixed by HTML element order. */
+.suite-topstrip .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  background: rgb(var(--paper-cream));
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  box-shadow: var(--shadow-paper);
+}
+.suite-topstrip .icon-btn:hover { background: rgb(var(--paper-edge) / 0.05); }
+.suite-topstrip .icon-btn svg { display: block; }
+
 .topstrip-progress {
   font-size: .85rem;
   color: var(--text-muted);
@@ -1161,17 +1178,15 @@ kbd {
 [data-theme="dark"] .rm-ready { background: #1b3d1f; color: #81c784; }
 .rm-soon { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
 
-/* ── Fullscreen button ── */
+/* ── Fullscreen button ──
+   Sits as the third topstrip-right action (Help → Settings → Fullscreen).
+   Visual treatment + height come from the .suite-topstrip .icon-btn rule
+   above; this rule only handles icon-only width (square) + centering. */
 #btn-fullscreen {
-  display: flex;
-  align-items: center;
+  width: 36px;
+  padding: 0;
   justify-content: center;
-  padding: 5px 8px;
-  opacity: .6;
-  transition: opacity .15s;
 }
-#btn-fullscreen:hover { opacity: 1; }
-#btn-fullscreen svg { display: block; }
 
 #hp-set-error {
   margin-top: 12px; padding: 8px 12px;

@@ -89,17 +89,9 @@ export default function AppShell() {
           )}
         </div>
         <div className="suite-topstrip-right">
-          {/* Import / Export live in the suite settings dialog now —
-              the topbar "..." menu was removed to declutter. */}
-          <button
-            type="button"
-            className="rounded-md border border-ink/20 bg-paper p-2 text-ink shadow-sm hover:bg-ink/5"
-            onClick={() => setSettingsOpen(true)}
-            title="Settings (S)"
-            aria-label="Settings"
-          >
-            <Icon name="settings" size={16} />
-          </button>
+          {/* Order across every tool's topstrip is Help → Settings → Fullscreen
+              (the seating chart has no fullscreen toggle so it stops at
+              Settings). Both buttons use btn-secondary so heights match. */}
           <button
             className="btn-secondary"
             onClick={() => setHelpOpen(true)}
@@ -107,6 +99,15 @@ export default function AppShell() {
           >
             <Icon name="help-circle" size={14} />
             <span className="hidden md:inline">Help</span>
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setSettingsOpen(true)}
+            title="Settings (S)"
+            aria-label="Settings"
+          >
+            <Icon name="settings" size={14} />
           </button>
         </div>
       </header>
