@@ -10,6 +10,7 @@ import Icon from "@/components/Icon";
 export default function AppShell() {
   const { id } = useParams();
   const isClassRoute = useMatch("/classes/:id/*");
+  const isIndexRoute = useMatch({ path: "/", end: true });
   const klass = useAppStore((s) => (id ? s.classes.find((c) => c.id === id) : undefined));
   const [helpOpen, setHelpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -59,19 +60,22 @@ export default function AppShell() {
           own tool nav (class name, tabs, help, menu) lives inside the same strip. */}
       <header className="suite-topstrip">
         <div className="suite-topstrip-left">
-          {/* Out-of-app link: leaves the React app, navigates to the suite root. */}
+          {/* Out-of-app link: leaves the React app, navigates to the suite root.
+              The wordmark is its own affordance — no back-arrow needed. */}
           <a className="suite-wordmark" href="../" title="Back to The Teacher's Desk">
-            <span aria-hidden="true">&larr;</span> The Teacher's Desk
+            The Teacher's Desk
           </a>
-          {/* In-app link: returns to the classes index. The arrow is the
-              affordance for "this is how you go back to your class list". */}
-          <Link
-            to="/"
-            className="suite-tool-name hover:text-accent-blue"
-            title="Back to all classes"
-          >
-            <span aria-hidden="true">&larr;</span> Classes
-          </Link>
+          {/* In-app link to the classes index. Hidden when we're already
+              there — would just be a no-op link otherwise. */}
+          {!isIndexRoute && (
+            <Link
+              to="/"
+              className="suite-tool-name hover:text-accent-blue"
+              title="Back to all classes"
+            >
+              All Classes
+            </Link>
+          )}
           {isClassRoute && klass && (
             <>
               <span className="h-5 w-px bg-ink/20" aria-hidden />
