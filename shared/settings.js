@@ -272,10 +272,12 @@ function row_(labelText, htmlFor) {
 // -------------------------------------------------------------
 
 /**
- * Mount the floating gear button and 'S' keyboard shortcut. If a button
- * with class `settings-button` already exists in the document (e.g. a tool
- * placed one in its topstrip), only the click handler is wired and no new
- * button is created.
+ * Mount the in-bar gear button and 'S' keyboard shortcut. Tools place a
+ * `<button class="settings-button">` inside their `.suite-topstrip-right`
+ * slot; this function finds it, ensures it has the gear glyph, and wires
+ * the click handler. If no button exists yet, one is appended to the
+ * topstrip-right slot (or to the body as a last resort, kept for tools
+ * that don't use the shared topstrip).
  *
  * Pass `{ shortcut: false }` to skip the keyboard binding (useful in tools
  * that already use 'S' for something else).
@@ -290,8 +292,16 @@ export function mountSettingsButton(options = {}) {
     btn.className = 'settings-button';
     btn.setAttribute('aria-label', 'Settings');
     btn.title = 'Settings (S)';
+    // Prefer the topstrip-right slot so the gear lays out next to the
+    // tool's other in-bar controls. Falls back to <body> for tools
+    // without a suite topstrip.
+    const slot = document.querySelector('.suite-topstrip-right') || document.body;
+    slot.appendChild(btn);
+  }
+  // Ensure the gear glyph is present even when the tool's HTML left the
+  // button empty (the canonical pattern — keep tool HTML free of the SVG).
+  if (!btn.querySelector('svg')) {
     btn.innerHTML = ICON_GEAR;
-    document.body.appendChild(btn);
   }
   btn.addEventListener('click', openSettings);
 

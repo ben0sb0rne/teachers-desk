@@ -234,7 +234,10 @@ a:hover { text-decoration-thickness: 2px; }
   outline-offset: 2px;
 }
 
-/* Subtle separator + tool-name label, displayed inline after the wordmark */
+/* Subtle separator + tool-name label, displayed inline after the wordmark.
+   Doubles as the in-bar "All Classes" link when a tool needs to surface a
+   back-to-index affordance — see picker/index.html and the seating chart's
+   AppShell. As an anchor it picks up cursor + hover styling below. */
 .suite-tool-name {
   font-family: var(--font-slab);
   font-size: var(--type-13);
@@ -244,6 +247,20 @@ a:hover { text-decoration-thickness: 2px; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+a.suite-tool-name {
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 80ms ease;
+}
+a.suite-tool-name:hover {
+  color: rgb(var(--accent-blue));
+  text-decoration: none;
+}
+a.suite-tool-name:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+  border-radius: var(--radius-tight);
 }
 
 /* Cross-tool nav link in the topstrip right slot (e.g. "Rosters"). */
@@ -276,17 +293,14 @@ a:hover { text-decoration-thickness: 2px; }
 }
 
 /* =============================================================
-   .settings-button — floating gear, top-right of viewport
-   Suite-wide. Visible on every screen of every tool. Click opens
-   the suite settings dialog (shared/settings.js or each tool's
-   equivalent React/vanilla mount).
+   .settings-button — gear that opens the suite settings dialog.
+   Lives INSIDE the .suite-topstrip-right slot of every tool, so
+   its position + appearance are consistent across screens. The
+   click handler is wired by shared/settings.js (or the tool's
+   React equivalent), which finds the existing button by class.
    ============================================================= */
 
 .settings-button {
-  position: fixed;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 90;
   width: 36px;
   height: 36px;
   display: inline-flex;

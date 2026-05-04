@@ -73,23 +73,6 @@ body { display: flex; flex-direction: column; }
   color: rgb(var(--paper-on-wood));
 }
 
-.link-button {
-  background: none;
-  border: none;
-  color: rgb(var(--paper-on-wood));
-  font: 700 var(--type-13) var(--font-slab);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: var(--radius-tight);
-}
-.link-button:hover { background: rgb(var(--paper-on-wood) / 0.08); }
-.link-button:focus-visible {
-  outline: 2px solid rgb(var(--paper-on-wood) / 0.7);
-  outline-offset: 2px;
-}
-
 .picker-actions {
   display: flex;
   gap: var(--space-3);
@@ -293,9 +276,8 @@ body { display: flex; flex-direction: column; }
 
 @media (max-width: 768px) {
   /* Tap targets — touch users need 44pt minimum on interactive controls.
-     The previous 4-6px padding on link/action buttons gave ~20px hit
+     The previous 4-6px padding on the action buttons gave ~20px hit
      targets, well below the WCAG AAA 44pt floor. */
-  .link-button { padding: 10px 12px; }
   .class-card-actions button { padding: 8px 12px; }
 }
 

@@ -56,6 +56,11 @@ const state = {
 
 function showView(name) {
   for (const [k, el] of Object.entries(VIEW)) el.hidden = k !== name;
+  // Toggle the in-bar "All Classes" link — visible only when we're not on
+  // the class-select view (where it would be a no-op link to the current
+  // page). Mirrors the seating chart's index-route behavior.
+  const allClassesLink = document.getElementById('topstrip-all-classes');
+  if (allClassesLink) allClassesLink.hidden = name === 'classSelect';
 }
 
 // -------------------------------------------------------------
@@ -220,7 +225,11 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 // WHEEL VIEW
 // -------------------------------------------------------------
 
-document.getElementById('btn-back-classes').addEventListener('click', () => {
+// Back-to-classes is now triggered from the in-bar "All Classes" link.
+// Same handler the old in-view button used; preventDefault on the anchor
+// since the href="#" is just a placeholder for accessibility.
+document.getElementById('topstrip-all-classes').addEventListener('click', (e) => {
+  e.preventDefault();
   abortPendingSpin();
   showView('classSelect');
   if (activeClassUnsubscribe) {
