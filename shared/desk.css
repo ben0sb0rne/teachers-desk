@@ -289,7 +289,10 @@ a.suite-tool-name:focus-visible {
 
 @media (max-width: 480px) {
   .suite-topstrip { padding: var(--space-2) var(--space-3); }
-  .suite-tool-name { display: none; }
+  /* Hide the static tool-name label on phones to free horizontal space,
+     but keep anchor links (the "All Classes" back-affordance), which use
+     the same class for consistent styling but carry navigation. */
+  span.suite-tool-name { display: none; }
 }
 
 /* =============================================================

@@ -922,7 +922,11 @@ function showView(view) {
   document.getElementById('homepage-view').hidden = (view !== 'home');
   document.getElementById('print-view').hidden    = (view !== 'print');
   document.getElementById('app').hidden            = (view !== 'caller');
-  document.getElementById('btn-back-home').hidden  = (view !== 'caller');
+  // In-bar caller chrome (back-to-Sets link + progress display) is only
+  // meaningful while playing. Toggle along with the view switch so both
+  // the topstrip-left contents stay clean across views.
+  document.getElementById('topstrip-back-sets').hidden = (view !== 'caller');
+  document.getElementById('progress-display').hidden    = (view !== 'caller');
 }
 
 function applyLoadedSet(problems, name, allRows = null) {
@@ -3224,22 +3228,33 @@ const FS_EXIT_SVG  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none
 
 function updateFullscreenBtn() {
   const btn = document.getElementById('btn-fullscreen');
+  // Read both the standard property AND the webkit prefix so iOS Safari
+  // (which only fires the webkit variant) flips the icon correctly.
+  const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  // Body class drives the CSS that collapses the topstrip in fullscreen,
+  // leaving only the fullscreen toggle visible as a floating button.
+  document.body.classList.toggle('is-fullscreen', inFs);
   if (!btn) return;
-  const inFs = !!document.fullscreenElement;
   btn.innerHTML = inFs ? FS_EXIT_SVG : FS_ENTER_SVG;
   btn.setAttribute('aria-label', inFs ? 'Exit fullscreen' : 'Enter fullscreen');
   btn.title = inFs ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)';
 }
 
 function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
+  const inFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!inFs) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    req?.call(el)?.catch?.(() => {});
   } else {
-    document.exitFullscreen().catch(() => {});
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    exit?.call(document)?.catch?.(() => {});
   }
 }
 
 document.addEventListener('fullscreenchange', updateFullscreenBtn);
+// iOS Safari + older WebKit browsers fire the prefixed event only.
+document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
 
 /* ============================================================
    EVENT WIRING
@@ -3254,12 +3269,19 @@ function wireEvents() {
   document.getElementById('btn-prev').onclick = () => {
     prevProblem(); stopTimer(); render();
   };
-  // Two settings entry points wired to the same overlay:
-  // 1) #btn-settings — caller view's topbar button (only visible during play)
-  // 2) #btn-settings-floating — suite-wide floating gear (visible on every bingo view)
+  // Single settings entry point in the topstrip-right slot. Visible on
+  // every bingo view; same overlay as the S keyboard shortcut.
   const openSettings = () => { renderSettings(); openOverlay('settings-overlay'); };
   document.getElementById('btn-settings').onclick = openSettings;
-  document.getElementById('btn-settings-floating').onclick = openSettings;
+  // Inject the gear glyph since the HTML button is empty by convention
+  // (mirrors how shared/settings.js handles the picker's button).
+  const settingsBtn = document.getElementById('btn-settings');
+  if (settingsBtn && !settingsBtn.querySelector('svg')) {
+    settingsBtn.innerHTML = '<svg class="settings-button-icon" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<circle cx="12" cy="12" r="3"/>'
+      + '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
+      + '</svg>';
+  }
   document.getElementById('btn-check-answers').onclick = () => renderCheckAnswers();
   document.getElementById('btn-close-check-answers').onclick = () => closeOverlay('check-answers-overlay');
 
@@ -3302,7 +3324,11 @@ function wireEvents() {
     });
   });
 
-  document.getElementById('btn-back-home').onclick = () => { stopTimer(); showView('home'); };
+  document.getElementById('topstrip-back-sets').addEventListener('click', (e) => {
+    e.preventDefault();
+    stopTimer();
+    showView('home');
+  });
   document.getElementById('btn-close-csv-help').onclick = () => closeOverlay('csv-help-overlay');
   document.getElementById('btn-close-roadmap').onclick = () => closeOverlay('roadmap-overlay');
   document.getElementById('btn-fullscreen').onclick = () => toggleFullscreen();

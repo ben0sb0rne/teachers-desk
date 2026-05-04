@@ -75,20 +75,11 @@ body {
    topstrip would push the bottom of the view out of view. */
 #app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-/* ── Top bar ── */
-#topbar {
-  height: var(--topbar-h);
-  background: var(--surface);
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  gap: 8px;
-  flex-shrink: 0;
-  box-shadow: var(--shadow);
-  z-index: 10;
-}
-#topbar .spacer { flex: 1; }
-#topbar .center { flex: 1; text-align: center; font-size: .85rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* ── Topstrip in-bar elements ──
+   The caller view's chrome (Sets back link, progress display, Help,
+   Fullscreen) lives inside the suite topstrip now. The .icon-btn class
+   styles the Help + Fullscreen buttons; .topstrip-progress handles the
+   "Question 3 of 25" readout. */
 .icon-btn {
   background: none;
   border: 1px solid var(--border);
@@ -102,7 +93,36 @@ body {
 }
 .icon-btn:hover { background: var(--surface2); }
 .icon-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.topbar-right { display: flex; gap: 6px; }
+
+.topstrip-progress {
+  font-size: .85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Fullscreen mode: collapse the topstrip and float the Fullscreen toggle
+   to the top-right corner so it's the only chrome visible. The body class
+   is set by updateFullscreenBtn() in script.js. */
+body.is-fullscreen .suite-topstrip {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  padding: 0;
+}
+body.is-fullscreen .suite-topstrip-left { display: none; }
+body.is-fullscreen .suite-topstrip-right > *:not(#btn-fullscreen) { display: none; }
+body.is-fullscreen .suite-topstrip-right {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 100;
+  padding: 0;
+}
+body.is-fullscreen #btn-fullscreen {
+  background: rgb(var(--paper-cream));
+  box-shadow: var(--shadow-paper);
+}
 
 /* ── Inline SVG icons ── */
 .icon {
@@ -1141,9 +1161,6 @@ kbd {
 [data-theme="dark"] .rm-ready { background: #1b3d1f; color: #81c784; }
 .rm-soon { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
 
-/* Back button — only shown in caller view */
-#btn-back-home { margin-right: 4px; }
-
 /* ── Fullscreen button ── */
 #btn-fullscreen {
   display: flex;
@@ -1423,11 +1440,6 @@ kbd {
   /* Recent-balls strip scale: balls were 90 * 1.5 = 135px each, so a
      360px phone fit only 1-2. Drop the multiplier so 3-4 fit. */
   :root { --rbs: 1.0; }
-
-  /* Topbar: tighter packing so all icons fit on 360px. */
-  #topbar { padding: 0 8px; gap: 4px; }
-  .topbar-right { gap: 4px; }
-  #topbar .center { font-size: .78rem; }
 
   /* Homepage typography for narrow viewports. */
   #hp-header h1 { font-size: 2rem; }
