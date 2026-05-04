@@ -7,8 +7,6 @@ import type { ReactNode } from "react";
 const PATHS: Record<string, ReactNode> = {
   "chevron-down": <polyline points="6 9 12 15 18 9" />,
   "chevron-right": <polyline points="9 18 15 12 9 6" />,
-  "chevron-up": <polyline points="18 15 12 9 6 15" />,
-  "chevron-left": <polyline points="15 18 9 12 15 6" />,
   x: (
     <>
       <line x1="18" y1="6" x2="6" y2="18" />
@@ -55,25 +53,11 @@ const PATHS: Record<string, ReactNode> = {
       <polyline points="7 3 7 8 15 8" />
     </>
   ),
-  image: (
-    <>
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21 15 16 10 5 21" />
-    </>
-  ),
   download: (
     <>
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
-    </>
-  ),
-  upload: (
-    <>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
     </>
   ),
   trash: (
@@ -92,20 +76,6 @@ const PATHS: Record<string, ReactNode> = {
     <>
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </>
-  ),
-  users: (
-    <>
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </>
-  ),
-  home: (
-    <>
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
     </>
   ),
   plus: (
@@ -189,18 +159,6 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
-  undo: (
-    <>
-      <polyline points="3 7 8 7 8 12" />
-      <path d="M3 7s2-4 9-4 10 5 10 11-5 7-10 7c-3 0-5-2-5-2" />
-    </>
-  ),
-  redo: (
-    <>
-      <polyline points="21 7 16 7 16 12" />
-      <path d="M21 7s-2-4-9-4-10 5-10 11 5 7 10 7c3 0 5-2 5-2" />
-    </>
-  ),
   lock: (
     <>
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -257,28 +215,6 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="12" cy="12" r="1" fill="currentColor" />
       <circle cx="19" cy="12" r="1" fill="currentColor" />
       <circle cx="5" cy="12" r="1" fill="currentColor" />
-    </>
-  ),
-  // Theme toggle icons. Standard Feather sun / moon / monitor.
-  sun: (
-    <>
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </>
-  ),
-  moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
-  monitor: (
-    <>
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
     </>
   ),
   // Feather "settings" — gear icon for the suite-wide settings dialog.

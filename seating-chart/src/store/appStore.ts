@@ -40,7 +40,6 @@ interface AppActions {
    *  name. The new class has no students, no arrangements, and no current
    *  assignments. Returns the new class id, or null if the name collides. */
   duplicateRoom: (id: ClassId, newName: string) => ClassId | null;
-  setActiveClass: (id: ClassId | null) => void;
 
   addStudents: (classId: ClassId, names: string[]) => void;
   updateStudent: (classId: ClassId, studentId: StudentId, patch: Partial<Student>) => void;
@@ -64,7 +63,6 @@ interface AppActions {
   updateRoom: (classId: ClassId, patch: Partial<Room>) => void;
   setSeatFrontRow: (classId: ClassId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
   setDeskFrontRow: (classId: ClassId, deskId: DeskId, value: boolean) => void;
-  updateSeat: (classId: ClassId, deskId: DeskId, seatId: SeatId, patch: Partial<Seat>) => void;
 
   addFurniture: (classId: ClassId, item: Furniture) => void;
   updateFurniture: (classId: ClassId, furnitureId: FurnitureId, patch: Partial<Furniture>) => void;
@@ -187,8 +185,6 @@ export const useAppStore = create<AppStore>()(
           set((s) => ({ ...s, classes: [...s.classes, cloned] }));
           return cloned.id;
         },
-
-        setActiveClass: (id) => set((s) => ({ ...s, activeClassId: id })),
 
         addStudents: (classId, names) =>
           set((s) =>
@@ -356,21 +352,6 @@ export const useAppStore = create<AppStore>()(
                 ...c.room,
                 desks: c.room.desks.map((d) =>
                   d.id === deskId ? { ...d, seats: d.seats.map((seat) => ({ ...seat, isFrontRow: value })) } : d,
-                ),
-              },
-            })),
-          ),
-
-        updateSeat: (classId, deskId, seatId, patch) =>
-          set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: {
-                ...c.room,
-                desks: c.room.desks.map((d) =>
-                  d.id === deskId
-                    ? { ...d, seats: d.seats.map((seat) => (seat.id === seatId ? { ...seat, ...patch } : seat)) }
-                    : d,
                 ),
               },
             })),
