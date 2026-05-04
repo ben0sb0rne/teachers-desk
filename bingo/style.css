@@ -110,6 +110,14 @@ body {
 }
 .suite-topstrip .icon-btn:hover { background: rgb(var(--paper-edge) / 0.05); }
 .suite-topstrip .icon-btn svg { display: block; }
+/* Pin the in-bar icon size at 16px so the help-circle glyph is the same
+   visual weight as the seating chart's Help icon. The .icon class default
+   of 1em would resolve to ~13px at the button's .82rem font-size — too
+   small to read clearly next to the "Help" label. */
+.suite-topstrip .icon-btn .icon {
+  width: 16px;
+  height: 16px;
+}
 
 .topstrip-progress {
   font-size: .85rem;

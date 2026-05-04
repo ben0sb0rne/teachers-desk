@@ -297,13 +297,19 @@ a.suite-tool-name:focus-visible {
 
 /* =============================================================
    .settings-button — gear that opens the suite settings dialog.
-   Lives INSIDE the .suite-topstrip-right slot of every tool, so
-   its position + appearance are consistent across screens. The
-   click handler is wired by shared/settings.js (or the tool's
-   React equivalent), which finds the existing button by class.
+
+   Default placement is floating top-right (used by the suite homepage
+   index.html where there's no topstrip to land in). When the button
+   lives inside a .suite-topstrip-right slot — every tool — it lays
+   out in-flow so its position is consistent with the other in-bar
+   action buttons (Help, Fullscreen).
    ============================================================= */
 
 .settings-button {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 90;
   width: 36px;
   height: 36px;
   display: inline-flex;
@@ -317,6 +323,12 @@ a.suite-tool-name:focus-visible {
   cursor: pointer;
   padding: 0;
   transition: transform 80ms ease, background 80ms ease;
+}
+.suite-topstrip .settings-button {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
 }
 .settings-button:hover  { background: rgb(var(--paper-edge) / 0.05); }
 .settings-button:active { transform: translateY(1px); }
