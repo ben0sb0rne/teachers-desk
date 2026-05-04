@@ -37,6 +37,8 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
   const [showFrontWallLabel, setShowFrontWallLabel] = useState(true);
   const [showClassName, setShowClassName] = useState(true);
   const [classNameSize, setClassNameSize] = useState(DEFAULT_CLASS_LABEL_SIZE);
+  /** Surfaces popup-blocker failures when Print can't open its preview window. */
+  const [printError, setPrintError] = useState<string | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
 
   // Reset toggles to defaults each time the dialog opens so a previous
@@ -51,6 +53,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
       setShowFrontWallLabel(true);
       setShowClassName(true);
       setClassNameSize(DEFAULT_CLASS_LABEL_SIZE);
+      setPrintError(null);
     }
   }, [open]);
 
@@ -79,6 +82,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
 
   function handlePrint() {
     if (!stageRef.current) return;
+    setPrintError(null);
     // Render the stage to a high-res PNG via the same prep/restore pipeline
     // the download path uses, then open it in a new window and trigger that
     // window's print dialog. The user gets a clean print of just the chart.
@@ -95,7 +99,12 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
     const fit = computeFitBounds(klass);
     const orientation = fit.width >= fit.height ? "landscape" : "portrait";
     const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) return;
+    if (!w) {
+      setPrintError(
+        "Couldn't open the print preview — your browser may be blocking popups for this site. Use Download PNG instead, or allow popups and try again.",
+      );
+      return;
+    }
     const titleSafe = (klass.name + (arrangement?.label ? ` — ${arrangement.label}` : ""))
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;");
@@ -252,6 +261,12 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
               />
             </div>
           </div>
+
+          {printError && (
+            <p className="mt-3 text-right text-xs text-red-600" role="alert">
+              {printError}
+            </p>
+          )}
 
           <div className="mt-4 flex justify-end gap-2">
             <Dialog.Close asChild>
