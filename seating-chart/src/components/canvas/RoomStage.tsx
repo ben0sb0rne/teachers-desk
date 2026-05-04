@@ -311,23 +311,34 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }, []);
 
   const padding = 40;
+  // Reserve a band above the room/items for the class-name label when one
+  // is provided, so the label sits in the page corner rather than against
+  // the room's wall. Sized off the chosen font size with a floor so very
+  // small sizes still get breathing room.
+  const labelBandHeight = classNameLabel ? Math.max(40, classNameLabelSize + 24) : 0;
   // The camera frame ("viewBounds") is normally just the room rectangle, but
   // when fitContents is on we expand it to include every item's rotated
-  // AABB so things like outward-swinging door arcs aren't clipped. The
-  // expansion gets a small padding so items aren't tight against the edge.
+  // AABB so things like outward-swinging door arcs aren't clipped, plus the
+  // label band above when a class-name is requested.
   const viewBounds: AABB = useMemo(() => {
     const roomBounds: AABB = { x: 0, y: 0, width: room.width, height: room.height };
-    if (!fitContents) return roomBounds;
+    if (!fitContents) {
+      // Even without item-fit, reserve the label band so the editor view
+      // wouldn't clip the class-name label if anyone passes one.
+      return labelBandHeight > 0
+        ? { x: 0, y: -labelBandHeight, width: room.width, height: room.height + labelBandHeight }
+        : roomBounds;
+    }
     let union = roomBounds;
     for (const d of room.desks) union = unionAABB(union, rotatedItemAABB(d));
     for (const f of room.furniture ?? []) union = unionAABB(union, rotatedItemAABB(f));
     return {
       x: union.x - FIT_CONTENTS_PADDING,
-      y: union.y - FIT_CONTENTS_PADDING,
+      y: union.y - FIT_CONTENTS_PADDING - labelBandHeight,
       width: union.width + FIT_CONTENTS_PADDING * 2,
-      height: union.height + FIT_CONTENTS_PADDING * 2,
+      height: union.height + FIT_CONTENTS_PADDING * 2 + labelBandHeight,
     };
-  }, [fitContents, room.width, room.height, room.desks, room.furniture]);
+  }, [fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight]);
   const scale = Math.min(
     (size.w - padding * 2) / viewBounds.width,
     (size.h - padding * 2) / viewBounds.height,
@@ -664,17 +675,18 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             />
           )}
 
-          {/* Class-name label sits in the room's top-right corner — anchored
-              to the room rectangle, not the camera frame, so it stays in a
-              natural corner even when fitContents expands the camera to
-              include outward door arcs. Right-aligned within the room width
-              so long names truncate gracefully toward the right edge. */}
+          {/* Class-name label sits in the camera frame's top-right, inside
+              the dedicated label band above the room/items. This keeps it
+              clearly in the page corner — never touching the classroom — and
+              gives long names room to truncate gracefully toward the right.
+              Padded by 12 from the camera frame edge so it doesn't bleed
+              into the page boundary. */}
           {classNameLabel && (
             <Text
               text={classNameLabel}
-              x={8}
-              y={8}
-              width={room.width - 16}
+              x={viewBounds.x + 12}
+              y={viewBounds.y + 12}
+              width={viewBounds.width - 24}
               align="right"
               fontFamily={SLAB_FONT_FAMILY}
               fontStyle="bold"

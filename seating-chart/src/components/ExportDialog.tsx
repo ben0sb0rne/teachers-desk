@@ -178,18 +178,32 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
                 </div>
               </fieldset>
               {/* Class-name size slider — only meaningful while the class
-                  name is shown, so disable when the toggle is off. */}
+                  name is shown, so disable when the toggle is off. The
+                  reset icon snaps back to the default size for users who
+                  drag the slider far away and want to start over. */}
               <div>
                 <div className="label mb-1 flex items-center justify-between">
                   <span>Name size</span>
-                  <span className="font-mono text-[10px] text-ink-muted">
-                    {classNameSize}px
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-mono text-[10px] text-ink-muted">
+                      {classNameSize}px
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setClassNameSize(DEFAULT_CLASS_LABEL_SIZE)}
+                      disabled={!showClassName || classNameSize === DEFAULT_CLASS_LABEL_SIZE}
+                      title="Reset to default size"
+                      aria-label="Reset name size"
+                      className="rounded p-0.5 text-ink-muted hover:bg-ink/5 hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                      <Icon name="rotate-ccw" size={12} />
+                    </button>
                   </span>
                 </div>
                 <input
                   type="range"
                   min={12}
-                  max={64}
+                  max={128}
                   step={1}
                   value={classNameSize}
                   onChange={(e) => setClassNameSize(Number(e.target.value))}
