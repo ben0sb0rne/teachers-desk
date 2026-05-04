@@ -291,8 +291,42 @@ body { display: flex; flex-direction: column; }
 
 /* ── responsive ───────────────────────────────────────────── */
 
+@media (max-width: 768px) {
+  /* Tap targets — touch users need 44pt minimum on interactive controls.
+     The previous 4-6px padding on link/action buttons gave ~20px hit
+     targets, well below the WCAG AAA 44pt floor. */
+  .link-button { padding: 10px 12px; }
+  .class-card-actions button { padding: 8px 12px; }
+}
+
 @media (max-width: 480px) {
   .picker-main { padding: var(--space-3) var(--space-3) var(--space-3); }
   .view-header h1 { font-size: var(--type-22); }
+  .view-header { margin-bottom: var(--space-3); }
+
+  /* Wheel takes most of the visible viewport on phones. */
   .wheel-frame { width: min(94vmin, 88vh); }
+
+  /* Tighter class-card padding so 360px viewports don't feel cramped. */
+  .class-card { padding: var(--space-3); }
+
+  /* Drop the auto-fill minimum from 240 to 200 so the grid flexes
+     earlier on narrow viewports without forcing a single column too
+     aggressively. */
+  .class-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  /* Wheel header packs tighter on phones. */
+  .wheel-header { gap: var(--space-2); margin-bottom: var(--space-2); }
+  .wheel-header h1 { font-size: var(--type-17); }
+}
+
+/* Respect prefers-reduced-motion — kill the 5.6s wheel-spin transition
+   and the view fade so motion-sensitive users don't get long animations.
+   The picked sector still resolves; the rotation just snaps to its
+   final value instead of easing in. */
+@media (prefers-reduced-motion: reduce) {
+  .wheel { transition: none; }
+  .view:not([hidden]) { animation: none; }
 }
