@@ -33,10 +33,12 @@ Three working tools (Math Bingo, Name Picker, Seating Chart Designer) plus the s
 │       ├── components/
 │       │   ├── TextInputDialog.tsx   ← reusable single-line input modal (replaces window.prompt())
 │       │   ├── ConfirmDialog.tsx     ← reusable yes/no modal (replaces window.confirm())
-│       │   └── ClassSwitcher.tsx     ← in-class header dropdown for jumping between classes
+│       │   ├── ClassSwitcher.tsx     ← in-class header dropdown for jumping between classes
+│       │   └── ExportDialog.tsx     ← unified Download/Print dialog with live RoomStage preview + toggles
 │       └── lib/
 │           ├── use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
-│           └── color.ts              ← deriveStroke / deriveTextColor / SWATCHES for per-object color overrides
+│           ├── color.ts              ← deriveStroke / deriveTextColor / SWATCHES for per-object color overrides
+│           └── geometry.ts           ← rotatedItemAABB + unionAABB; powers RoomStage's fitContents math
 ├── assets/
 │   ├── renders/                ← future Blender output, empty for now
 │   └── sounds/bingo/           ← bingo audio (note: lowercase `bingo`)
@@ -151,7 +153,11 @@ The seating chart deviates because Vite owns its file structure.
 
 ### Seating chart canvas patterns
 
-Desks and furniture override Konva's `getClientRect` to return their own (width × height) footprint, respecting `skipTransform: true` so the Transformer composes the transform itself — without that, single-select bboxes render double-transformed (misaligned or invisible). Multi-item handlers (align / distribute / flip / color / paste / duplicate) batch through `updateRoomItems` / `addRoomItems` so Ctrl+Z undoes one user action, not N. New flows that touch many items at once should follow this pattern; calling `updateDesk` / `addFurniture` in a loop creates one history entry per item.
+- **Bbox via `getClientRect` override.** Desks and furniture override Konva's `getClientRect` to return their own (width × height) footprint, respecting `skipTransform: true` so the Transformer composes the transform itself — without that, single-select bboxes render double-transformed (misaligned or invisible).
+- **Bulk store mutations.** Multi-item handlers (align / distribute / flip / color / paste / duplicate) batch through `updateRoomItems` / `addRoomItems` so Ctrl+Z undoes one user action, not N. New flows that touch many items at once should follow this pattern; calling `updateDesk` / `addFurniture` in a loop creates one history entry per item.
+- **`interactive={false}` on `RoomStage`** turns it into a read-only renderer — no Transformer, no marquee, no drag, no seat picker. Used by the History thumbnails and the ExportDialog preview so they share the live editor's render path (same fonts, same shapes, no SVG drift).
+- **`fitContents` on `RoomStage`** expands the camera frame to include every desk + furniture's rotated AABB (via `lib/geometry.ts`), so out-of-room geometry — outward-swinging door arcs, items partially off the room rect — isn't clipped in thumbnails or exports. Editor mode uses the room rect alone.
+- **Class-name label** is rendered as a Konva text inside the camera frame's top-right, in a dedicated band reserved above the room/items so it never touches the classroom rectangle. Used by ExportDialog; the size slider drives both the label height and the band reservation.
 
 ## Do not
 
