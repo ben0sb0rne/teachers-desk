@@ -1,11 +1,18 @@
 /* =============================================================
    picker/style.css
-   Tool-specific styling for the Name Picker. Builds on the suite
-   tokens defined in shared/desk.css.
+   Tool-specific styling for the Wheel of Names. Builds on the
+   suite tokens in shared/desk.css; adds wheel-only palette tokens
+   under .is-wheel-stage for the 1970s Price Is Right aesthetic.
    ============================================================= */
 
 html, body { min-height: 100%; }
-body { display: flex; flex-direction: column; }
+body {
+  display: flex;
+  flex-direction: column;
+  /* Kill horizontal scroll: the rotating wheel + confetti pieces would
+     otherwise occasionally bump body width past the viewport. */
+  overflow-x: hidden;
+}
 
 .picker-main {
   flex: 1;
@@ -16,18 +23,14 @@ body { display: flex; flex-direction: column; }
   flex-direction: column;
 }
 
-/* The class-select view stays at a reading-comfortable width on big
-   screens. The wheel view, by contrast, gets the whole viewport so the
-   wheel can scale up on 4K and ultrawides. */
+/* Class-select view stays at a reading-comfortable width. The wheel
+   view gets the whole viewport so the wheel scales up on big screens. */
 #class-select-view {
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
 }
 
-/* The :not([hidden]) gate matters — without it, .view--wheel { display: flex }
-   would override the user-agent's [hidden] { display: none } rule and the
-   wheel + pointer would render on the class-select view too. */
 .view:not([hidden]) { animation: view-fade-in 220ms ease-out both; }
 .view--wheel:not([hidden]) {
   flex: 1;
@@ -54,23 +57,6 @@ body { display: flex; flex-direction: column; }
   margin: 0;
   color: rgb(var(--paper-on-wood) / 0.78);
   font-style: italic;
-}
-
-/* ── wheel header ─────────────────────────────────────────── */
-
-.wheel-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-  color: rgb(var(--paper-on-wood));
-}
-.wheel-header h1 {
-  flex: 1;
-  margin: 0;
-  font-size: var(--type-22);
-  color: rgb(var(--paper-on-wood));
 }
 
 .picker-actions {
@@ -148,11 +134,78 @@ body { display: flex; flex-direction: column; }
   color: #b71c1c;
 }
 
-/* ── wheel stage ──────────────────────────────────────────────
-   The wheel fills as much viewport as possible while staying
-   square. Sits centered on the wood-bg (no card surface) for an
-   uncluttered look.
-   ─────────────────────────────────────────────────────────── */
+/* =============================================================
+   THE WHEEL STAGE — 1970s Price Is Right
+   .is-wheel-stage swaps the desk-wood backdrop for a deep
+   warm-brown studio curtain when the wheel view is showing.
+   Tokens are scoped here so they don't pollute the suite.
+   ============================================================= */
+
+body.is-wheel-stage {
+  /* Wheel palette (channel-form RGB so opacity modifiers compose
+     the same way as the suite tokens in desk.css). */
+  --wheel-mustard:        198 156  38;   /* #C69C26  warm gold */
+  --wheel-orange:         198  88  28;   /* #C6581C  burnt orange */
+  --wheel-chocolate:       72  44  24;   /* #482C18  dark cocoa */
+  --wheel-cream:          245 230 200;   /* #F5E6C8  warm cream */
+  --wheel-brass:          200 165  70;   /* #C8A546  brass highlight */
+  --wheel-brass-dark:     130 100  30;   /* #82641E  brass shadow */
+  --wheel-curtain-deep:    32  20  14;   /* #20140E  stage shadow */
+  --wheel-curtain:         62  36  22;   /* #3E2416  curtain mid */
+  --wheel-curtain-fold:    86  50  30;   /* #56321E  fold highlight */
+  --wheel-curtain-light:  120  72  40;   /* #784828  spotlight pool */
+
+  background-color: rgb(var(--wheel-curtain-deep));
+  background-image:
+    /* spotlight from above */
+    radial-gradient(ellipse 80% 60% at 50% 30%,
+      rgb(var(--wheel-curtain-light) / 0.55) 0%,
+      rgb(var(--wheel-curtain-light) / 0.0) 65%
+    ),
+    /* vertical curtain folds — repeating linear gradient,
+       slightly off-cycle so the velour reads as imperfect. */
+    repeating-linear-gradient(90deg,
+      rgb(var(--wheel-curtain-deep))      0px,
+      rgb(var(--wheel-curtain-deep))      4px,
+      rgb(var(--wheel-curtain) / 0.95)    9px,
+      rgb(var(--wheel-curtain-fold) / 0.7) 13px,
+      rgb(var(--wheel-curtain) / 0.95)    18px,
+      rgb(var(--wheel-curtain-deep))     24px
+    );
+  background-blend-mode: screen, normal;
+}
+
+/* Topstrip on the wheel stage stays cream so the back-affordance is
+   consistent with every other tool. */
+
+/* ── wheel header ─────────────────────────────────────────── */
+
+.wheel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  color: rgb(var(--paper-on-wood));
+}
+.wheel-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--type-22);
+  color: rgb(var(--paper-on-wood));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+body.is-wheel-stage .wheel-header h1 {
+  color: rgb(var(--wheel-cream));
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.45);
+}
+body.is-wheel-stage #wheel-class-source.tag {
+  background: rgb(var(--wheel-cream) / 0.85);
+  color: rgb(var(--wheel-chocolate));
+}
+
+/* ── wheel stage layout ────────────────────────────────────── */
 
 .wheel-stage {
   flex: 1;
@@ -163,15 +216,15 @@ body { display: flex; flex-direction: column; }
   gap: var(--space-3);
   position: relative;
   min-height: 0;
+  /* Confetti pieces are positioned within this container. */
+  overflow: hidden;
 }
 
 .wheel-frame {
-  /* The wheel always fits the smaller dimension (so it stays square and
-     never overflows) but otherwise grows to fill the screen — important
-     for 4K monitors where the previous fixed pixel cap left it tiny.
-     The 160px reservation keeps room for topstrip + header + status line
-     so the wheel never crowds them out on short viewports. */
-  width: min(85vmin, calc(100vh - 160px));
+  /* Wheel fits the smaller dimension — the 200px reservation leaves
+     room for the topstrip + header + spin button + status line so
+     nothing collides on short viewports. */
+  width: min(78vmin, calc(100vh - 220px));
   aspect-ratio: 1 / 1;
   flex-shrink: 0;
   position: relative;
@@ -186,45 +239,236 @@ body { display: flex; flex-direction: column; }
   display: block;
   cursor: pointer;
   outline: none;
-  /* Spin animation drive — JS sets transform; the bezier rises smoothly
-     and bleeds off velocity gradually so the picked sector glides into
-     the pointer instead of stopping with a hard snap. Tuned to feel like
-     a real wheel coasting to a stop, not a CSS keyframe ending. */
-  transition: transform 5.6s cubic-bezier(0.18, 0.85, 0.25, 1);
-  filter: drop-shadow(0 4px 14px rgb(0 0 0 / 0.18));
+  /* Spin transition is set inline by the JS — this is the at-rest
+     transition for snap-back during class switches. */
+  transition: transform 0s;
+  filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.45));
 }
 .wheel:focus-visible {
-  outline: 2px solid rgb(var(--accent-blue));
+  outline: 2px solid rgb(var(--wheel-brass));
   outline-offset: 6px;
   border-radius: 50%;
 }
 
-/* Leftward-pointing arrow on the right side of the wheel — sits inside
-   .wheel-frame so it tracks the wheel's size. The polygon tip is at viewBox
-   x=2/24, so with `right: -6%` the tip lands just past the visible wheel rim
-   (rim right is at frame x ~98%, since the wheel circle is 96% of viewBox). */
+/* Plastic shine — fixed overlay on top of the rotating SVG. Reads as
+   stage light catching the injection-molded plastic surface. Stays put
+   while the wheel underneath spins, exactly like a real reflection. */
+.wheel-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 55% 35% at 32% 22%,
+      rgb(255 248 230 / 0.28) 0%,
+      rgb(255 248 230 / 0) 70%);
+  mix-blend-mode: screen;
+}
+
+/* Pointer — gold-and-cream triangle just past the right rim. */
 .wheel-pointer {
   position: absolute;
   top: 50%;
-  right: -6%;
+  right: -7%;
   transform: translateY(-50%);
-  width: 8%;
-  max-width: 56px;
-  min-width: 28px;
+  width: 11%;
+  max-width: 72px;
+  min-width: 36px;
   aspect-ratio: 1 / 1;
   z-index: 5;
-  color: rgb(var(--accent-blue));
   pointer-events: none;
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.35));
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.55));
 }
-.wheel-pointer svg { width: 100%; height: 100%; fill: currentColor; }
+.wheel-pointer svg { width: 100%; height: 100%; display: block; }
+
+/* ── spin button — big orange pressed-plastic ──────────────── */
+
+.spin-button {
+  font-family: var(--font-slab);
+  font-weight: 900;
+  font-size: clamp(20px, 2.2vmin, 30px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--wheel-cream));
+  background:
+    /* highlight at top, darker at bottom — molded-plastic feel */
+    linear-gradient(180deg,
+      rgb(var(--wheel-orange)) 0%,
+      rgb(170 70 22) 55%,
+      rgb(140 56 18) 100%);
+  border: 2px solid rgb(var(--wheel-chocolate));
+  border-radius: var(--radius);
+  padding: 14px 38px 16px;
+  cursor: pointer;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
+  box-shadow:
+    /* outer drop */
+    0 6px 0 rgb(80 32 10),
+    0 8px 18px rgb(0 0 0 / 0.4),
+    /* inner highlight rim */
+    inset 0 2px 0 rgb(255 220 180 / 0.55),
+    /* inner shadow at the base */
+    inset 0 -2px 0 rgb(0 0 0 / 0.25);
+  transition: transform 80ms ease, box-shadow 80ms ease, background 80ms ease;
+}
+.spin-button:hover {
+  background: linear-gradient(180deg,
+    rgb(220 110 50) 0%,
+    rgb(186 82 30) 55%,
+    rgb(150 60 20) 100%);
+}
+.spin-button:active,
+.spin-button.is-pressed {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 rgb(80 32 10),
+    0 3px 6px rgb(0 0 0 / 0.4),
+    inset 0 2px 0 rgb(255 220 180 / 0.55),
+    inset 0 -2px 0 rgb(0 0 0 / 0.25);
+}
+.spin-button:focus-visible {
+  outline: 3px solid rgb(var(--wheel-brass));
+  outline-offset: 3px;
+}
+.spin-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spin-button-label {
+  display: inline-block;
+  /* tiny letter-spacing nudge on the chunky type */
+  letter-spacing: 0.22em;
+}
+
+/* ── wheel message ────────────────────────────────────────── */
 
 .wheel-msg {
   margin: 0;
+  font-family: var(--font-slab);
   font-size: var(--type-13);
-  color: rgb(var(--paper-on-wood) / 0.85);
+  color: rgb(var(--wheel-cream) / 0.82);
   text-align: center;
   min-height: 1.4em;
+  letter-spacing: 0.04em;
+}
+
+/* ── reveal banner + confetti ─────────────────────────────── */
+
+.wheel-reveal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 10;
+  transition: opacity 280ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+.wheel-reveal[hidden] { display: none; }
+.wheel-reveal.is-active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.wheel-reveal-card {
+  background:
+    linear-gradient(180deg,
+      rgb(var(--wheel-cream)) 0%,
+      rgb(232 214 178) 100%);
+  color: rgb(var(--wheel-chocolate));
+  border: 3px solid rgb(var(--wheel-chocolate));
+  border-radius: var(--radius);
+  padding: 22px 38px 26px;
+  text-align: center;
+  font-family: var(--font-slab);
+  box-shadow:
+    0 0 0 4px rgb(var(--wheel-brass)),
+    0 12px 30px rgb(0 0 0 / 0.6);
+  min-width: 240px;
+  max-width: 70vmin;
+  /* subtle pulse so the card reads as celebrated, not parked. */
+  animation: reveal-pulse 1.4s ease-in-out 1;
+}
+
+@keyframes reveal-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); }
+}
+
+.wheel-reveal-label {
+  display: block;
+  font-size: var(--type-13);
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgb(var(--wheel-orange));
+  margin-bottom: 6px;
+}
+
+.wheel-reveal-name {
+  display: block;
+  font-size: clamp(28px, 5vmin, 56px);
+  font-weight: 900;
+  letter-spacing: 0.005em;
+  line-height: 1.05;
+  color: rgb(var(--wheel-chocolate));
+  /* riso-style off-register echo in burnt orange — chunky 70s feel */
+  text-shadow: 2px 2px 0 rgb(var(--wheel-orange) / 0.85);
+}
+
+/* Confetti — chunky 70s shapes (stars, halftone dots, streamers).
+   Spawned by JS as <span> children of .wheel-stage; positioned via
+   `left: NN%` and animated to fall + drift + rotate. Kept CSS-only —
+   no particle libraries, no canvas. */
+
+.confetti-piece {
+  position: absolute;
+  top: -8%;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+  z-index: 6;
+  /* per-piece overrides set inline by JS */
+  animation: confetti-fall 2s ease-in forwards;
+  will-change: transform, opacity;
+}
+
+.confetti-piece.is-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px rgb(var(--wheel-chocolate) / 0.4);
+}
+
+.confetti-piece.is-star {
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  /* chunky 5-pointed star via clip-path */
+  clip-path: polygon(
+    50% 0%, 61% 35%, 98% 35%, 68% 57%,
+    79% 91%, 50% 70%, 21% 91%, 32% 57%,
+    2% 35%, 39% 35%);
+}
+
+.confetti-piece.is-streamer {
+  width: 6px;
+  height: 22px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  100% {
+    transform: translate(var(--drift, 0), 110vh) rotate(var(--rot, 360deg));
+    opacity: 0;
+  }
 }
 
 /* ── picker-specific settings rows in the shared dialog ─────── */
@@ -275,9 +519,6 @@ body { display: flex; flex-direction: column; }
 /* ── responsive ───────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  /* Tap targets — touch users need 44pt minimum on interactive controls.
-     The previous 4-6px padding on the action buttons gave ~20px hit
-     targets, well below the WCAG AAA 44pt floor. */
   .class-card-actions button { padding: 8px 12px; }
 }
 
@@ -286,29 +527,27 @@ body { display: flex; flex-direction: column; }
   .view-header h1 { font-size: var(--type-22); }
   .view-header { margin-bottom: var(--space-3); }
 
-  /* Wheel takes most of the visible viewport on phones. */
-  .wheel-frame { width: min(94vmin, 88vh); }
+  .wheel-frame { width: min(92vmin, calc(100vh - 240px)); }
 
-  /* Tighter class-card padding so 360px viewports don't feel cramped. */
   .class-card { padding: var(--space-3); }
-
-  /* Drop the auto-fill minimum from 240 to 200 so the grid flexes
-     earlier on narrow viewports without forcing a single column too
-     aggressively. */
   .class-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 
-  /* Wheel header packs tighter on phones. */
   .wheel-header { gap: var(--space-2); margin-bottom: var(--space-2); }
   .wheel-header h1 { font-size: var(--type-17); }
+
+  .spin-button { padding: 12px 28px 14px; font-size: 18px; }
 }
 
-/* Respect prefers-reduced-motion — kill the 5.6s wheel-spin transition
-   and the view fade so motion-sensitive users don't get long animations.
-   The picked sector still resolves; the rotation just snaps to its
-   final value instead of easing in. */
+/* Respect prefers-reduced-motion — kill the spin transition, the view
+   fade, the reveal pulse, and the confetti animation. The picked sector
+   still resolves (rotation snaps to its final value); the reveal still
+   shows but without celebratory motion. */
 @media (prefers-reduced-motion: reduce) {
-  .wheel { transition: none; }
+  .wheel { transition: none !important; }
   .view:not([hidden]) { animation: none; }
+  .wheel-reveal { transition: opacity 80ms ease; }
+  .wheel-reveal-card { animation: none; }
+  .confetti-piece { display: none; }
 }

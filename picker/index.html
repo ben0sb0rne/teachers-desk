@@ -73,11 +73,27 @@
       <div class="wheel-stage">
         <div id="wheel-frame" class="wheel-frame">
           <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel" role="button" tabindex="0" aria-label="Spin the wheel"></svg>
+          <div class="wheel-shine" aria-hidden="true"></div>
           <div class="wheel-pointer" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><polygon points="2,12 12,18 10,12 12,6" /></svg>
+            <!-- Gold-and-cream pointer: dark gold body, cream tip highlight,
+                 chocolate outline so it reads against any wedge color. -->
+            <svg viewBox="0 0 32 32">
+              <polygon points="2,16 14,22 12,16 14,10" fill="rgb(var(--wheel-brass))" stroke="rgb(var(--wheel-chocolate))" stroke-width="1.2" stroke-linejoin="round"/>
+              <polygon points="2,16 9,18 8,16 9,14" fill="rgb(var(--wheel-cream))" opacity="0.85"/>
+            </svg>
           </div>
         </div>
-        <p id="wheel-msg" class="wheel-msg muted"></p>
+        <button type="button" id="btn-spin" class="spin-button" aria-label="Spin the wheel">
+          <span class="spin-button-label">Spin</span>
+        </button>
+        <p id="wheel-msg" class="wheel-msg"></p>
+
+        <div id="wheel-reveal" class="wheel-reveal" hidden aria-live="polite">
+          <div class="wheel-reveal-card">
+            <span class="wheel-reveal-label">Picked</span>
+            <span id="wheel-reveal-name" class="wheel-reveal-name"></span>
+          </div>
+        </div>
       </div>
     </section>
 

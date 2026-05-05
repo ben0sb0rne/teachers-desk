@@ -1,19 +1,19 @@
 // =============================================================
-// picker/script.js — Name Picker tool
+// picker/script.js — Name Picker (Wheel of Names)
 //
-// Picks a name from a class via spinning wheel. Reads classes via shared
-// storage with a fallback to the seating chart's blob. New classes created
-// here write canonical metadata + roster. Call counts increment on each
-// pick (groundwork for future fairness logic).
-//
-// UI is intentionally minimal: just the wheel + a small back link + the
-// suite settings gear. Allow-repeats / Reset session live inside the
-// shared settings dialog (registered via `registerToolSettings`).
+// Picks a name from a class via a 1970s game-show wheel. Reads
+// classes via shared storage; new classes write canonical metadata
+// + roster. Call counts increment on each pick.
 //
 // Suite integration:
-//   - <body class="wood-bg"> + anti-FOUC theme script in index.html
+//   - <body class="wood-bg"> for class select; toggles to
+//     .is-wheel-stage on the wheel view (curtain backdrop).
 //   - .suite-topstrip with wordmark + tool name
 //   - Floating settings gear + 'S' shortcut via shared/settings.js
+//
+// Brief reference: briefs/teachers-desk-briefs.docx — Wheel of Names.
+// Pointer is on the right (3 o'clock) — see CLAUDE.md gaps section
+// for the brief contradiction (brief says top, current keeps right).
 // =============================================================
 
 import * as storage from '../shared/storage.js';
@@ -24,11 +24,6 @@ import { openOverlay } from '../shared/components/overlay.js';
 import { mountPasteBulk } from '../shared/components/paste-bulk.js';
 
 let activeClassUnsubscribe = null;
-
-// Cancels the pending transitionend listener for an in-flight spin. Set by
-// spin() at the start of a spin and cleared by onSpinEnd or abortPendingSpin.
-// Without this, navigating away mid-spin leaves an orphan listener that fires
-// on the next spin's transitionend and double-counts (or misattributes) picks.
 let pendingSpinController = null;
 
 mountSettingsButton();
@@ -46,7 +41,7 @@ const state = {
   activeClassName: '',
   activeRoster: [],
   pickedThisSession: new Set(),
-  lastPickedName: null, // most-recent picked name; used to highlight its sector
+  lastPickedName: null,
   currentRotation: 0,
   isSpinning: false,
   options: {
@@ -56,9 +51,7 @@ const state = {
 
 function showView(name) {
   for (const [k, el] of Object.entries(VIEW)) el.hidden = k !== name;
-  // Toggle the in-bar "All Classes" link — visible only when we're not on
-  // the class-select view (where it would be a no-op link to the current
-  // page). Mirrors the seating chart's index-route behavior.
+  document.body.classList.toggle('is-wheel-stage', name === 'wheel');
   const allClassesLink = document.getElementById('topstrip-all-classes');
   if (allClassesLink) allClassesLink.hidden = name === 'classSelect';
 }
@@ -93,6 +86,7 @@ function abortPendingSpin() {
 
 function openClass(classId) {
   abortPendingSpin();
+  hideReveal();
   state.activeClassId = classId;
   state.activeClassName = storage.getClassName(classId) || '(unnamed)';
   state.activeRoster = storage.getRoster(classId).slice();
@@ -107,7 +101,6 @@ function openClass(classId) {
     updateMessage();
   });
 
-  // Source badge for seating-chart-owned classes.
   const cls = storage.listClasses().find((c) => c.id === classId);
   document.getElementById('wheel-class-source').hidden = !cls || cls.source !== 'seating-chart';
   document.getElementById('wheel-class-name').textContent = state.activeClassName;
@@ -124,7 +117,7 @@ function openClass(classId) {
 }
 
 // -------------------------------------------------------------
-// NEW-CLASS MODAL (unchanged)
+// NEW-CLASS MODAL
 // -------------------------------------------------------------
 
 function openNewClassModal() {
@@ -225,12 +218,10 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 // WHEEL VIEW
 // -------------------------------------------------------------
 
-// Back-to-classes is now triggered from the in-bar "All Classes" link.
-// Same handler the old in-view button used; preventDefault on the anchor
-// since the href="#" is just a placeholder for accessibility.
 document.getElementById('topstrip-all-classes').addEventListener('click', (e) => {
   e.preventDefault();
   abortPendingSpin();
+  hideReveal();
   showView('classSelect');
   if (activeClassUnsubscribe) {
     activeClassUnsubscribe();
@@ -243,62 +234,97 @@ const wheelSvg = document.getElementById('wheel-svg');
 // Wheel geometry (in viewBox units; viewBox is -100..100).
 const HUB_R = 14;
 const RIM_R = 96;
-const LABEL_OUTER_PAD = 8;
-const LABEL_INNER_PAD = 4;  // gap between text and the hub
+const LABEL_OUTER_PAD = 6;
+const LABEL_INNER_PAD = 4;
 
-// World angle the pointer sits at. 0 = top of wheel, 90 = right side (3 o'clock).
+// World angle the pointer sits at. 0 = top of wheel, 90 = right (3 o'clock).
+// Brief specifies 0 (top); current keeps 90 by user request — see CLAUDE.md.
 const POINTER_DEG = 90;
+
+// Three-color rotation per the brief: mustard, burnt orange, cream.
+// Chocolate sneaks in via the dividers + outer rim, not the wedge fills.
+const WEDGE_TOKENS = ['wheel-mustard', 'wheel-orange', 'wheel-cream'];
+
+function wedgeFill(i) {
+  return `rgb(var(--${WEDGE_TOKENS[i % WEDGE_TOKENS.length]}))`;
+}
+
+function labelInk(i) {
+  // Cream ink reads better on the orange wedge; chocolate ink on the
+  // mustard + cream wedges.
+  const tok = WEDGE_TOKENS[i % WEDGE_TOKENS.length];
+  return tok === 'wheel-orange'
+    ? 'rgb(var(--wheel-cream))'
+    : 'rgb(var(--wheel-chocolate))';
+}
 
 /**
  * Build sector + label markup for the visible roster.
  *
  * Labels are RADIAL: each name reads along its sector's centerline, from
- * the outer rim toward the hub. We use the wheel's depth (RIM_R - HUB_R,
- * about 80 viewBox units) for text length, which gives long names like
- * "Helena Harper" room to fit even on a 17-name wheel.
- *
- * The left half of the wheel (sectors with midpoint angle in (180°, 360°))
- * gets a 180° flip + anchor swap so letters stay upright on that side. The
- * remaining seam is at the bottom (sector midpoint near 180°), where the
- * two halves' rotation conventions differ by 180°.
+ * the outer rim toward the hub. The orientation is uniform — `rotation =
+ * θ - 90` with `text-anchor = 'end'` — so any sector that lands at the
+ * right pointer (POINTER_DEG = 90) ends up with screen rotation 0 and
+ * reads horizontally L→R, right-side up. This is the wheelofnames.com /
+ * Wheel-of-Fortune convention; the previous flipForLeft hack made the
+ * left half look upright at rest but landed left-half names UPSIDE DOWN
+ * at the pointer when picked.
  */
 function renderWheel() {
   const visible = visibleNames();
   const n = visible.length;
   wheelSvg.innerHTML = '';
 
-  // Outer disk so the wheel is always a full circle, even with one slice.
+  // Defs — brass radial gradient for the hub. Rebuilt each render because
+  // we wipe SVG content above; cheap (one element).
+  const defs = createSvgEl('defs');
+  const grad = createSvgEl('radialGradient', {
+    id: 'hub-gradient',
+    cx: '32%', cy: '28%', r: '85%',
+  });
+  [
+    ['0%',   'rgb(252, 232, 165)'],
+    ['45%',  'rgb(214, 178, 80)'],
+    ['100%', 'rgb(120, 88, 22)'],
+  ].forEach(([offset, color]) => {
+    grad.appendChild(createSvgEl('stop', { offset, 'stop-color': color }));
+  });
+  defs.appendChild(grad);
+  wheelSvg.appendChild(defs);
+
+  // Outer disk — cream base, in case any sector calculation leaves a sliver.
   appendSvg('circle', {
     cx: 0, cy: 0, r: RIM_R,
-    fill: 'rgb(var(--paper-cream))',
-    stroke: 'rgb(var(--paper-edge) / 0.18)',
-    'stroke-width': 1,
+    fill: 'rgb(var(--wheel-cream))',
   });
 
   if (n === 0) {
+    appendSvg('circle', {
+      cx: 0, cy: 0, r: HUB_R,
+      fill: 'url(#hub-gradient)',
+      stroke: 'rgb(var(--wheel-brass-dark))',
+      'stroke-width': 1.4,
+    });
     const t = appendSvg('text', {
-      x: 0, y: 0,
+      x: 0, y: RIM_R * 0.55,
       'text-anchor': 'middle',
       'dominant-baseline': 'central',
       'font-family': 'var(--font-slab)',
       'font-size': 9,
-      fill: 'rgb(var(--paper-edge) / 0.6)',
+      'font-weight': 700,
+      'letter-spacing': '0.06em',
+      fill: 'rgb(var(--wheel-cream))',
     });
     t.textContent = state.activeRoster.length === 0
-      ? 'No students'
-      : 'Everyone has been picked';
-    appendSvg('circle', {
-      cx: 0, cy: 0, r: HUB_R,
-      fill: 'rgb(var(--paper-cream))',
-      stroke: 'rgb(var(--paper-edge) / 0.4)',
-      'stroke-width': 1,
-    });
+      ? 'NO STUDENTS YET'
+      : 'EVERYONE HAS BEEN PICKED';
     return;
   }
 
   const sectorDeg = 360 / n;
-  const fontSize = labelFontSize(n);
+  const baseFontSize = labelFontSize(n);
   const outerR = RIM_R - LABEL_OUTER_PAD;
+  const innerR = HUB_R + LABEL_INNER_PAD;
   const lastPickedIndex = state.lastPickedName != null
     ? visible.indexOf(state.lastPickedName)
     : -1;
@@ -306,55 +332,117 @@ function renderWheel() {
   for (let i = 0; i < n; i++) {
     const startDeg = i * sectorDeg - sectorDeg / 2;
     const endDeg = startDeg + sectorDeg;
-
     const isPicked = i === lastPickedIndex;
-    const fill = isPicked
-      ? 'rgb(var(--accent-yellow) / 0.55)'
-      : i % 2 === 0
-        ? 'rgb(var(--paper-cream))'
-        : 'rgb(var(--paper-edge) / 0.06)';
 
+    // Wedge fill — alternating warm palette.
     appendSvg('path', {
       d: sectorPath(RIM_R, startDeg, endDeg),
-      fill,
-      stroke: 'rgb(var(--paper-edge) / 0.2)',
-      'stroke-width': 0.6,
+      fill: wedgeFill(i),
+      stroke: 'rgb(var(--wheel-cream))',
+      'stroke-width': 0.7,
+      'stroke-linejoin': 'round',
     });
 
-    // Radial label: anchor at the outer-rim end of the sector centerline,
-    // text grows inward toward the hub. Rotation is θ - 90 for the right
-    // half (so the baseline runs along the radial direction, outward) and
-    // θ + 90 for the left half (with anchor swapped to 'start') so the
-    // letters stay upright on that side instead of being mirrored.
+    // Picked sector glow — brass border on top of the wedge.
+    if (isPicked) {
+      appendSvg('path', {
+        d: sectorPath(RIM_R, startDeg, endDeg),
+        fill: 'rgb(var(--wheel-brass) / 0.18)',
+        stroke: 'rgb(var(--wheel-brass))',
+        'stroke-width': 1.6,
+        'stroke-linejoin': 'round',
+        class: 'is-picked-glow',
+      });
+    }
+
+    // Radial label.
     const θ = i * sectorDeg;
-    const norm = ((θ % 360) + 360) % 360;
-    const flipForLeft = norm > 180 && norm < 360;
-    const θ_rad = θ * Math.PI / 180;
+    const θ_rad = (θ * Math.PI) / 180;
     const ax = outerR * Math.sin(θ_rad);
     const ay = -outerR * Math.cos(θ_rad);
-    const rotation = flipForLeft ? θ + 90 : θ - 90;
+    const rotation = θ - 90;
 
     const txt = appendSvg('text', {
       x: ax.toFixed(3),
       y: ay.toFixed(3),
       transform: `rotate(${rotation.toFixed(3)}, ${ax.toFixed(3)}, ${ay.toFixed(3)})`,
-      'text-anchor': flipForLeft ? 'start' : 'end',
+      'text-anchor': 'end',
       'dominant-baseline': 'central',
       'font-family': 'var(--font-slab)',
-      'font-size': fontSize,
-      'font-weight': isPicked ? 700 : 600,
-      fill: 'rgb(var(--paper-edge))',
+      'font-size': baseFontSize,
+      'font-weight': 800,
+      'letter-spacing': '0.005em',
+      fill: labelInk(i),
     });
-    txt.textContent = truncateLabel(visible[i], n);
+    txt.textContent = visible[i];
+
+    // Fit the label: shrink font, then truncate with ellipsis if needed.
+    fitLabel(txt, visible[i], outerR - innerR, baseFontSize);
   }
 
-  // Center hub last so it sits above the sector strokes.
+  // Pegs around the rim — one per sector boundary, brass.
+  const pegRadius = RIM_R - 2.2;
+  for (let i = 0; i < n; i++) {
+    const θ = (i + 0.5) * sectorDeg;
+    const θ_rad = (θ * Math.PI) / 180;
+    appendSvg('circle', {
+      cx: (pegRadius * Math.sin(θ_rad)).toFixed(3),
+      cy: (-pegRadius * Math.cos(θ_rad)).toFixed(3),
+      r: 1.4,
+      fill: 'rgb(var(--wheel-brass-dark))',
+      stroke: 'rgb(var(--wheel-brass) / 0.6)',
+      'stroke-width': 0.4,
+    });
+  }
+
+  // Outer rim ring — chocolate stroke for definition.
+  appendSvg('circle', {
+    cx: 0, cy: 0, r: RIM_R,
+    fill: 'none',
+    stroke: 'rgb(var(--wheel-chocolate))',
+    'stroke-width': 1.4,
+  });
+
+  // Hub — brass radial gradient.
   appendSvg('circle', {
     cx: 0, cy: 0, r: HUB_R,
-    fill: 'rgb(var(--paper-cream))',
-    stroke: 'rgb(var(--paper-edge) / 0.4)',
-    'stroke-width': 1,
+    fill: 'url(#hub-gradient)',
+    stroke: 'rgb(var(--wheel-brass-dark))',
+    'stroke-width': 1.4,
   });
+  // Hub center cap (the "screw").
+  appendSvg('circle', {
+    cx: 0, cy: 0, r: HUB_R * 0.32,
+    fill: 'rgb(var(--wheel-brass-dark))',
+    stroke: 'rgb(var(--wheel-brass) / 0.7)',
+    'stroke-width': 0.5,
+  });
+}
+
+/**
+ * Shrink the label's font, then truncate with an ellipsis if it still
+ * overflows the radial budget. Uses getComputedTextLength (works as long
+ * as the element is in the DOM, which it is — appendSvg adds it).
+ */
+function fitLabel(textEl, name, maxLen, baseFont) {
+  let fs = baseFont;
+  textEl.textContent = name;
+  let len = textEl.getComputedTextLength();
+
+  while (len > maxLen && fs > 5.5) {
+    fs -= 0.5;
+    textEl.setAttribute('font-size', fs);
+    len = textEl.getComputedTextLength();
+  }
+
+  if (len <= maxLen) return;
+
+  let chars = name.length;
+  while (len > maxLen && chars > 1) {
+    chars--;
+    textEl.textContent = name.slice(0, chars) + '…';
+    len = textEl.getComputedTextLength();
+  }
 }
 
 function sectorPath(r, startDeg, endDeg) {
@@ -368,12 +456,6 @@ function sectorPath(r, startDeg, endDeg) {
   return `M0,0 L${x1.toFixed(3)},${y1.toFixed(3)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`;
 }
 
-/**
- * Pick a label font size based on roster size. Radial labels have the
- * wheel's depth (~80 viewBox units) to fit, but they also have to clear
- * the hub at the inner end and not overflow the rim at the outer end —
- * so font shrinks gradually as roster size grows.
- */
 function labelFontSize(n) {
   if (n <= 4) return 16;
   if (n <= 8) return 13;
@@ -383,24 +465,15 @@ function labelFontSize(n) {
   return 6.5;
 }
 
-/**
- * Truncate names that wouldn't fit along the radial. Radial layout uses the
- * wheel's depth (~70 viewBox units after padding), so the cutoff scales with
- * the chosen font size — bigger rosters use smaller fonts and need slightly
- * tighter trimming to keep names from running into the hub.
- */
-function truncateLabel(label, n) {
-  if (n > 32 && label.includes(' ')) return label.split(' ')[0];
-  if (n > 22 && label.length > 14) return label.slice(0, 13) + '…';
-  if (n > 14 && label.length > 15) return label.slice(0, 14) + '…';
-  if (n > 8 && label.length > 22) return label.slice(0, 20) + '…';
-  return label;
+function appendSvg(tag, attrs) {
+  const el = createSvgEl(tag, attrs);
+  wheelSvg.appendChild(el);
+  return el;
 }
 
-function appendSvg(tag, attrs) {
+function createSvgEl(tag, attrs = {}) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-  wheelSvg.appendChild(el);
   return el;
 }
 
@@ -426,68 +499,140 @@ function updateMessage() {
 }
 
 // -------------------------------------------------------------
-// Spin
+// Spin — two-phase animation per the brief:
+//   Phase 1 (~4s): accelerate then cruise; ~70% of total rotation.
+//   Phase 2 (~6.5s): gentle ease-out so the pointer creeps the last
+//                    couple of pegs into place. Final ~2s feel like
+//                    a real wheel coasting to a stop.
+// Total ≈ 10.5s, which sits comfortably in the brief's 8–14s window.
 // -------------------------------------------------------------
+
+const PHASE1_DURATION = '4s';
+const PHASE1_EASING = 'cubic-bezier(0.4, 0.05, 0.5, 1)';
+const PHASE1_FRAC = 0.7;
+const PHASE2_DURATION = '6.5s';
+const PHASE2_EASING = 'cubic-bezier(0.05, 0.7, 0.15, 1)';
 
 function spin() {
   if (state.isSpinning) return;
   if (VIEW.wheel.hidden) return;
   const eligible = visibleNames();
   if (eligible.length === 0) return;
+  hideReveal();
 
   const visibleIndex = Math.floor(Math.random() * eligible.length);
   const pickedName = eligible[visibleIndex];
 
   const n = eligible.length;
   const sectorDeg = 360 / n;
-  // Sector i's midpoint sits at world angle (i*sectorDeg + currentRotation),
-  // so to land its midpoint at the pointer (angle POINTER_DEG) we need
-  // rotation = POINTER_DEG - i*sectorDeg (mod 360). The previous (i + 0.5)
-  // factor used to be right when sectors were defined as [i*sectorDeg,
-  // (i+1)*sectorDeg]; the current layout centers sector i on i*sectorDeg, so
-  // the half-step shift was the bug that landed the pointer on every sector
-  // boundary.
-  // A small jitter inside the sector (±35% of half-width) keeps it from
-  // looking robotic without ever overlapping a neighbor.
+  // Land near the centerline of sector visibleIndex but with a small
+  // jitter so consecutive spins to the same name don't look identical.
+  // ±35% of half-sectorDeg keeps it inside the wedge.
   const jitter = (Math.random() - 0.5) * sectorDeg * 0.7;
   const finalOffset = POINTER_DEG - (visibleIndex * sectorDeg) + jitter;
-  const turns = 6 + Math.floor(Math.random() * 4); // 6–9 full rotations
+  const turns = 7 + Math.floor(Math.random() * 4); // 7–10 full rotations
 
-  const target =
-    state.currentRotation +
-    turns * 360 +
-    (finalOffset - (state.currentRotation % 360));
+  const startRot = state.currentRotation;
+  const target = startRot + turns * 360 + (finalOffset - (startRot % 360));
+  const phase1Target = startRot + (target - startRot) * PHASE1_FRAC;
   state.currentRotation = target;
 
   state.isSpinning = true;
-  // Clear the previous winner highlight while spinning.
   state.lastPickedName = null;
   renderWheel();
 
   pendingSpinController = new AbortController();
-  wheelSvg.style.transform = `rotate(${target}deg)`;
-  wheelSvg.addEventListener('transitionend', onSpinEnd, {
+  const signal = pendingSpinController.signal;
+
+  // Phase 1: accelerate + cruise
+  wheelSvg.style.transition = `transform ${PHASE1_DURATION} ${PHASE1_EASING}`;
+  void wheelSvg.getBoundingClientRect();
+  wheelSvg.style.transform = `rotate(${phase1Target}deg)`;
+
+  wheelSvg.addEventListener('transitionend', onPhase1End, {
     once: true,
-    signal: pendingSpinController.signal,
+    signal,
   });
 
+  function onPhase1End() {
+    if (signal.aborted) return;
+    // Phase 2: gentle ease-out (slow-down)
+    wheelSvg.style.transition = `transform ${PHASE2_DURATION} ${PHASE2_EASING}`;
+    void wheelSvg.getBoundingClientRect();
+    wheelSvg.style.transform = `rotate(${target}deg)`;
+
+    wheelSvg.addEventListener('transitionend', onSpinEnd, {
+      once: true,
+      signal,
+    });
+  }
+
   function onSpinEnd() {
+    if (signal.aborted) return;
     pendingSpinController = null;
     state.isSpinning = false;
     state.lastPickedName = pickedName;
     state.pickedThisSession.add(pickedName);
     storage.incrementCallCount(state.activeClassId, pickedName);
-
-    // Re-render so the picked sector lights up. When repeats are off, the
-    // picked name drops out of the visible roster — the wheel re-builds
-    // around the remaining names without a snap (currentRotation is
-    // preserved across spins).
     renderWheel();
     updateMessage();
+    showReveal(pickedName);
   }
 }
 
-// Click anywhere on the wheel to spin (also keyboard-activatable).
+// -------------------------------------------------------------
+// Reveal banner + 70s confetti
+// -------------------------------------------------------------
+
+function showReveal(name) {
+  const reveal = document.getElementById('wheel-reveal');
+  const nameEl = document.getElementById('wheel-reveal-name');
+  if (!reveal || !nameEl) return;
+  nameEl.textContent = name;
+  reveal.hidden = false;
+  // Force a reflow before adding .is-active so the fade-in transition fires.
+  void reveal.getBoundingClientRect();
+  reveal.classList.add('is-active');
+  spawnConfetti();
+}
+
+function hideReveal() {
+  const reveal = document.getElementById('wheel-reveal');
+  if (!reveal) return;
+  reveal.classList.remove('is-active');
+  reveal.hidden = true;
+  document.querySelectorAll('.confetti-piece').forEach((el) => el.remove());
+}
+
+function spawnConfetti() {
+  const stage = document.querySelector('.wheel-stage');
+  if (!stage) return;
+  const colorTokens = ['wheel-mustard', 'wheel-orange', 'wheel-cream', 'wheel-brass'];
+  const types = ['star', 'dot', 'streamer'];
+  const count = 36;
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('span');
+    const type = types[Math.floor(Math.random() * types.length)];
+    piece.className = 'confetti-piece is-' + type;
+    piece.setAttribute('aria-hidden', 'true');
+    piece.style.left = (Math.random() * 100).toFixed(1) + '%';
+    piece.style.color = `rgb(var(--${colorTokens[Math.floor(Math.random() * colorTokens.length)]}))`;
+    piece.style.setProperty('--drift', (Math.random() * 80 - 40).toFixed(0) + 'px');
+    piece.style.setProperty('--rot', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+    piece.style.animationDelay = (Math.random() * 0.4).toFixed(2) + 's';
+    piece.style.animationDuration = (1.6 + Math.random() * 0.9).toFixed(2) + 's';
+    stage.appendChild(piece);
+    setTimeout(() => piece.remove(), 3500);
+  }
+}
+
+// -------------------------------------------------------------
+// Click handlers
+// -------------------------------------------------------------
+
+const spinButton = document.getElementById('btn-spin');
+if (spinButton) spinButton.addEventListener('click', spin);
+
 wheelSvg.addEventListener('click', spin);
 wheelSvg.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
@@ -496,15 +641,20 @@ wheelSvg.addEventListener('keydown', (e) => {
   }
 });
 
+const revealEl = document.getElementById('wheel-reveal');
+if (revealEl) revealEl.addEventListener('click', hideReveal);
+
 // -------------------------------------------------------------
-// Shortcuts: Space to spin (anywhere on the wheel view), R to reset.
+// Shortcuts: Space spins, R resets the session.
 // 'S' for settings is wired by shared/settings.js.
 // -------------------------------------------------------------
 
 document.addEventListener('keydown', (e) => {
   if (VIEW.wheel.hidden) return;
   const t = e.target;
-  if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  // Skip when focus is on a form/text element. Buttons are excluded too —
+  // letting Space activate the focused SPIN button instead of double-firing.
+  if (t && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(t.tagName)) return;
   if (t && t.isContentEditable) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (document.querySelector('.suite-overlay')) return;
@@ -519,6 +669,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function resetSession() {
+  hideReveal();
   state.pickedThisSession.clear();
   state.lastPickedName = null;
   renderWheel();
@@ -532,7 +683,6 @@ function resetSession() {
 registerToolSettings('picker', 'Name Picker', (host) => {
   host.classList.add('picker-settings');
 
-  // Allow repeats toggle.
   const repeatsRow = document.createElement('div');
   repeatsRow.className = 'suite-settings-row';
   const repeatsLabel = document.createElement('label');
@@ -552,7 +702,6 @@ registerToolSettings('picker', 'Name Picker', (host) => {
   repeatsRow.appendChild(repeatsInput);
   host.appendChild(repeatsRow);
 
-  // Reset session button.
   const resetRow = document.createElement('div');
   resetRow.className = 'suite-settings-row';
   resetRow.style.justifyContent = 'flex-start';
@@ -567,7 +716,6 @@ registerToolSettings('picker', 'Name Picker', (host) => {
   resetRow.appendChild(resetBtn);
   host.appendChild(resetRow);
 
-  // Help blurb.
   const help = document.createElement('p');
   help.className = 'muted';
   help.style.fontSize = 'var(--type-11)';
