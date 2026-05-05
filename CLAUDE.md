@@ -1,202 +1,152 @@
 # The Teacher's Desk — repo conventions
 
-A static suite of free classroom tools, designed to feel like one product. This file is for cold-start sessions: read it before making any non-trivial change.
+A static suite of free classroom tools for K–12 teachers, made by Mr. Osborne. Each tool has its own world (homepage diorama, wheel game-show, noise meter VU/traffic-light/control-panel, timer in four flavors, grade-book call tracker, boxing-match review game), but they all read and write through one shared data layer and share the same type system, interaction grammar, and engineering tokens. Everything is static + localStorage — no backend, no accounts, no analytics.
 
-## What this repo is
+## Source of truth
 
-Three working tools (Math Bingo, Name Picker, Seating Chart Designer) plus the suite Rosters page and shared infrastructure. Everything is static + localStorage — no backend, no accounts, no auth, no analytics.
+**The `briefs/` folder is authoritative.** Each brief in there describes one tool's purpose, aesthetic, behavior, and constraints.
 
-## Folder structure
+- When briefs and conversation history conflict, briefs win.
+- When briefs are ambiguous, **ask the user — don't guess.**
+- Don't expand scope past what a brief specifies.
+- Both this file and the briefs are living documents. If a decision in conversation contradicts a brief, the user updates the brief — Claude does not silently update either. **Flag the contradiction explicitly when it happens.**
+
+The briefs currently exist as a single Word document at `briefs/teachers-desk-briefs.docx`. The plan is to split it into per-tool `.md` files (`briefs/00-suite-conventions.md`, `briefs/01-homepage.md`, etc.) when ready.
+
+## Repo structure
 
 ```
 /
-├── index.html                  ← homepage
+├── index.html                  ← homepage (desk diorama)
 ├── about.html                  ← about page
-├── shared/                     ← cross-tool code (CSS, storage, bridge, components)
+├── briefs/                     ← AUTHORITATIVE. read these first.
+├── shared/                     ← cross-tool code (CSS, storage, components)
 │   ├── desk.css                ← single source of truth for visual style
-│   ├── storage.js              ← single source of truth for localStorage (annotated with JSDoc)
-│   ├── roster-bridge.js        ← canonical-event subscription surface for any tool
-│   ├── settings.js             ← floating gear + shared settings dialog
-│   ├── picker-engine.js        ← stub for future fairness-weighted picks
-│   ├── tip-jar.js              ← stub for future Stripe tip jar
+│   ├── storage.js              ← single source of truth for localStorage
+│   ├── roster-bridge.js        ← canonical-event subscription surface
 │   └── components/             ← shared vanilla UI components
-│       ├── overlay.js          ← openOverlay({title, onClose}) — modal w/ Esc + click-outside
-│       ├── paste-bulk.js       ← mountPasteBulk(host, opts) — textarea + dedupe + submit
-│       ├── class-card-grid.js  ← mountClassCardGrid(host, opts) — auto-refreshing class grid
-│       └── view-router.js      ← createViewRouter({a, b}) — show/current/onChange helper
 ├── bingo/                      ← Math Bingo (vanilla)
-├── picker/                     ← Name Picker (vanilla)
-├── rosters/                    ← Stub: redirects to seating-chart/ (canonical roster manager)
-├── seating-chart/              ← Seating Chart Designer (React + Vite + Tailwind)
-│                                  Owns the canonical roster editor at /classes/:id/roster
-│   └── src/
-│       ├── components/
-│       │   ├── TextInputDialog.tsx   ← reusable single-line input modal (replaces window.prompt())
-│       │   ├── ConfirmDialog.tsx     ← reusable yes/no modal (replaces window.confirm())
-│       │   ├── ClassSwitcher.tsx     ← in-class header dropdown for jumping between classes
-│       │   └── ExportDialog.tsx     ← unified Download/Print dialog with live RoomStage preview + toggles
-│       └── lib/
-│           ├── use-roster-bridge.ts  ← React hooks built on shared/roster-bridge.js
-│           ├── color.ts              ← deriveStroke / deriveTextColor / SWATCHES for per-object color overrides
-│           └── geometry.ts           ← rotatedItemAABB + unionAABB; powers RoomStage's fitContents math
+├── picker/                     ← Wheel of Names (vanilla) — brief calls this `/wheel`
+├── rosters/                    ← stub redirect to seating-chart/
+├── seating-chart/              ← React + TypeScript + Vite + Tailwind + Konva + Zustand + Radix
+│                                  Owns the canonical roster editor.
 ├── assets/
-│   ├── renders/                ← future Blender output, empty for now
-│   └── sounds/bingo/           ← bingo audio (note: lowercase `bingo`)
-├── CLAUDE.md
-└── README.md
+└── CLAUDE.md
 ```
 
-Each tool folder is **self-contained** — it owns its own HTML/CSS/JS (or React tree) and tool-specific assets. Tools share code only by importing from `shared/`. Don't copy code between tools.
+This is a hybrid repo. **The seating chart is the only tool with a build step.** It is React + TypeScript + Vite + Tailwind + Konva + Zustand + Radix and stays that way — do **not** rewrite it as vanilla. **All future tools default to vanilla HTML/CSS/JS** unless there's a specific reason otherwise. New tool folders are self-contained: their own `index.html`, `style.css`, `script.js`, plus a `how-to.html` SEO landing page.
+
+Tools share code only by importing from `shared/`. Don't copy code between tools.
 
 ## Design tokens
 
-Single source of truth: [`shared/desk.css`](shared/desk.css). Everything visual flows from there.
+Single source of truth: [`shared/desk.css`](shared/desk.css). Color, typography, spacing, radius — all of it flows from there. **Don't redefine palette values, type scales, or spacing scales anywhere else.** If you need a new token, add it to `desk.css`.
 
-- **Color tokens are channel-form RGB** (e.g. `--accent-blue: 30 91 255`). Reference via `rgb(var(--accent-blue))` or `rgb(var(--accent-blue) / 0.5)`. This is what makes Tailwind opacity modifiers (`bg-accent-blue/30`) work correctly. **Do not** redefine palette values elsewhere; if you need a new token, add it to `desk.css`.
-- **Typography:** body uses `var(--font-slab)` — `'Rockwell', 'Roboto Slab', Georgia, serif`. No web fonts are loaded. Swapping in a real face later is a one-variable change.
-- **Type scale:** 11 / 13 / 17 / 22 / 34. **Spacing scale:** 4 / 8 / 12 / 18 / 26 / 38 / 52.
-- **Radius:** `--radius: 6px` is the upper bound. **Do not exceed.**
+Konva renders to canvas and can't read CSS variables, so the seating chart keeps a JS mirror of the relevant tokens at [`seating-chart/src/lib/theme-tokens.ts`](seating-chart/src/lib/theme-tokens.ts). A vitest test catches drift; if you change a token in `desk.css`, run `npm test` in `seating-chart/`.
 
-### Konva colors (seating chart only)
+## Aesthetic guardrails
 
-Konva renders to canvas, not the DOM, so it can't read CSS variables. The seating chart keeps a JS mirror of the relevant tokens at [`seating-chart/src/lib/theme-tokens.ts`](seating-chart/src/lib/theme-tokens.ts). **Keep it in sync with `desk.css`.** A vitest snapshot test catches drift; if you change a token, run `npm test` in `seating-chart/`.
+These apply suite-wide unless a brief explicitly says otherwise:
 
-Functional Konva colors (front row, door amber, selection pink) intentionally do **not** track the suite tokens — they carry semantic meaning. Don't unify them.
-
-## Shared component library
-
-Vanilla components in [`shared/components/`](shared/components/). New tools should compose these instead of reinventing modals or paste areas. Living examples in [`picker/script.js`](picker/script.js) and [`rosters/script.js`](rosters/script.js).
-
-| Component | Mounts | Purpose |
-|---|---|---|
-| `overlay.js` | `openOverlay({ title, onClose })` → `{ body, close }` | Standard modal chrome (`.suite-overlay` / `.suite-panel`). Handles Esc + click-outside-to-close + initial focus. |
-| `paste-bulk.js` | `mountPasteBulk(host, { placeholder, rows, buttonLabel, hint, onSubmit })` → `{ setDisabled, reset, focus, destroy }` | Textarea + button. Splits + dedupes pasted lines case-insensitively. Cmd/Ctrl+Enter submits. |
-| `class-card-grid.js` | `mountClassCardGrid(host, { onSelect, onDelete, showCount, showSource })` → `{ refresh, destroy }` | Grid of class cards with name + count + source badge. Auto-refreshes via `roster-bridge` on class or roster changes. |
-| `view-router.js` | `createViewRouter({ a, b })` → `{ show, current, onChange }` | Tiny `hidden` toggler so each tool stops reinventing `showView(name)`. |
-
-When in doubt, lift toward `shared/`. The barrier to reuse is low.
-
-## Storage rules
-
-Single source of truth: [`shared/storage.js`](shared/storage.js). Subscription surface: [`shared/roster-bridge.js`](shared/roster-bridge.js).
-
-- **Never call `localStorage` directly from a tool.** Always go through `shared/storage.js`.
-- **Never subscribe to canonical events with raw `window.addEventListener`.** Use `shared/roster-bridge.js` (vanilla) or `seating-chart/src/lib/use-roster-bridge.ts` (React).
-- Suite uses **one localStorage key**, `teachersdesk:v1`, with one envelope:
-  ```js
-  {
-    schemaVersion: 1,
-    preferences,                                    // { theme, sound, ... }
-    classes: { [classId]: { name } },               // canonical class metadata
-    rosters: { [classId]: string[] },               // canonical roster (names)
-    callCounts: { [classId]: { [name]: number } },  // picker fairness data
-    tools: {
-      [toolName]: {
-        // anything tool-specific; commonly:
-        students: { [classId]: { [name]: any } },   // per-student per-tool metadata
-        // ...other opaque tool state (e.g. seating-chart's Zustand blob)
-      }
-    }
-  }
-  ```
-- The seating chart's Zustand persist middleware uses a custom storage adapter that delegates to `setToolState('seating-chart', ...)`. **Do not** point Zustand at a separate localStorage key.
-- Tools that need their own internal versioning store it inside their own `tools.<name>` blob — that migration chain is the tool's concern. The seating chart already does this (its own v1→v7 chain in `src/lib/migrations.ts`).
-- `getRoster(classId)` falls back to reading the seating chart's class blob if no explicit roster has been written. This means tools can read student names without requiring the seating chart to actively sync.
-
-### Canonical event contract
-
-Storage helpers dispatch these `window` `CustomEvent`s when canonical state changes:
-
-| Event           | Detail                                     | Fired by                                  |
-|-----------------|--------------------------------------------|-------------------------------------------|
-| `classmeta`     | `{ classId, name, isNew, previousName }`   | `setClassName`                            |
-| `classdelete`   | `{ classId }`                              | `deleteClass`                             |
-| `rosterchange`  | `{ classId, names, added, removed }`       | `setRoster`                               |
-| `rosterrename`  | `{ classId, oldName, newName }`            | `renameStudent`                           |
-| `themechange`   | `{ theme }`                                | `setTheme`                                |
-
-Subscribe via `shared/roster-bridge.js`: `onClassesChange`, `onClassDelete`, `onRosterChange(classId | null, cb)`, `onRosterRename(classId | null, cb)`, `onAnyChange`. Each returns an unsubscribe fn. The bridge also listens to cross-tab `storage` events so subscribers fire when another tab edits the same envelope.
-
-### Idempotency + auto-cleanup
-
-- **Idempotent helpers.** `setRoster` skips its write + event dispatch if the names match the current value; `setClassName` skips if name + isNew unchanged. Tools can call these in render loops without flooding subscribers.
-- **Auto-cleanup of tool metadata.** Per-student tool data lives at `state.tools[toolName].students[classId][name]`. Canonical helpers keep this in sync automatically — `setRoster` drops metadata for removed names, `renameStudent` rekeys, `deleteClass` drops the whole class bucket. Tools never need to wire up cleanup themselves.
-
-## Aesthetic rules
-
-- **No rounded corners > 6px.**
+- **No emoji** in UI.
+- **No rounded corners larger than 6px.**
 - **No pastels.**
-- **No emoji** in product UI. (Sounds and confetti are fine; little smileys in tooltips are not.)
-- **No SaaS gradients.** No "shiny" buttons. No glassmorphism. The aesthetic is riso-print / public-domain-engraving / teacher's desk diorama. Restrained, slightly imperfect, hand-touched.
-- Blue (`--accent-blue`) is for accent only. Don't paint whole buttons or cards in it.
+- **No drop shadows for "depth" decoration.** Shadows only when something is genuinely meant to look physical.
+- **No SaaS gradients.** No "shiny" buttons, no glassmorphism, no trendy 2020s gradient blobs.
+- **No "AI sparkle" iconography.**
+- **No animations purely for delight.** Every animation either communicates state, builds suspense, or signals completion.
 
-## Per-tool conventions
+## Per-tool aesthetic
 
-| Tool             | Stack                          | Build step? |
-|------------------|--------------------------------|-------------|
-| `bingo/`         | Vanilla HTML/CSS/JS (ES modules) | No |
-| `picker/`        | Vanilla HTML/CSS/JS (ES modules) | No |
-| `rosters/`       | Static redirect to `seating-chart/` | No |
-| `seating-chart/` | React 18 + TypeScript + Vite + Tailwind + Konva + Zustand | Yes (`npm run build`) |
+Each tool has its own intentional visual character. Don't fight the impulse to make them look like one product — they aren't:
 
-The seating chart is the **only** tool with a build step. Treat it as the existing exception, not a precedent. New tools should be vanilla.
+- **Homepage** — photoreal teacher's-desk diorama, time-of-day-aware.
+- **Wheel of Names** — 1970s Price Is Right (mustard, burnt orange, plastic-y wheel, curtain backdrop).
+- **Noise Meter** — three switchable styles: vintage VU meter, traffic light, NASA control panel.
+- **Timer** — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
+- **Who's Been Called** — 1970s grade book / green-bar accountant pad.
+- **Around the World** — boxing-match broadcast.
+- **Bingo** — existing aesthetic, no brief yet.
+- **Seating Chart** — existing aesthetic, no brief yet.
 
-The seating chart's classes index page (`/seating-chart/`) is the canonical roster manager for the suite — every "Rosters" link in the suite points there. The vanilla `rosters/` folder is now a stub redirect kept around so existing bookmarks (or any in-the-wild deep link) don't 404.
+Cohesion comes from:
 
-Each tool folder contains:
-- `index.html` — the entry point
-- `style.css` — tool-specific styles (references `shared/desk.css` tokens)
-- `script.js` — tool-specific JS (uses `shared/storage.js`)
-- `how-to.html` — SEO landing copy
+1. The same **type system** across all tools — slab serif headings, sans body, shared scale.
+2. The same **interaction grammar** — Esc closes modals, Space is the contextual primary action, toggles look the same, buttons feel pressable the same way.
+3. The same **design tokens** at the engineering level, even when tools restyle them dramatically.
 
-The seating chart deviates because Vite owns its file structure.
+**There is no recurring footer or signature stamp across tools.** The homepage is the only place that ties the suite together visually.
 
-### Seating chart canvas patterns
+## Cross-tool data
 
-- **Bbox via `getClientRect` override.** Desks and furniture override Konva's `getClientRect` to return their own (width × height) footprint, respecting `skipTransform: true` so the Transformer composes the transform itself — without that, single-select bboxes render double-transformed (misaligned or invisible).
-- **Bulk store mutations.** Multi-item handlers (align / distribute / flip / color / paste / duplicate) batch through `updateRoomItems` / `addRoomItems` so Ctrl+Z undoes one user action, not N. New flows that touch many items at once should follow this pattern; calling `updateDesk` / `addFurniture` in a loop creates one history entry per item.
-- **`interactive={false}` on `RoomStage`** turns it into a read-only renderer — no Transformer, no marquee, no drag, no seat picker. Used by the History thumbnails and the ExportDialog preview so they share the live editor's render path (same fonts, same shapes, no SVG drift).
-- **`fitContents` on `RoomStage`** expands the camera frame to include every desk + furniture's rotated AABB (via `lib/geometry.ts`), so out-of-room geometry — outward-swinging door arcs, items partially off the room rect — isn't clipped in thumbnails or exports. Editor mode uses the room rect alone.
-- **Class-name label** is rendered as a Konva text inside the camera frame's top-right, in a dedicated band reserved above the room/items so it never touches the classroom rectangle. Used by ExportDialog; the size slider drives both the label height and the band reservation.
+All persistent state goes through [`shared/storage.js`](shared/storage.js). **Never call `localStorage` directly from a tool.** Subscribe to canonical events via [`shared/roster-bridge.js`](shared/roster-bridge.js) (vanilla) or [`seating-chart/src/lib/use-roster-bridge.ts`](seating-chart/src/lib/use-roster-bridge.ts) (React) — never with raw `window.addEventListener`.
+
+Two cross-tool stores carry most of the suite:
+
+- **Roster store** — class periods + student names + seating chart positions. Read by the Wheel, Who's Been Called, Around the World, future pickers. Written by the Seating Chart (which currently owns the roster editor).
+- **Problem set store** — collections of question/answer pairs. Read by Bingo and Around the World. Schema and management UI are not yet specced — a separate brief is expected before deep integration.
+
+Per-tool state lives under `tools.<toolName>` in the storage envelope.
+
+**`recordCall(periodId, studentName)`** is shared infrastructure: any tool that picks or calls on a student should invoke it, so participation data is consistent regardless of which tool selected the student. The Wheel calls it on each spin. Around the World calls it on each round. Future pickers should too.
+
+## Tool navigation
+
+- Every tool has **one** "← The Teacher's Desk" link in its top-left corner that returns to the homepage.
+- **No cross-tool navigation.** Tools never link to each other.
+- **No top nav, no footer, no sidebar.** Discovery happens at the desk.
+
+## Audience and devices
+
+- Audience: K–12 teachers, primarily middle and high school. Tone is warm, dry, slightly nerdy. Built by a teacher for teachers — never corporate, never SaaS-y.
+- **Desktop and iPad first.** Tools must look great fullscreen on a classroom projector — that's a frequent display mode, not an edge case.
+- **Phones are not a target.** Don't compromise design for them. A "this works best on a larger screen" message is acceptable.
+- **Chromebooks are not a target.** This site is for teachers, not students.
+
+## Hosting and deployment
+
+- **Cloudflare Pages**, deployed from this repo.
+- The seating chart's Vite build runs as part of the deploy.
+- **Domain: TBD.** Will be `theteachersdesk.io` or `theteachersdesk.com` depending on availability — placeholder for now.
 
 ## Do not
 
-- Don't add jQuery, React, Vue, Astro, or any framework to a non–seating-chart tool.
-- Don't add a build step (Webpack, Rollup, esbuild, etc.) anywhere outside `seating-chart/`.
-- Don't add `npm`, `package.json`, or `node_modules/` anywhere outside `seating-chart/`.
-- Don't add analytics scripts (Google Analytics, Plausible, Posthog, etc.).
-- Don't add accounts, auth, login flows, or a backend. The suite is static + localStorage forever.
-- Don't add new external dependencies (CDN scripts, fonts, libraries) without flagging it. Existing deps in the bingo monolith — KaTeX, jsPDF, `@fontsource` for PDF fonts — stay.
-- Don't touch `localStorage` directly. Always go through `shared/storage.js`.
-- Don't subscribe to canonical events (`classmeta` / `classdelete` / `rosterchange` / `rosterrename` / `themechange`) with raw `window.addEventListener`. Use `shared/roster-bridge.js` (vanilla) or `seating-chart/src/lib/use-roster-bridge.ts` (React). The bridge unifies same-tab and cross-tab listeners and returns an unsubscribe function.
-- Don't reinvent modals, paste-bulk textareas, or class-card grids. Compose `shared/components/` instead.
+Never add any of the following without an explicit user request:
+
+- jQuery, Vue, Astro, or any new framework.
+- React for any **new** tool. (The existing seating chart keeps React.)
+- A build step for any tool other than the seating chart.
+- Analytics, tracking, third-party scripts (Google Analytics, Plausible, Posthog, etc.).
+- User accounts, login, authentication.
+- Email collection, newsletters, signup forms.
+- Comments, social sharing buttons, "follow us" widgets.
+- Stripe integration in code. (The tip jar is on the homepage in spirit only — actual integration comes later.)
+- Any backend. Everything is static + localStorage forever.
+- Service workers or PWA features.
+- Custom fonts loaded from Google Fonts API. If we add a font later, self-host it.
+- Direct `localStorage` calls outside `shared/storage.js`.
+- Raw `window.addEventListener` for canonical events. Use the roster bridge.
+
+## Workflow conventions
+
+- **Fresh Claude Code session per tool when possible.** Long sessions degrade — context compresses, decisions drift. Treat the briefs as permanent memory and conversations as temporary working sessions.
+- **Commit often on a branch** when doing structural work. Small, recoverable steps.
+- **When a brief is ambiguous, ask before guessing.** A 30-second clarification beats an hour of misdirected work.
+- **Don't silently update briefs.** If a conversation produces a decision that contradicts a brief, surface it explicitly so the user can update the brief.
 
 ## Running locally
 
 ```bash
-# from the repo root
-python -m http.server 8000        # serves the suite on http://localhost:8000
-```
+# from the repo root — vanilla tools
+python -m http.server 8000        # http://localhost:8000
 
-The bingo app fetches CSV problem sets from `bingo/sets/` and needs HTTP (not `file://`).
-
-The seating chart can be run via Vite for development:
-
-```bash
+# seating chart only (Vite dev server)
 cd seating-chart
 npm install
 npm run dev
 ```
 
-## Deploying
-
-GitHub Pages, static, via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Every push to `main` runs the workflow:
-
-1. Build the seating chart with Vite (`VITE_BASE=/teachers-desk/seating-chart/`).
-2. Assemble `_site/`: copy `index.html`, `about.html`, `bingo/`, `picker/`, `rosters/`, `shared/`, `assets/` as-is; replace `_site/seating-chart/` with `seating-chart/dist/`.
-3. Upload + deploy the artifact to GitHub Pages.
-
-Live URL: <https://ben0sb0rne.github.io/teachers-desk/>. When you add a new vanilla tool folder, **add it to the `cp -r` line in the Assemble step** so it ships.
+Tools that fetch local files (e.g. Bingo's CSV problem sets) need HTTP, not `file://`.
 
 ## Testing
 
