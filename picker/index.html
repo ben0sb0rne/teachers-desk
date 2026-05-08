@@ -2,102 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
-  <script>
-    (function () {
-      try {
-        var raw = localStorage.getItem('teachersdesk:v1');
-        if (!raw) return;
-        var t = JSON.parse(raw);
-        t = t && t.preferences && t.preferences.theme;
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-      } catch (e) {}
-    })();
-  </script>
-  <title>Name Picker · The Teacher's Desk</title>
-  <meta name="description" content="A spinning-wheel name picker for classroom rosters. Part of The Teacher's Desk." />
-  <link rel="stylesheet" href="../shared/desk.css" />
-  <link rel="stylesheet" href="style.css" />
-  <script type="module" src="script.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="0; url=../wheel/" />
+  <title>Moved · The Teacher's Desk</title>
+  <link rel="canonical" href="../wheel/" />
+  <style>
+    body { font-family: 'Rockwell', 'Roboto Slab', Georgia, serif; padding: 2em; max-width: 40em; margin: 0 auto; }
+    a { color: #1E5BFF; }
+  </style>
 </head>
-<body class="wood-bg">
-
-  <div class="suite-topstrip">
-    <div class="suite-topstrip-left">
-      <a class="suite-wordmark" href="../">The Teacher's Desk</a>
-      <a class="suite-tool-name" id="topstrip-all-classes" href="#" hidden>All Classes</a>
-      <span class="suite-tool-name">Name Picker</span>
-    </div>
-    <div class="suite-topstrip-right">
-      <button type="button" class="settings-button" id="btn-settings-topstrip"
-              aria-label="Settings" title="Settings (S)"></button>
-    </div>
-  </div>
-
-  <main class="picker-main">
-
-    <!-- ═════════════════════════════════════════
-         CLASS-SELECT VIEW
-         ═════════════════════════════════════════ -->
-    <section id="class-select-view" class="view">
-      <header class="view-header">
-        <h1>Pick a class</h1>
-        <p class="muted">Spin a wheel for any class on this device. Classes you create here are visible to other tools too.</p>
-      </header>
-
-      <div class="picker-actions">
-        <button type="button" id="btn-new-class" class="desk-button">+ New class</button>
-      </div>
-
-      <div id="class-grid" class="class-grid" aria-live="polite"></div>
-
-      <div id="class-empty" class="print-paper" hidden>
-        <p>No classes yet.</p>
-        <p class="muted">Create one above to get started, or visit the Seating Chart to import a roster.</p>
-      </div>
-    </section>
-
-    <!-- ═════════════════════════════════════════
-         WHEEL VIEW
-         Minimal: a back link, the class name as a small title, and the
-         wheel itself filling the remaining viewport. Options + reset live
-         in the suite settings dialog (gear in the top-right corner).
-         ═════════════════════════════════════════ -->
-    <section id="wheel-view" class="view view--wheel" hidden>
-      <header class="wheel-header">
-        <h1 id="wheel-class-name">&nbsp;</h1>
-        <span id="wheel-class-source" class="tag" hidden>From Seating Chart</span>
-      </header>
-
-      <div class="wheel-stage">
-        <div id="wheel-frame" class="wheel-frame">
-          <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel" role="button" tabindex="0" aria-label="Spin the wheel"></svg>
-          <div class="wheel-shine" aria-hidden="true"></div>
-          <div class="wheel-pointer" aria-hidden="true">
-            <!-- Gold-and-cream pointer: dark gold body, cream tip highlight,
-                 chocolate outline so it reads against any wedge color. -->
-            <svg viewBox="0 0 32 32">
-              <polygon points="2,16 14,22 12,16 14,10" fill="rgb(var(--wheel-brass))" stroke="rgb(var(--wheel-chocolate))" stroke-width="1.2" stroke-linejoin="round"/>
-              <polygon points="2,16 9,18 8,16 9,14" fill="rgb(var(--wheel-cream))" opacity="0.85"/>
-            </svg>
-          </div>
-        </div>
-        <button type="button" id="btn-spin" class="spin-button" aria-label="Spin the wheel">
-          <span class="spin-button-label">Spin</span>
-        </button>
-        <p id="wheel-msg" class="wheel-msg"></p>
-
-        <div id="wheel-reveal" class="wheel-reveal" hidden aria-live="polite">
-          <div class="wheel-reveal-card">
-            <span class="wheel-reveal-label">Picked</span>
-            <span id="wheel-reveal-name" class="wheel-reveal-name"></span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
+<body>
+  <h1>This page moved.</h1>
+  <p>The Name Picker is now <strong>Wheel of Names</strong> at <a href="../wheel/">/wheel/</a>.</p>
+  <p>You should be redirected automatically. If not, click the link above.</p>
 </body>
 </html>

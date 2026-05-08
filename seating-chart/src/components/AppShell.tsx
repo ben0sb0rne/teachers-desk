@@ -101,7 +101,7 @@ export default function AppShell() {
             <span className="hidden md:inline">Help</span>
           </button>
           {/* Use the shared .settings-button class so the gear matches the
-              36x36 paper-card square the bingo + picker tools render. The
+              36x36 paper-card square the bingo + wheel tools render. The
               shell rule lives in shared/desk.css; the inner Icon sizes to
               18px to fill the same area as the .settings-button-icon SVG
               the vanilla tools inject. */}

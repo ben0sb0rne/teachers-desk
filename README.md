@@ -6,8 +6,9 @@ Today the suite includes:
 
 - **Math Bingo** — load a CSV problem set, call problems on screen, generate printable bingo cards.
 - **Seating Chart Designer** — design a classroom layout, manage rosters, randomize seats with constraints (front row, keep-apart pairs).
+- **Wheel of Names** — 1970s game-show wheel for picking a random student.
 
-More tools are planned (a name picker is next on the list).
+See [`briefs/`](briefs/) for the year-1 plan; more tools are on the way.
 
 ## Run locally
 

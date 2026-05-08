@@ -236,7 +236,7 @@ a:hover { text-decoration-thickness: 2px; }
 
 /* Subtle separator + tool-name label, displayed inline after the wordmark.
    Doubles as the in-bar "All Classes" link when a tool needs to surface a
-   back-to-index affordance — see picker/index.html and the seating chart's
+   back-to-index affordance — see wheel/index.html and the seating chart's
    AppShell. As an anchor it picks up cursor + hover styling below. */
 .suite-tool-name {
   font-family: var(--font-slab);

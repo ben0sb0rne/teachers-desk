@@ -368,7 +368,7 @@ export function applyTheme(theme) {
 // Rosters
 // `getRoster` falls back to reading the seating chart's class blob if
 // no explicit roster has been written for that classId. This lets
-// future tools (a name picker) read names without requiring the
+// pickers (the Wheel of Names today) read names without requiring the
 // seating chart to actively sync.
 // -------------------------------------------------------------
 /** Canonical roster (names) for a class. Falls back to the seating-chart
@@ -546,9 +546,9 @@ export function listPeriods() {
 // Class metadata (suite-canonical "what's this class called?")
 //
 // Canonical class metadata lives at state.classes[classId] = { name }.
-// Created by the picker, the suite Rosters page, and (from Phase B onward)
-// mirrored by the seating chart. listClasses() unions canonical entries with
-// any seating-chart-only classes so every tool can list them.
+// Created by the Wheel of Names, the suite Rosters page, and mirrored by
+// the seating chart. listClasses() unions canonical entries with any
+// seating-chart-only classes so every tool can list them.
 // -------------------------------------------------------------
 
 /** Display name for a class. Canonical first; falls back to seating-chart blob.
@@ -684,9 +684,10 @@ export function deleteClass(classId) {
 }
 
 // -------------------------------------------------------------
-// Call counts (for future name-picker fairness)
+// Call counts (for future fairness-weighted picks)
 // -------------------------------------------------------------
-/** Per-name call count for a class (used by the picker for fairness logic).
+/** Per-name call count for a class (used by the Wheel of Names today,
+ *  and by future pickers — group maker, around-the-world ordering).
  *  @param {string} classId
  *  @param {string} name
  *  @returns {number} */

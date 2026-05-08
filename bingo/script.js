@@ -1362,7 +1362,7 @@ function renderPrintView() {
   syncProblemsFromEditRows();
   renderPvEditTable();
   // Refresh class options every time the editor opens so newly created
-  // classes (in Picker / Rosters) show up here.
+  // classes (in Wheel of Names / Rosters / Seating Chart) show up here.
   refreshAssignClasses();
   updateAssignUi();
 }
@@ -3274,7 +3274,7 @@ function wireEvents() {
   const openSettings = () => { renderSettings(); openOverlay('settings-overlay'); };
   document.getElementById('btn-settings').onclick = openSettings;
   // Inject the gear glyph since the HTML button is empty by convention
-  // (mirrors how shared/settings.js handles the picker's button).
+  // (mirrors how shared/settings.js handles the wheel's button).
   const settingsBtn = document.getElementById('btn-settings');
   if (settingsBtn && !settingsBtn.querySelector('svg')) {
     settingsBtn.innerHTML = '<svg class="settings-button-icon" viewBox="0 0 24 24" aria-hidden="true">'
@@ -3396,7 +3396,7 @@ function wireEvents() {
       updateAssignUi();
     });
     // Auto-refresh the dropdown when the canonical class list changes
-    // anywhere — Picker / Rosters / Seating Chart create/rename/delete.
+    // anywhere — Wheel / Rosters / Seating Chart create/rename/delete.
     rosterBridge.onClassesChange(() => {
       if (!state.assignByClass) return;
       refreshAssignClasses();

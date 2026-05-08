@@ -499,7 +499,7 @@ export const useAppStore = create<AppStore>()(
 // seating chart's blob owns rich per-student metadata (needsFrontRow,
 // keepApart, notes) and the room/arrangements geometry; the appStore
 // reconciles its `students[]` array against canonical at boot and on
-// every canonical event so picker/rosters-page edits propagate into
+// every canonical event so wheel/rosters-page edits propagate into
 // the seating chart immediately.
 //
 // Loop avoidance: a `suppressMirror` flag is set whenever we are

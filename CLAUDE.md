@@ -26,7 +26,8 @@ The briefs currently exist as a single Word document at `briefs/teachers-desk-br
 │   ├── roster-bridge.js        ← canonical-event subscription surface
 │   └── components/             ← shared vanilla UI components
 ├── bingo/                      ← Math Bingo (vanilla)
-├── picker/                     ← Wheel of Names (vanilla) — brief calls this `/wheel`
+├── wheel/                      ← Wheel of Names (vanilla)
+├── picker/                     ← stub redirect to wheel/ (kept for old bookmarks)
 ├── rosters/                    ← stub redirect to seating-chart/
 ├── seating-chart/              ← React + TypeScript + Vite + Tailwind + Konva + Zustand + Radix
 │                                  Owns the canonical roster editor.

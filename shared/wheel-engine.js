@@ -1,13 +1,14 @@
 // =============================================================
-// THE TEACHER'S DESK — picker engine (STUB)
+// THE TEACHER'S DESK — wheel/picker engine (STUB)
 //
-// Future home for shared name-picker logic: weighted random selection
+// Future home for shared name-picking logic: weighted random selection
 // that respects per-student call counts (so the same kid doesn't get
-// picked five times in a row).
+// picked five times in a row). Used by the Wheel of Names today, and
+// by future pickers (group-maker, around-the-world challenger order).
 //
 // Today this file is a placeholder so consumers can import it without
-// breaking. The real implementation lands when the first picker tool
-// (Random Student / Random Group) is built.
+// breaking. The real implementation lands when fairness-weighted picks
+// are needed.
 // =============================================================
 
 import * as storage from './storage.js';
@@ -26,7 +27,7 @@ import * as storage from './storage.js';
  */
 export function pickRandom(_classId, _options) {
   throw new Error(
-    'picker-engine.pickRandom is not implemented yet. The picker tool ships in a later phase.'
+    'wheel-engine.pickRandom is not implemented yet. Fairness-weighted picks ship in a later phase.'
   );
 }
 
@@ -35,10 +36,10 @@ export function pickRandom(_classId, _options) {
  * @returns {never}
  */
 export function pickGroups(/* classId, groupCount, groupSize, options */) {
-  throw new Error('picker-engine.pickGroups is not implemented yet.');
+  throw new Error('wheel-engine.pickGroups is not implemented yet.');
 }
 
-// Re-exported for convenience so consumers can read call counts via the picker.
+// Re-exported for convenience so consumers can read call counts via this engine.
 export const _storage = storage;
 
 export default { pickRandom, pickGroups };
