@@ -239,8 +239,10 @@ body.is-wheel-stage #wheel-class-source.tag {
   display: block;
   cursor: pointer;
   outline: none;
-  /* Spin transition is set inline by the JS — this is the at-rest
-     transition for snap-back during class switches. */
+  /* The spin animation is driven by requestAnimationFrame in script.js
+     — every frame writes a fresh transform, so we don't want CSS to
+     interpolate between them. Keep transitions off here; JS also asserts
+     this inline at spin start as defence-in-depth. */
   transition: transform 0s;
   filter: drop-shadow(0 6px 18px rgb(0 0 0 / 0.45));
 }
@@ -471,6 +473,36 @@ body.is-wheel-stage #wheel-class-source.tag {
   }
 }
 
+/* ── audio toggle (visible at all times per the brief) ─────── */
+
+.audio-toggle {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 80ms ease, background 80ms ease;
+}
+.audio-toggle:hover  { background: rgb(var(--paper-edge) / 0.05); }
+.audio-toggle:active { transform: translateY(1px); }
+.audio-toggle:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+}
+.audio-toggle svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.audio-toggle.is-muted { color: rgb(var(--paper-edge) / 0.55); }
+
 /* ── picker-specific settings rows in the shared dialog ─────── */
 
 .picker-settings .desk-button { font-size: var(--type-13); }
@@ -522,12 +554,46 @@ body.is-wheel-stage #wheel-class-source.tag {
   .class-card-actions button { padding: 8px 12px; }
 }
 
+/* Phone fallback per the brief: wheel disappears, the SPIN button
+   becomes a big tap-to-pick target. The reveal banner takes center
+   stage when activated. CSS handles the layout; JS skips the SVG
+   build and the rotation animation when isPhoneMode() is true. */
+@media (max-width: 640px) {
+  body.is-wheel-stage .wheel-frame,
+  body.is-wheel-stage .wheel-shine,
+  body.is-wheel-stage .wheel-pointer {
+    display: none;
+  }
+
+  body.is-wheel-stage .wheel-stage {
+    /* without the wheel filling the middle, center the SPIN button
+       and the message line on the curtain stage. */
+    justify-content: center;
+    gap: var(--space-5);
+  }
+
+  body.is-wheel-stage .wheel-msg::before {
+    /* prompt for first-time phone users: explain that there's no wheel */
+    content: 'Tap the button to pick a name.';
+    display: block;
+    color: rgb(var(--wheel-cream) / 0.78);
+    font-style: italic;
+    margin-bottom: var(--space-2);
+  }
+
+  /* Big tap-to-pick button on phone — bigger letter-spacing and padding
+     so it reads as the primary affordance once the wheel is gone. */
+  body.is-wheel-stage .spin-button {
+    font-size: clamp(28px, 6vmin, 38px);
+    padding: 22px 56px 24px;
+    letter-spacing: 0.22em;
+  }
+}
+
 @media (max-width: 480px) {
   .picker-main { padding: var(--space-3) var(--space-3) var(--space-3); }
   .view-header h1 { font-size: var(--type-22); }
   .view-header { margin-bottom: var(--space-3); }
-
-  .wheel-frame { width: min(92vmin, calc(100vh - 240px)); }
 
   .class-card { padding: var(--space-3); }
   .class-grid {
@@ -536,8 +602,6 @@ body.is-wheel-stage #wheel-class-source.tag {
 
   .wheel-header { gap: var(--space-2); margin-bottom: var(--space-2); }
   .wheel-header h1 { font-size: var(--type-17); }
-
-  .spin-button { padding: 12px 28px 14px; font-size: 18px; }
 }
 
 /* Respect prefers-reduced-motion — kill the spin transition, the view

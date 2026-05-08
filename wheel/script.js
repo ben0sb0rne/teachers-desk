@@ -1,9 +1,13 @@
 // =============================================================
-// picker/script.js — Name Picker (Wheel of Names)
+// wheel/script.js — Wheel of Names
 //
 // Picks a name from a class via a 1970s game-show wheel. Reads
 // classes via shared storage; new classes write canonical metadata
 // + roster. Call counts increment on each pick.
+//
+// Storage namespace remains `tools.picker` (and the `picker.*` prefs
+// keys) so users who saved settings before the picker→wheel folder
+// rename keep them. Folder/URL is now /wheel/.
 //
 // Suite integration:
 //   - <body class="wood-bg"> for class select; toggles to
@@ -12,8 +16,9 @@
 //   - Floating settings gear + 'S' shortcut via shared/settings.js
 //
 // Brief reference: briefs/teachers-desk-briefs.docx — Wheel of Names.
-// Pointer is on the right (3 o'clock) — see CLAUDE.md gaps section
-// for the brief contradiction (brief says top, current keeps right).
+// Pointer is on the right (3 o'clock) — deliberate project deviation
+// from the brief's "pointer at the top" wording. See the brief for the
+// deviation note.
 // =============================================================
 
 import * as storage from '../shared/storage.js';
@@ -22,11 +27,60 @@ import { mountSettingsButton, registerToolSettings } from '../shared/settings.js
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { openOverlay } from '../shared/components/overlay.js';
 import { mountPasteBulk } from '../shared/components/paste-bulk.js';
+import * as audio from './audio.js';
+
+// Pre-decode the wheel SFX in the background. The AudioContext is
+// created suspended on browsers with autoplay policy; the first user
+// click resumes it.
+audio.preload();
+audio.setMuted(storage.getPreference('wheel.muted', false));
 
 let activeClassUnsubscribe = null;
 let pendingSpinController = null;
 
 mountSettingsButton();
+
+// -------------------------------------------------------------
+// Mute toggle (visible at all times per the brief). Lives in the
+// topstrip; 'M' is the keyboard shortcut. State persists via the
+// shared preferences store so a teacher who muted last week stays
+// muted today.
+// -------------------------------------------------------------
+const ICON_SOUND_ON =
+  '<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">' +
+    '<path d="M3 10v4h4l5 4V6L7 10H3z" fill="currentColor"/>' +
+    '<path d="M16 8c1.5 1.5 1.5 6.5 0 8"/>' +
+    '<path d="M19 5c3 3 3 11 0 14"/>' +
+  '</svg>';
+
+const ICON_SOUND_OFF =
+  '<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">' +
+    '<path d="M3 10v4h4l5 4V6L7 10H3z" fill="currentColor"/>' +
+    '<line x1="16" y1="9" x2="22" y2="15"/>' +
+    '<line x1="22" y1="9" x2="16" y2="15"/>' +
+  '</svg>';
+
+const audioToggleBtn = document.getElementById('btn-audio-toggle');
+
+function updateAudioToggleUI() {
+  if (!audioToggleBtn) return;
+  const muted = audio.isMuted();
+  audioToggleBtn.innerHTML = muted ? ICON_SOUND_OFF : ICON_SOUND_ON;
+  audioToggleBtn.setAttribute('aria-label', muted ? 'Unmute audio' : 'Mute audio');
+  audioToggleBtn.setAttribute('title', muted ? 'Unmute audio (M)' : 'Mute audio (M)');
+  audioToggleBtn.setAttribute('aria-pressed', String(muted));
+  audioToggleBtn.classList.toggle('is-muted', muted);
+}
+
+if (audioToggleBtn) {
+  audioToggleBtn.addEventListener('click', () => {
+    const next = !audio.isMuted();
+    audio.setMuted(next);
+    storage.setPreference('wheel.muted', next);
+    updateAudioToggleUI();
+  });
+  updateAudioToggleUI();
+}
 
 // -------------------------------------------------------------
 // State
@@ -82,6 +136,8 @@ function abortPendingSpin() {
   pendingSpinController.abort();
   pendingSpinController = null;
   state.isSpinning = false;
+  // Kill any rumble loop that was running for the aborted spin.
+  audio.stopRumble();
 }
 
 function openClass(classId) {
@@ -238,8 +294,38 @@ const LABEL_OUTER_PAD = 6;
 const LABEL_INNER_PAD = 4;
 
 // World angle the pointer sits at. 0 = top of wheel, 90 = right (3 o'clock).
-// Brief specifies 0 (top); current keeps 90 by user request — see CLAUDE.md.
+// Brief originally specified 0 (top); permanent project deviation to 90.
 const POINTER_DEG = 90;
+
+// -------------------------------------------------------------
+// Phone fallback. Per the brief: "Phone: degrade to 'tap to pick'
+// with a simple animated reveal. Don't try to render the wheel."
+// CSS hides .wheel-frame at ≤640px; JS skips both the SVG build
+// and the spin animation, so a tap on SPIN just shows the reveal
+// banner after a short suspense beat.
+// -------------------------------------------------------------
+const phoneMq =
+  typeof window.matchMedia === 'function'
+    ? window.matchMedia('(max-width: 640px)')
+    : null;
+
+function isPhoneMode() {
+  return phoneMq ? phoneMq.matches : false;
+}
+
+if (phoneMq) {
+  // Re-render when crossing the breakpoint (e.g. orientation flip on
+  // a tablet that briefly registers as phone-width).
+  const onPhoneChange = () => {
+    if (state.activeClassId && !state.isSpinning) renderWheel();
+  };
+  if (typeof phoneMq.addEventListener === 'function') {
+    phoneMq.addEventListener('change', onPhoneChange);
+  } else if (typeof phoneMq.addListener === 'function') {
+    // Older Safari
+    phoneMq.addListener(onPhoneChange);
+  }
+}
 
 // Three-color rotation per the brief: mustard, burnt orange, cream.
 // Chocolate sneaks in via the dividers + outer rim, not the wedge fills.
@@ -271,6 +357,14 @@ function labelInk(i) {
  * at the pointer when picked.
  */
 function renderWheel() {
+  // On phones the wheel-frame is hidden via CSS; building the SVG is
+  // wasteful AND breaks fitLabel (getComputedTextLength on display:none
+  // elements returns 0, which would force every name to ellipsis).
+  if (isPhoneMode()) {
+    wheelSvg.innerHTML = '';
+    return;
+  }
+
   const visible = visibleNames();
   const n = visible.length;
   wheelSvg.innerHTML = '';
@@ -499,19 +593,57 @@ function updateMessage() {
 }
 
 // -------------------------------------------------------------
-// Spin — two-phase animation per the brief:
-//   Phase 1 (~4s): accelerate then cruise; ~70% of total rotation.
-//   Phase 2 (~6.5s): gentle ease-out so the pointer creeps the last
-//                    couple of pegs into place. Final ~2s feel like
-//                    a real wheel coasting to a stop.
-// Total ≈ 10.5s, which sits comfortably in the brief's 8–14s window.
+// Spin — single requestAnimationFrame loop driving a three-phase
+// continuous-velocity profile.
+//
+// The previous implementation used two chained CSS transitions
+// (accel-cruise + ease-out). That had two physics bugs the user could
+// feel: (1) phase 1 ended at velocity 0 but phase 2's cubic-bezier
+// started at velocity ~14 — the wheel APPEARED TO SPEED UP entering
+// the slow-down. (2) phase 2's curve front-loaded most of its distance
+// in the first ~1.5s, leaving the last 5s as near-zero motion — the
+// wheel reached its target early and SAT THERE, reading as a snap.
+//
+// Real wheels coast to a stop with kinematic friction: constant
+// deceleration → quadratic position → smooth velocity decay all the
+// way to zero. We model:
+//   Accel  (0 → T_ACCEL):    quadratic ease-in, v: 0 → V
+//   Cruise (T_ACCEL → T_CRUISE): linear at V
+//   Decel  (T_CRUISE → 1):   quadratic ease-out, v: V → 0
+// Distances scale so total = 1 and velocities match exactly at every
+// phase boundary. No discontinuity, no snap, no front-loading.
+//
+// Brief calls for "spin-up 1–2s, cruise 2–4s, slow-down 3–5s." With
+// SPIN_DURATION 11s and the constants below: 1.1s / 4.4s / 5.5s.
 // -------------------------------------------------------------
 
-const PHASE1_DURATION = '4s';
-const PHASE1_EASING = 'cubic-bezier(0.4, 0.05, 0.5, 1)';
-const PHASE1_FRAC = 0.7;
-const PHASE2_DURATION = '6.5s';
-const PHASE2_EASING = 'cubic-bezier(0.05, 0.7, 0.15, 1)';
+const SPIN_DURATION_MS = 11000;
+const T_ACCEL = 0.10;     // accel covers 0–10% of duration
+const T_CRUISE = 0.50;    // cruise runs from 10–50%; decel from 50–100%
+
+// Distance fractions derived from velocity-continuity constraints:
+//   V_cruise = D_cruise / (T_CRUISE - T_ACCEL)
+//   V at accel-end  = 2*D_accel / T_ACCEL          (quadratic ease-in)
+//   V at decel-start = 2*D_decel / (1 - T_CRUISE)  (quadratic ease-out)
+// All three must equal V; D_accel + D_cruise + D_decel = 1.
+// Solving yields V ≈ 1.143 with the values below.
+const D_ACCEL  = 0.0714;
+const D_CRUISE = 0.5714;
+const D_DECEL  = 0.3571;
+
+/** Single-piece cumulative distance function on [0, 1]. */
+function spinEase(t) {
+  if (t <= T_ACCEL) {
+    const x = t / T_ACCEL;
+    return D_ACCEL * x * x;                                        // quad ease-in
+  } else if (t <= T_CRUISE) {
+    const x = (t - T_ACCEL) / (T_CRUISE - T_ACCEL);
+    return D_ACCEL + D_CRUISE * x;                                 // linear cruise
+  } else {
+    const x = (t - T_CRUISE) / (1 - T_CRUISE);
+    return D_ACCEL + D_CRUISE + D_DECEL * (1 - (1 - x) * (1 - x)); // quad ease-out
+  }
+}
 
 function spin() {
   if (state.isSpinning) return;
@@ -534,38 +666,70 @@ function spin() {
 
   const startRot = state.currentRotation;
   const target = startRot + turns * 360 + (finalOffset - (startRot % 360));
-  const phase1Target = startRot + (target - startRot) * PHASE1_FRAC;
   state.currentRotation = target;
 
   state.isSpinning = true;
   state.lastPickedName = null;
   renderWheel();
 
+  // Drive rotation manually — drop any in-flight CSS transition.
+  wheelSvg.style.transition = 'none';
+
   pendingSpinController = new AbortController();
   const signal = pendingSpinController.signal;
 
-  // Phase 1: accelerate + cruise
-  wheelSvg.style.transition = `transform ${PHASE1_DURATION} ${PHASE1_EASING}`;
-  void wheelSvg.getBoundingClientRect();
-  wheelSvg.style.transform = `rotate(${phase1Target}deg)`;
+  // Respect prefers-reduced-motion: snap to the final position so
+  // motion-sensitive users still get the result without the 11s spin.
+  const reducedMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  wheelSvg.addEventListener('transitionend', onPhase1End, {
-    once: true,
-    signal,
-  });
-
-  function onPhase1End() {
-    if (signal.aborted) return;
-    // Phase 2: gentle ease-out (slow-down)
-    wheelSvg.style.transition = `transform ${PHASE2_DURATION} ${PHASE2_EASING}`;
-    void wheelSvg.getBoundingClientRect();
+  if (reducedMotion) {
     wheelSvg.style.transform = `rotate(${target}deg)`;
-
-    wheelSvg.addEventListener('transitionend', onSpinEnd, {
-      once: true,
-      signal,
-    });
+    setTimeout(onSpinEnd, 60);
+    return;
   }
+
+  // Phone fallback: wheel is hidden, no rotation to animate. Brief pause
+  // for suspense (the reveal banner's own fade-in adds another beat),
+  // then onSpinEnd shows the picked name.
+  if (isPhoneMode()) {
+    setTimeout(onSpinEnd, 700);
+    return;
+  }
+
+  // Audio: kick off the cruise rumble loop now; peg ticks fire per
+  // boundary crossing inside frame(); rumble fades out + thud plays
+  // in onSpinEnd; fanfare plays inside showReveal().
+  audio.startRumble();
+
+  const startTime = performance.now();
+  const totalDelta = target - startRot;
+  // Track rotation between frames so we can fire one peg tick per
+  // sectorDeg of rotation moved. While-loop catches multiple crossings
+  // in a single frame at peak velocity (~25/s for n=24).
+  let lastTickRot = startRot;
+
+  function frame(now) {
+    if (signal.aborted) return;
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / SPIN_DURATION_MS, 1);
+    const eased = spinEase(t);
+    const rotation = startRot + totalDelta * eased;
+    wheelSvg.style.transform = `rotate(${rotation}deg)`;
+
+    while (rotation - lastTickRot >= sectorDeg) {
+      audio.playPeg();
+      lastTickRot += sectorDeg;
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      onSpinEnd();
+    }
+  }
+  requestAnimationFrame(frame);
 
   function onSpinEnd() {
     if (signal.aborted) return;
@@ -574,6 +738,8 @@ function spin() {
     state.lastPickedName = pickedName;
     state.pickedThisSession.add(pickedName);
     storage.incrementCallCount(state.activeClassId, pickedName);
+    audio.stopRumble();
+    audio.playThud();
     renderWheel();
     updateMessage();
     showReveal(pickedName);
@@ -594,6 +760,7 @@ function showReveal(name) {
   void reveal.getBoundingClientRect();
   reveal.classList.add('is-active');
   spawnConfetti();
+  audio.playFanfare();
 }
 
 function hideReveal() {
@@ -665,6 +832,9 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'r' || e.key === 'R') {
     e.preventDefault();
     resetSession();
+  } else if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    if (audioToggleBtn) audioToggleBtn.click();
   }
 });
 
@@ -721,7 +891,7 @@ registerToolSettings('picker', 'Name Picker', (host) => {
   help.style.fontSize = 'var(--type-11)';
   help.style.margin = '8px 0 0';
   help.textContent =
-    'Shortcuts: Space spins the wheel. R resets the session. S opens this dialog.';
+    'Shortcuts: Space spins the wheel. R resets the session. M toggles sound. S opens this dialog.';
   host.appendChild(help);
 });
 
