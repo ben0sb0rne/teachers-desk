@@ -42,7 +42,16 @@
   --radius:       6px;
   --shadow:       var(--shadow-paper);
 
-  /* Bingo-specific layout tokens */
+  /* Bingo-specific layout tokens.
+     --topbar-h    scales the top toolbar between a phone-min (52px)
+                   and a projector-max (88px) so neither extreme crowds
+                   the playable area. 3.2vmin keeps it proportional to
+                   the smaller viewport dimension.
+     --bottomnav-h same shape for the bottom action strip; the larger
+                   max accommodates the 44pt-tap-target rule.
+     --rbs         "recent-balls scale." 1.5 fits 3 balls comfortably on
+                   a 1280px caller view; the 480px breakpoint drops it
+                   to 1.0 so 3-4 balls still fit on a phone. */
   --topbar-h:     clamp(52px, 3.2vmin, 88px);
   --bottomnav-h:  clamp(64px, 4.2vmin, 112px);
   --rbs:          1.5;
@@ -1520,6 +1529,57 @@ kbd {
 .pv-prob-input.input-error, .pv-ans-input.input-error, .pv-col-select.input-error {
   border-color: #c62828; background: #fff5f5;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Print-view configurator helpers — promoted from inline styles
+   on labels, ranges, canvas, grid wrappers, etc. (Phase 3.3
+   tech-debt cleanup). Each rule replaces a one-off `style="..."`
+   in bingo/index.html so the DOM stays clean and the styling
+   stays inspectable.
+   ────────────────────────────────────────────────────────────── */
+.pv-toggle-label {
+  font-size: .9rem;
+  cursor: pointer;
+  flex: 1;
+}
+.pv-input-full { width: 100%; }
+.pv-assign-row { margin-bottom: 6px; }
+.pv-assign-msg { margin-top: 6px; }
+.pv-color-seg  { margin-bottom: 8px; }
+
+.pv-work-scale-grid {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pv-work-scale-main { flex: 1; }
+.pv-work-range {
+  width: 100%;
+  accent-color: var(--primary);
+  margin-bottom: 2px;
+}
+.pv-work-scale-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: .72rem;
+  color: var(--text-muted);
+}
+.pv-work-scale-current {
+  font-weight: 700;
+  color: var(--text);
+}
+.pv-work-scale-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.pv-work-preview-canvas {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+.pv-work-scale-reset-btn { align-self: center; }
 [data-theme="dark"] .pv-prob-input.input-error,
 [data-theme="dark"] .pv-ans-input.input-error { background: #2d1010; }
 .pv-prob-preview {

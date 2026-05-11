@@ -110,14 +110,14 @@
       </div>
       <div class="pv-opt-group" id="pv-assign-group">
         <label class="pv-opt-label">Pre-assign by class</label>
-        <div class="settings-row" style="margin-bottom:6px">
+        <div class="settings-row pv-assign-row">
           <input type="checkbox" id="pv-assign-toggle">
-          <label for="pv-assign-toggle" style="font-size:.9rem;cursor:pointer;flex:1">Print one card per student</label>
+          <label for="pv-assign-toggle" class="pv-toggle-label">Print one card per student</label>
         </div>
-        <select id="pv-assign-class" style="width:100%" hidden>
+        <select id="pv-assign-class" class="pv-input-full" hidden>
           <option value="">Select a class…</option>
         </select>
-        <p id="pv-assign-msg" class="file-info" hidden style="margin-top:6px"></p>
+        <p id="pv-assign-msg" class="file-info pv-assign-msg" hidden></p>
       </div>
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
@@ -194,7 +194,7 @@
       </div>
       <div class="pv-opt-group" id="pv-colors-group">
         <label class="pv-opt-label">Card Colors</label>
-        <div class="seg-group" style="margin-bottom:8px">
+        <div class="seg-group pv-color-seg">
           <button class="seg-btn active" data-pv-color="color">Color</button>
           <button class="seg-btn" data-pv-color="bw">Black &amp; White</button>
         </div>
@@ -232,13 +232,13 @@
           <div>
             <label class="pv-adv-sublabel">Card label</label>
             <div class="settings-row">
-              <label for="pv-show-numbers" style="font-size:.9rem;cursor:pointer">Show card number at bottom</label>
+              <label for="pv-show-numbers" class="pv-toggle-label">Show card number at bottom</label>
               <input type="checkbox" id="pv-show-numbers" checked>
             </div>
           </div>
           <div>
             <label class="pv-adv-sublabel">Font</label>
-            <select id="pv-font-select" class="pv-input" style="width:100%"></select>
+            <select id="pv-font-select" class="pv-input pv-input-full"></select>
           </div>
           <div>
             <label class="pv-adv-sublabel">Work area style</label>
@@ -250,27 +250,25 @@
           </div>
           <div id="pv-work-scale-row">
             <label class="pv-adv-sublabel">Line spacing</label>
-            <div style="display:flex;gap:12px;align-items:flex-start;">
-              <div style="flex:1">
-                <input type="range" id="pv-work-scale" min="3" max="15" step="0.5" value="7"
-                  style="width:100%;accent-color:var(--primary);margin-bottom:2px">
-                <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted)">
+            <div class="pv-work-scale-grid">
+              <div class="pv-work-scale-main">
+                <input type="range" id="pv-work-scale" class="pv-work-range" min="3" max="15" step="0.5" value="7">
+                <div class="pv-work-scale-legend">
                   <span>Fine</span>
-                  <span id="pv-work-scale-val" style="font-weight:700;color:var(--text)">7 mm</span>
+                  <span id="pv-work-scale-val" class="pv-work-scale-current">7 mm</span>
                   <span>Wide</span>
                 </div>
               </div>
-              <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-                <canvas id="pv-work-preview" width="96" height="68"
-                  style="border:1px solid var(--border);border-radius:4px;background:#fff"></canvas>
-                <button class="pv-color-reset icon-btn" id="pv-work-scale-reset" title="Reset to default" style="align-self:center"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg> Reset</button>
+              <div class="pv-work-scale-side">
+                <canvas id="pv-work-preview" class="pv-work-preview-canvas" width="96" height="68"></canvas>
+                <button class="pv-color-reset icon-btn pv-work-scale-reset-btn" id="pv-work-scale-reset" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg> Reset</button>
               </div>
             </div>
           </div>
           <div>
             <label class="pv-adv-sublabel">Caller sheet</label>
             <div class="settings-row">
-              <label for="pv-caller-sheet" style="font-size:.9rem;cursor:pointer">Include caller sheet in PDF</label>
+              <label for="pv-caller-sheet" class="pv-toggle-label">Include caller sheet in PDF</label>
               <input type="checkbox" id="pv-caller-sheet" checked>
             </div>
           </div>
