@@ -135,6 +135,7 @@ body.is-bingo {
 }
 
 body.is-bingo.has-bingo-textures #pv-preview,
+body.is-bingo.has-bingo-textures #problem-area,
 body.is-bingo.has-bingo-textures .board-cell,
 body.is-bingo.has-bingo-textures .recent-ball-circle,
 body.is-bingo.has-bingo-textures .hp-set-card,
@@ -143,6 +144,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb {
 }
 
 body.is-bingo.has-bingo-textures #pv-preview::before,
+body.is-bingo.has-bingo-textures #problem-area::before,
 body.is-bingo.has-bingo-textures .board-cell::before,
 body.is-bingo.has-bingo-textures .recent-ball-circle::before,
 body.is-bingo.has-bingo-textures .hp-set-card::before,
@@ -160,6 +162,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb::before {
 }
 
 :root[data-theme="dark"] body.is-bingo.has-bingo-textures #pv-preview::before,
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures #problem-area::before,
 :root[data-theme="dark"] body.is-bingo.has-bingo-textures .board-cell::before,
 :root[data-theme="dark"] body.is-bingo.has-bingo-textures .recent-ball-circle::before,
 :root[data-theme="dark"] body.is-bingo.has-bingo-textures .hp-set-card::before,
@@ -169,6 +172,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb::before {
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures #pv-preview::before,
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures #problem-area::before,
   :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .board-cell::before,
   :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .recent-ball-circle::before,
   :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .hp-set-card::before,
@@ -180,6 +184,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb::before {
 
 /* Make sure text/content sits above the ::before texture overlay. */
 body.is-bingo.has-bingo-textures #pv-preview > *,
+body.is-bingo.has-bingo-textures #problem-area > *,
 body.is-bingo.has-bingo-textures .board-cell,
 body.is-bingo.has-bingo-textures .recent-ball-circle,
 body.is-bingo.has-bingo-textures .hp-set-card > *,
@@ -191,6 +196,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb > * {
 /* Print: textures off. Printed bingo cards stay flat-white. */
 @media print {
   body.is-bingo #pv-preview::before,
+  body.is-bingo #problem-area::before,
   body.is-bingo .board-cell::before,
   body.is-bingo .recent-ball-circle::before,
   body.is-bingo .hp-set-card::before,
@@ -547,7 +553,11 @@ body.is-fullscreen #btn-fullscreen {
   }
 }
 
-/* ── Problem area ── */
+/* ── Problem area ──
+   PAPER surface for the live caller view. Previously had no background
+   and inherited the brown wood-bg from <body>, leaving the huge problem
+   text floating black-on-brown. Now sits on church-bingo paper with
+   deep-ink type, both modes. */
 #problem-area {
   flex: 1;
   display: flex;
@@ -557,6 +567,8 @@ body.is-fullscreen #btn-fullscreen {
   padding: 20px;
   overflow: hidden;
   position: relative;
+  background: rgb(var(--bingo-paper));
+  color: rgb(var(--bingo-paper-edge));
 }
 #start-prompt {
   color: var(--text-muted);
@@ -1577,6 +1589,13 @@ kbd {
   border-bottom: 1px solid rgb(var(--bingo-paper-rule) / 0.18);
   vertical-align: top;
 }
+/* Alternating row colors — odd rows on cream paper, even rows on a
+   subtle grey tint. Reads like a church-bingo ledger or scoresheet
+   where every other row is shaded so the eye doesn't lose its place
+   scanning many problems. The .pv-row-error override below still
+   wins for invalid rows. */
+#pv-edit-table tr.pv-edit-row:nth-of-type(odd)  > td { background: rgb(var(--bingo-paper)); }
+#pv-edit-table tr.pv-edit-row:nth-of-type(even) > td { background: rgb(var(--bingo-paper-edge) / 0.05); }
 .pv-edit-row.pv-row-error > td { background: #fff0f0; }
 [data-theme="dark"] .pv-edit-row.pv-row-error > td { background: #2d1010; }
 .pv-row-errors { margin-top: 3px; }
