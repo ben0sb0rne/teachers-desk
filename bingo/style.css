@@ -113,6 +113,92 @@ body.is-bingo .pv-color-row[data-col="N"] .pv-color-col-label { background: var(
 body.is-bingo .pv-color-row[data-col="G"] .pv-color-col-label { background: var(--col-G); }
 body.is-bingo .pv-color-row[data-col="O"] .pv-color-col-label { background: var(--col-O); }
 
+/* ──────────────────────────────────────────────────────────────
+   Surface texture — optional subtle paper grain on bingo card
+   surfaces. Inline SVG fractalNoise (no external file). Applied via
+   ::before pseudo-element on the relevant surfaces (#pv-preview,
+   .board-cell, .recent-ball-circle, .hp-set-card, .pv-style-thumb)
+   when body has .has-bingo-textures (toggled by JS, default ON).
+
+   Light mode: 6% multiply-blended noise — reads as laminated card
+   stock under fluorescent light.
+   Dark mode: 5% screen-blended — visible against the dimmed paper
+   without crushing the cream ink underneath.
+
+   The texture surfaces use `position: relative` so the ::before can
+   absolute-fill them. PDF export and @media print disable textures
+   so printed cards stay clean.
+   ────────────────────────────────────────────────────────────── */
+body.is-bingo {
+  --bingo-paper-noise:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>");
+}
+
+body.is-bingo.has-bingo-textures #pv-preview,
+body.is-bingo.has-bingo-textures .board-cell,
+body.is-bingo.has-bingo-textures .recent-ball-circle,
+body.is-bingo.has-bingo-textures .hp-set-card,
+body.is-bingo.has-bingo-textures .pv-style-thumb {
+  position: relative;
+}
+
+body.is-bingo.has-bingo-textures #pv-preview::before,
+body.is-bingo.has-bingo-textures .board-cell::before,
+body.is-bingo.has-bingo-textures .recent-ball-circle::before,
+body.is-bingo.has-bingo-textures .hp-set-card::before,
+body.is-bingo.has-bingo-textures .pv-style-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bingo-paper-noise);
+  background-size: 180px 180px;
+  mix-blend-mode: multiply;
+  opacity: 0.06;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures #pv-preview::before,
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures .board-cell::before,
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures .recent-ball-circle::before,
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures .hp-set-card::before,
+:root[data-theme="dark"] body.is-bingo.has-bingo-textures .pv-style-thumb::before {
+  mix-blend-mode: screen;
+  opacity: 0.05;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures #pv-preview::before,
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .board-cell::before,
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .recent-ball-circle::before,
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .hp-set-card::before,
+  :root:not([data-theme="light"]) body.is-bingo.has-bingo-textures .pv-style-thumb::before {
+    mix-blend-mode: screen;
+    opacity: 0.05;
+  }
+}
+
+/* Make sure text/content sits above the ::before texture overlay. */
+body.is-bingo.has-bingo-textures #pv-preview > *,
+body.is-bingo.has-bingo-textures .board-cell,
+body.is-bingo.has-bingo-textures .recent-ball-circle,
+body.is-bingo.has-bingo-textures .hp-set-card > *,
+body.is-bingo.has-bingo-textures .pv-style-thumb > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Print: textures off. Printed bingo cards stay flat-white. */
+@media print {
+  body.is-bingo #pv-preview::before,
+  body.is-bingo .board-cell::before,
+  body.is-bingo .recent-ball-circle::before,
+  body.is-bingo .hp-set-card::before,
+  body.is-bingo .pv-style-thumb::before {
+    display: none !important;
+  }
+}
+
 /* Dark mode is handled at the suite level (shared/desk.css). Bingo's
    --bg/--surface/--text/--border all derive from the suite tokens
    (--paper-cream, --paper-edge), so they flip automatically. The literal

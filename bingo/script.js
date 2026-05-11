@@ -476,6 +476,7 @@ const DEFAULT_SETTINGS = {
   soundVolume: 0.6,          // 0.0 – 1.0
   soundTick: true,
   font: 'default',  // 'default' | 'inter' | 'alfa-slab-one' | 'comic-neue' | 'creepster' | 'jetbrains-mono'
+  surfaceTexture: true,      // subtle paper-grain on bingo card surfaces; toggle off for flat
 };
 
 // PDF TTF URLs from the official google/fonts GitHub repo via jsDelivr.
@@ -823,6 +824,14 @@ const state = {
   assignByClass: false,
   assignClassId: null,
 };
+
+/** Apply the paper-grain texture class to <body> based on state.settings.
+ *  Called on boot and on toggle. The class is the CSS hook for the
+ *  bingo-paper-noise SVG background-image (see bingo/style.css). */
+function applyTextureClass() {
+  document.body.classList.toggle('has-bingo-textures', !!state.settings.surfaceTexture);
+}
+applyTextureClass();
 
 function shuffle(arr) {
   const a = [...arr];
@@ -2328,6 +2337,10 @@ function renderSettings() {
         <label for="s-show-recent">Show recently called numbers</label>
         <input type="checkbox" id="s-show-recent" ${s.showRecentBalls ? 'checked' : ''}>
       </div>
+      <div class="settings-row">
+        <label for="s-surface-texture">Surface texture (subtle paper grain)</label>
+        <input type="checkbox" id="s-surface-texture" ${s.surfaceTexture ? 'checked' : ''}>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -2463,6 +2476,11 @@ function renderSettings() {
   document.getElementById('s-show-recent').onchange = e => {
     state.settings.showRecentBalls = e.target.checked;
     saveSettings(); render();
+  };
+  document.getElementById('s-surface-texture').onchange = e => {
+    state.settings.surfaceTexture = e.target.checked;
+    saveSettings();
+    applyTextureClass();
   };
   document.getElementById('s-show-board').onchange = e => {
     state.settings.showBoard = e.target.checked;
