@@ -1609,6 +1609,13 @@ kbd {
   /* Bottom nav buttons: even tighter than 768px. */
   .nav-btn { padding: 9px 10px; font-size: .85rem; }
 
+  /* Check-Answers letter buttons — at 480px the 5-column grid with
+     14px-vertical padding overshoots phone-comfortable tap targets.
+     Tighten paddings + drop grid gap so all five fit and each one
+     hits roughly 44pt. */
+  .ca-col-btn { padding: 12px 0; font-size: 1rem; min-height: 44px; }
+  #ca-quick-checker { gap: 8px; }
+
   /* Modal panels: tighter chrome on phones. */
   .panel-header { padding: 12px 14px 10px; }
   .panel-body { padding: 12px 14px; }
