@@ -390,66 +390,64 @@ body.is-fullscreen #btn-fullscreen {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* ──────────────────────────────────────────────────────────────
+   Animations — SIMPLE REALISM
+   Previous versions overshot, bounced, rotated, scaled wildly.
+   Replaced with short, physical motion: short durations (100–150ms),
+   ease-out/ease-in only (no cubic-bezier overshoots), opacity + tiny
+   translateY (≤6px), no rotation, no scale > 1.06. Every motion
+   communicates state — stamps land, balls slide in/out, text rises
+   slightly. None exist for delight alone.
+   ────────────────────────────────────────────────────────────── */
+
+/* "Called" stamp — replaces the cartoony chip-drop / chip-pop /
+   chip-roll. Quick scale-in, no rotate, no bounce. Lands flat. */
+@keyframes bingo-stamp {
+  0%   { transform: scale(1.06); opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.chip-anim-drop,
+.chip-anim-pop,
+.chip-anim-roll,
+.bingo-stamp-anim { animation: bingo-stamp 100ms ease-out both; }
+
+/* Recent-ball entrance: short slide-in from above + fade. The previous
+   version translated across the full ball width with a 0.72 scale and
+   an overshoot cubic-bezier — cartoony. */
 @keyframes ball-enter {
-  0%   { transform: translateX(calc(-90px * var(--rbs))) scale(0.72); opacity: 0; }
-  60%  { opacity: 1; }
-  100% { transform: translateX(0) scale(1); opacity: 1; }
+  0%   { transform: translateY(-4px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
 }
 @keyframes ball-exit {
-  0%   { opacity: 1; max-width: calc(90px * var(--rbs)); transform: scale(1); }
-  35%  { opacity: 0; transform: scale(0.8); }
-  100% { opacity: 0; max-width: 0px; padding: 0; transform: scale(0.8); }
+  0%   { opacity: 1; max-width: calc(90px * var(--rbs)); transform: translateY(0); }
+  60%  { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 0; max-width: 0; padding: 0; transform: translateY(4px); }
 }
-.recent-ball-card.ball-entering {
-  animation: ball-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-.recent-ball-card.ball-exiting {
+.recent-ball-card.ball-entering { animation: ball-enter 120ms ease-out both; }
+.recent-ball-card.ball-exiting  {
   overflow: hidden;
-  animation: ball-exit 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: ball-exit 200ms ease-in both;
 }
 
-/* ── Main ball entrance animations (col-chip) ── */
-@keyframes chip-drop {
-  0%   { transform: translateY(-180%) scale(0.85); opacity: 0; }
-  55%  { transform: translateY(0)      scale(1.00); opacity: 1; }
-  68%  { transform: translateY(0)      scaleX(1.18) scaleY(0.82); }
-  82%  { transform: translateY(-18%)   scaleX(0.94) scaleY(1.08); }
-  100% { transform: translateY(0)      scale(1); }
-}
-.chip-anim-drop { animation: chip-drop 0.62s cubic-bezier(0.33, 0.05, 0.30, 1) both; }
-
-@keyframes chip-pop {
-  0%   { transform: scale(0.30) rotate(-8deg); opacity: 0; }
-  60%  { opacity: 1; }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
-}
-.chip-anim-pop { animation: chip-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-@keyframes chip-roll {
-  0%   { transform: translateX(-220%) rotate(-540deg) scale(0.8); opacity: 0; }
-  50%  { opacity: 1; }
-  85%  { transform: translateX(0) rotate(20deg) scale(1.04); }
-  100% { transform: translateX(0) rotate(0) scale(1); }
-}
-.chip-anim-roll { animation: chip-roll 0.70s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-
+/* Text rise — used when the problem display advances. 6px nudge +
+   fade, no big lift. */
 @keyframes text-rise {
-  0%   { opacity: 0; transform: translateY(14px); }
+  0%   { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-.text-anim-rise { animation: text-rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.18s both; }
+.text-anim-rise { animation: text-rise 150ms ease-out 60ms both; }
 
-/* Pause indicator for auto-advance timer */
-@keyframes pulse-paused {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
-#timer-fill.paused { animation: pulse-paused 1.4s ease-in-out infinite; }
+/* Paused timer — was a 1.4s cartoony throb. Now just a static dim
+   (no animation). Reads as paused without flashing. */
+#timer-fill.paused { opacity: 0.55; }
 
-/* Respect reduced motion preference */
+/* Respect reduced motion — kill the few remaining short animations
+   so motion-sensitive users see snap transitions. */
 @media (prefers-reduced-motion: reduce) {
   .chip-anim-drop, .chip-anim-pop, .chip-anim-roll,
-  .text-anim-rise, #timer-fill.paused {
+  .bingo-stamp-anim,
+  .recent-ball-card.ball-entering, .recent-ball-card.ball-exiting,
+  .text-anim-rise {
     animation: none;
   }
 }
