@@ -608,8 +608,8 @@ body.is-fullscreen #btn-fullscreen {
 #ca-quick-checker {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  padding: 4px 0 8px;
+  gap: 12px;
+  padding: 8px 0 12px;
 }
 /* Wrapper divs become transparent to the grid */
 #ca-col-btns { display: contents; }
@@ -617,9 +617,9 @@ body.is-fullscreen #btn-fullscreen {
 #ca-btn-row   { display: contents; }
 
 .ca-col-btn {
-  padding: 9px 0; border: none; border-radius: 7px;
-  color: #fff; font-size: 1.15rem; font-weight: 900; cursor: pointer;
-  opacity: .38; transition: opacity .15s, transform .12s, box-shadow .12s;
+  padding: 14px 0; border: none; border-radius: 6px;
+  color: rgb(var(--bingo-paper)); font-size: 1.15rem; font-weight: 900; cursor: pointer;
+  opacity: .38; transition: opacity .12s ease-out, transform .12s ease-out, box-shadow .12s ease-out;
 }
 .ca-col-btn[data-col="B"] { background: var(--col-B); }
 .ca-col-btn[data-col="I"] { background: var(--col-I); }
@@ -1055,11 +1055,13 @@ kbd {
 .hp-set-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
+  /* gap was 4px — name/long/std bled into each other. 8px gives each
+     line its own visual line-height of breathing room. */
+  gap: 8px;
+  padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   transition: border-color .15s, background .15s, transform .1s, box-shadow .15s;
@@ -1109,14 +1111,15 @@ kbd {
   transform: rotate(90deg);
 }
 
-/* Variant list (inline expanded) */
+/* Variant list (inline expanded) — slightly stronger divider above
+   so the meta block reads as distinct from the variants block. */
 .hp-variant-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--bingo-paper-rule) / 0.28);
 }
 .hp-variant-btn {
   display: flex;
