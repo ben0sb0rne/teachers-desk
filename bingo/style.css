@@ -294,14 +294,19 @@ body.is-fullscreen #btn-fullscreen {
   color: #fff;
   margin-bottom: 3px;
 }
+/* Calling-board tiles — dim slab digit on cream paper when uncalled,
+   saturated column color + cream digit when called. Looks like a real
+   bingo-hall lit tile in the called state, like an unlit tile when
+   uncalled. No glow, no pulse. */
 .board-cell {
   font-size: .92rem;
-  padding: 3px 7px;
+  padding: 4px 7px;
   border-radius: 4px;
-  background: var(--surface2);
-  color: var(--text-muted);
+  background: rgb(var(--bingo-paper));
+  color: rgb(var(--bingo-paper-edge) / 0.55);
+  border: 1px solid rgb(var(--bingo-paper-rule) / 0.22);
   font-variant-numeric: tabular-nums;
-  transition: background .2s, color .2s;
+  transition: background .15s ease-out, color .15s ease-out, border-color .15s ease-out;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
@@ -309,9 +314,22 @@ body.is-fullscreen #btn-fullscreen {
   text-align: center;
 }
 .board-cell.called {
-  font-weight: 700;
-  color: #fff;
+  font-weight: 800;
+  color: rgb(var(--bingo-paper));
+  border-color: rgb(var(--bingo-paper-edge));
 }
+/* Per-column called backgrounds. Selector covers both shapes the JS
+   might use — data-col on .board-col (parent) or on .board-cell. */
+.board-col[data-col="B"] .board-cell.called,
+.board-cell.called[data-col="B"] { background: rgb(var(--col-B)); }
+.board-col[data-col="I"] .board-cell.called,
+.board-cell.called[data-col="I"] { background: rgb(var(--col-I)); }
+.board-col[data-col="N"] .board-cell.called,
+.board-cell.called[data-col="N"] { background: rgb(var(--col-N)); }
+.board-col[data-col="G"] .board-cell.called,
+.board-cell.called[data-col="G"] { background: rgb(var(--col-G)); }
+.board-col[data-col="O"] .board-cell.called,
+.board-cell.called[data-col="O"] { background: rgb(var(--col-O)); }
 #board-grid.mode-hidden,
 #recent-balls-strip.mode-hidden { display: none; }
 
@@ -337,20 +355,24 @@ body.is-fullscreen #btn-fullscreen {
   flex-shrink: 0;
   width: calc(90px * var(--rbs));
 }
+/* Recent-balls strip — round chips became SQUARE TILES to match the
+   calling-board tile vocabulary. Same paper+column-color hierarchy as
+   the called tiles below; just larger and more prominent. */
 .recent-ball-circle {
   width: calc(52px * var(--rbs));
   height: calc(52px * var(--rbs));
-  border-radius: 50%;
+  border-radius: 4px;
+  border: 2px solid rgb(var(--bingo-paper-edge));
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: calc(1.6rem * var(--rbs));
   line-height: 1;
   font-weight: 900;
-  color: #fff;
+  color: rgb(var(--bingo-paper));
   letter-spacing: -0.02em;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  box-shadow: 0 2px 0 rgb(var(--bingo-paper-edge) / 0.5);
   /* Trim ascender/descender padding so glyphs sit on visual center across all fonts */
   text-box: trim-both cap alphabetic;
 }
@@ -508,7 +530,9 @@ body.is-fullscreen #btn-fullscreen {
 
 #problem-text {
   font-size: var(--problem-font-size, 4rem);
-  font-weight: 700;
+  /* Weight 800 reads as bingo-hall heavy on a projector — 700 was
+     too light for the across-the-room readability the brief asks for. */
+  font-weight: 800;
   text-align: center;
   line-height: 1.1;
   letter-spacing: -.01em;
@@ -649,17 +673,30 @@ body.is-fullscreen #btn-fullscreen {
 #ca-toggle-full-btn .ca-toggle-arrow { transition: transform .2s; display: inline-block; }
 #ca-toggle-full-btn.expanded .ca-toggle-arrow { transform: rotate(180deg); }
 
+/* BINGO win-verify button. Was a SaaS yellow→green diagonal gradient
+   (CLAUDE.md aesthetic violation); now a flat saturated bingo-tile
+   button with a deep-ink border + raised shadow that compresses on
+   press. Reads like a plastic bingo bezel, not a Bootstrap CTA. */
 #btn-bingo {
   grid-column: 5 / 6;
-  padding: 7px 4px; font-size: .9rem; font-weight: 800;
-  border-radius: 6px; cursor: pointer; border: 2px solid #b8860b;
-  background: linear-gradient(135deg, #f7b731 0%, #26de81 100%);
-  color: #1a1a00; letter-spacing: .03em;
-  transition: filter .15s, transform .1s;
+  padding: 8px 4px; font-size: .9rem; font-weight: 800;
+  border-radius: 6px; cursor: pointer;
+  border: 2px solid rgb(var(--bingo-paper-edge));
+  background: rgb(var(--col-O));
+  color: rgb(var(--bingo-paper));
+  letter-spacing: .08em; text-transform: uppercase;
+  box-shadow: 0 3px 0 rgb(var(--bingo-paper-edge) / 0.85);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
 }
-#btn-bingo:hover  { filter: brightness(1.08); }
-#btn-bingo:active { transform: scale(.95); }
-#btn-bingo:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+#btn-bingo:hover  {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 rgb(var(--bingo-paper-edge) / 0.85);
+}
+#btn-bingo:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgb(var(--bingo-paper-edge) / 0.85);
+}
+#btn-bingo:focus-visible { outline: 2px solid rgb(var(--bingo-stamp)); outline-offset: 2px; }
 
 #ca-full-sheet { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 
