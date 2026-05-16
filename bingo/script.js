@@ -2149,13 +2149,27 @@ function renderRecentBalls() {
   });
 
   // If we trimmed a tail card off the end, render a ghost of it that
-  // slides + fades out as the row shifts.
+  // slides + fades out at the trailing slot. The ghost is positioned
+  // absolutely so it doesn't perturb the flex layout — otherwise the
+  // strip would recenter when the ghost is added and again when it's
+  // removed, producing a visible snap at both moments.
   if (hasNewLead && prevKeys.length >= n) {
     const droppedIndex = state.currentIndex - n - 1;
     const dropped = droppedIndex >= 0 ? state.history[droppedIndex] : null;
-    if (dropped) {
+    const lastReal = strip.lastElementChild;
+    if (dropped && lastReal) {
+      // Use offset* (un-transformed layout position) rather than
+      // getBoundingClientRect — the latter reflects the keyframe's
+      // start translateX(-slot), which would place the ghost one slot
+      // too far left.
+      const cardW = lastReal.offsetWidth;
+      const gap = parseFloat(getComputedStyle(strip).columnGap) || 0;
       const ghost = createBallCardEl(dropped);
       ghost.classList.add('is-leaving');
+      ghost.style.position = 'absolute';
+      ghost.style.top  = lastReal.offsetTop + 'px';
+      ghost.style.left = (lastReal.offsetLeft + cardW + gap) + 'px';
+      ghost.style.width = cardW + 'px';
       strip.appendChild(ghost);
       setTimeout(() => { ghost.remove(); }, RBS_ANIM_MS + 30);
     }
