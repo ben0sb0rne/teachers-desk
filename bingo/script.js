@@ -894,6 +894,8 @@ function applyLoadedSet(problems, name, allRows = null) {
   state.editRows = allRows
     ? allRows
     : problems.map(p => ({ id: newRowId(), column: p.column, problem: p.problem, answer: String(p.answer), errors: [] }));
+  // Newly loaded set is "clean" — anchor the dirty-tracking baseline here.
+  snapshotPvBaseline();
 }
 
 // Find a variant by its CSV path. Returns { group, variant } or null.
@@ -1068,6 +1070,7 @@ function renderHomepage() {
     state.problems = [];
     state.columnAnswers = {};
     state.setName = 'New Set';
+    snapshotPvBaseline();  // freshly opened blank set is "clean"
     showView('print');
     renderPrintView();
     document.getElementById('pv-add-row-btn')?.focus();
@@ -2361,8 +2364,8 @@ function renderSettings() {
       <div class="settings-row">
         <label>Ball style</label>
         <div class="seg-group">
-          <button class="seg-btn${s.ballStyle==='photoreal'?' active':''}" data-ball-style="photoreal">Photoreal</button>
-          <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' active':''}" data-ball-style="classic">Classic</button>
+          <button class="seg-btn${s.ballStyle==='photoreal'?' active':''}" data-ball-style="photoreal">Realistic</button>
+          <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' active':''}" data-ball-style="classic">Simple</button>
         </div>
       </div>
       <div class="settings-row">
@@ -2589,7 +2592,14 @@ function renderSettings() {
   });
   document.getElementById('settings-reset').onclick = () => {
     closeOverlay('settings-overlay');
-    showConfirm();
+    showConfirm({
+      title: 'Reset Game?',
+      message: 'This will clear all called numbers and reshuffle. Are you sure?',
+      buttons: [
+        { label: 'Yes, Reset', kind: 'danger',  action: () => { resetGame(); render(); updateBeforeUnload(); } },
+        { label: 'Cancel',     kind: 'neutral', action: () => {} },
+      ],
+    });
   };
 }
 
@@ -3143,7 +3153,76 @@ function anyOverlayOpen() {
   return ['settings-overlay','help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].some(id => !document.getElementById(id).hidden);
 }
 
-function showConfirm() { openOverlay('confirm-overlay'); }
+/**
+ * Open the shared confirm-overlay with a parameterized title, message,
+ * and one or more buttons. Each button's `action` callback fires when
+ * clicked; the overlay closes automatically before the action runs.
+ *
+ *   showConfirm({
+ *     title: 'Save changes?',
+ *     message: 'You have unsaved changes.',
+ *     buttons: [
+ *       { label: 'Save',    kind: 'primary', action: doSave },
+ *       { label: 'Discard', kind: 'danger',  action: doDiscard },
+ *       { label: 'Cancel',  kind: 'neutral', action: () => {} },
+ *     ]
+ *   })
+ *
+ * `kind`: 'primary' | 'danger' | 'neutral' (default neutral) — maps to
+ * CSS button classes. Esc and click-outside close without firing any
+ * action (same as Cancel).
+ */
+function showConfirm({ title = 'Confirm', message = '', buttons = [] }) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-message').textContent = message;
+  const btnRow = document.getElementById('confirm-buttons');
+  btnRow.innerHTML = '';
+  buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.textContent = b.label;
+    if (b.kind === 'primary') el.className = 'btn-primary';
+    else if (b.kind === 'danger') el.className = 'btn-danger';
+    el.onclick = () => {
+      closeOverlay('confirm-overlay');
+      if (typeof b.action === 'function') b.action();
+    };
+    btnRow.appendChild(el);
+  });
+  openOverlay('confirm-overlay');
+}
+
+/* ============================================================
+   PRINT-VIEW DIRTY TRACKING
+   _pvBaseline is a JSON snapshot of state.editRows captured each time
+   the print-view loads a set (existing edit, New Set, just-loaded
+   CSV) or right after a successful save. isPvDirty() returns true
+   when the current editRows diverges from that snapshot — used by
+   the Back / Host Game buttons to prompt the user to save first.
+   ============================================================ */
+let _pvBaseline = '[]';
+function snapshotPvBaseline() {
+  _pvBaseline = JSON.stringify(state.editRows.map(r => ({
+    column: r.column, problem: r.problem, answer: r.answer
+  })));
+}
+function isPvDirty() {
+  const now = JSON.stringify(state.editRows.map(r => ({
+    column: r.column, problem: r.problem, answer: r.answer
+  })));
+  return now !== _pvBaseline;
+}
+function confirmIfDirty(actionLabel, onProceed) {
+  if (!isPvDirty()) return onProceed();
+  showConfirm({
+    title: 'Save changes?',
+    message: `You have unsaved changes to "${state.setName || 'this set'}". ${actionLabel}`,
+    buttons: [
+      { label: 'Save',    kind: 'primary', action: () => { pvSaveSetCsv(); snapshotPvBaseline(); onProceed(); } },
+      { label: 'Discard', kind: 'danger',  action: onProceed },
+      { label: 'Cancel',  kind: 'neutral', action: () => {} },
+    ]
+  });
+}
 
 /* ============================================================
    NOTIFICATIONS
@@ -3215,7 +3294,14 @@ document.addEventListener('keydown', e => {
       break;
     case 'r': case 'R':
       e.preventDefault();
-      showConfirm();
+      showConfirm({
+        title: 'Reset Game?',
+        message: 'This will clear all called numbers and reshuffle. Are you sure?',
+        buttons: [
+          { label: 'Yes, Reset', kind: 'danger',  action: () => { resetGame(); render(); updateBeforeUnload(); } },
+          { label: 'Cancel',     kind: 'neutral', action: () => {} },
+        ],
+      });
       break;
     case 's': case 'S':
       e.preventDefault();
@@ -3336,12 +3422,6 @@ function wireEvents() {
   document.getElementById('btn-close-settings').onclick = () => closeOverlay('settings-overlay');
   document.getElementById('btn-help').onclick = () => openOverlay('help-overlay');
   document.getElementById('btn-close-help').onclick = () => closeOverlay('help-overlay');
-  document.getElementById('confirm-yes').onclick = () => {
-    closeOverlay('confirm-overlay');
-    resetGame(); render(); updateBeforeUnload();
-  };
-  document.getElementById('confirm-no').onclick = () => closeOverlay('confirm-overlay');
-
   // Click outside panel to close overlay
   document.querySelectorAll('.overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
@@ -3360,8 +3440,13 @@ function wireEvents() {
 
 
   // Print view
-  document.getElementById('pv-back-btn').onclick = () => showView('home');
+  document.getElementById('pv-back-btn').onclick = () => {
+    confirmIfDirty('Save before leaving?', () => showView('home'));
+  };
   document.getElementById('pv-host-btn').onclick = () => {
+    confirmIfDirty('Save before starting the game?', runHostGame);
+  };
+  function runHostGame() {
     const MIN_PER_COL = 5;
     let blockMsg = null;
 
@@ -3403,9 +3488,9 @@ function wireEvents() {
     }
 
     resetGame(); showView('caller'); computeProblemFontSize(); render();
-  };
+  }
   document.getElementById('pv-download-btn').onclick = () => pvDownloadCards();
-  document.getElementById('pv-save-csv-btn').onclick = () => pvSaveSetCsv();
+  document.getElementById('pv-save-csv-btn').onclick = () => { pvSaveSetCsv(); snapshotPvBaseline(); };
 
   // Pre-assign by class
   const assignToggle = document.getElementById('pv-assign-toggle');

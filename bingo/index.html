@@ -428,16 +428,15 @@
   </div>
 </div>
 
-<!-- Confirm dialog -->
+<!-- Confirm dialog — title, message, and buttons are populated by JS
+     via showConfirm() in script.js so this overlay can be reused for
+     any "are you sure?" flow. -->
 <div class="overlay" id="confirm-overlay" hidden>
   <div class="panel confirm-panel">
-    <div class="panel-header"><h2>Reset Game?</h2></div>
+    <div class="panel-header"><h2 id="confirm-title">Confirm</h2></div>
     <div class="panel-body">
-      <p>This will clear all called numbers and reshuffle. Are you sure?</p>
-      <div class="confirm-buttons">
-        <button id="confirm-yes" class="btn-danger">Yes, Reset</button>
-        <button id="confirm-no">Cancel</button>
-      </div>
+      <p id="confirm-message"></p>
+      <div class="confirm-buttons" id="confirm-buttons"></div>
     </div>
   </div>
 </div>

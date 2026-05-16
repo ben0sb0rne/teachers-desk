@@ -495,7 +495,6 @@ body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; 
   width: calc(52px * var(--rbs));
   height: calc(52px * var(--rbs));
   border-radius: 4px;
-  border: 2px solid rgb(var(--bingo-paper-edge));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,7 +504,11 @@ body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; 
   color: rgb(var(--bingo-paper));
   letter-spacing: -0.02em;
   flex-shrink: 0;
-  box-shadow: 0 2px 0 rgb(var(--bingo-paper-edge) / 0.5);
+  /* Scaled-down version of the hero ball's drop-shadow recipe so the
+     small tiles read as floating with the same physical lighting. */
+  filter:
+    drop-shadow(0 6px 8px rgb(0 0 0 / 0.28))
+    drop-shadow(0 1.5px 1px rgb(0 0 0 / 0.18));
   /* Trim ascender/descender padding so glyphs sit on visual center across all fonts */
   text-box: trim-both cap alphabetic;
 }
@@ -533,16 +536,36 @@ body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; 
    slightly. None exist for delight alone.
    ────────────────────────────────────────────────────────────── */
 
-/* "Called" stamp — replaces the cartoony chip-drop / chip-pop /
-   chip-roll. Quick scale-in, no rotate, no bounce. Lands flat. */
+/* "Called" stamp — quick scale-in for the calling-board tile. */
 @keyframes bingo-stamp {
   0%   { transform: scale(1.06); opacity: 0; }
   100% { transform: scale(1);    opacity: 1; }
 }
-.chip-anim-drop,
-.chip-anim-pop,
-.chip-anim-roll,
 .bingo-stamp-anim { animation: bingo-stamp 100ms ease-out both; }
+
+/* Classic-mode chip entrance animations — three distinct motions
+   the teacher picks from in Settings → Ball entrance. JS sets
+   animation-duration per variant from the matching audio file's
+   loadedmetadata (see ANIM_DURATIONS in script.js). */
+@keyframes chip-drop {
+  0%   { transform: translateY(-36px); opacity: 0; }
+  60%  { transform: translateY(7px);   opacity: 1; }
+  80%  { transform: translateY(-3px); }
+  100% { transform: translateY(0); }
+}
+@keyframes chip-pop {
+  0%   { transform: scale(0.55); opacity: 0; }
+  55%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes chip-roll {
+  0%   { transform: translateX(-48px) rotate(-110deg); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: translateX(0)     rotate(0deg);    opacity: 1; }
+}
+.chip-anim-drop { animation: chip-drop 620ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.chip-anim-pop  { animation: chip-pop  450ms cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+.chip-anim-roll { animation: chip-roll 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both; }
 
 /* Recent-balls slide. When a new ball arrives, the whole row shifts
    to the right; the new card fades in as it slides; the ball that
@@ -781,28 +804,6 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-body {
   box-shadow:
     inset -10px -12px 28px rgb(0 0 0 / 0.32),
     inset 8px 8px 18px rgb(255 255 255 / 0.18);
-}
-
-/* Texture overlay — primary is a raster image (user supplies it at
-   assets/textures/ball-surface.jpg). Fallback is inline SVG turbulence
-   so the ball still renders when the file is missing. Multiply blend
-   so the texture darkens the column color but doesn't overwrite it. */
-body.is-bingo.has-photoreal-balls #col-ball .ball-body::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background-image:
-    url('../assets/textures/ball-surface.jpg'),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' seed='7'/><feColorMatrix values='0.2 0 0 0 0.8  0 0.2 0 0 0.74  0 0 0.2 0 0.68  0 0 0 0 1'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");
-  background-size: 140%, 100% 100%;
-  background-position: 50% 50%, 0 0;
-  background-repeat: no-repeat, no-repeat;
-  -webkit-mask-image: radial-gradient(circle, black 35%, transparent 85%);
-          mask-image: radial-gradient(circle, black 35%, transparent 85%);
-  opacity: 0.95;
-  mix-blend-mode: multiply;
-  pointer-events: none;
 }
 
 /* clip-path on a non-rotating wrapper between the perspective parent
@@ -1290,11 +1291,15 @@ kbd {
 }
 
 /* ── Confirm dialog ── */
-.confirm-panel { max-width: 380px; }
+.confirm-panel { max-width: 420px; }
 .confirm-panel p { font-size: .95rem; margin-bottom: 18px; }
-.confirm-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+.confirm-buttons { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .confirm-buttons button { padding: 8px 18px; border-radius: 6px; font-size: .9rem; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
 .confirm-buttons button:hover { background: var(--border); }
+.confirm-buttons button.btn-primary { background: var(--primary); color: var(--primary-fg); border-color: transparent; }
+.confirm-buttons button.btn-primary:hover { opacity: .9; background: var(--primary); }
+.confirm-buttons button.btn-danger  { background: var(--danger); color: var(--danger-fg); border-color: transparent; padding: 8px 18px; }
+.confirm-buttons button.btn-danger:hover { opacity: .9; }
 
 /* ── Utility ── */
 [hidden] { display: none !important; }
@@ -1983,19 +1988,22 @@ kbd {
 /* Card-designer row layout (6 columns): color picker, Problem input,
    Answer input, problem preview, answer preview, delete. Explicit
    widths on the fixed columns so the auto-width Problem and Problem-
-   preview columns share the remaining space evenly. */
+   preview columns share the remaining space evenly.
+   vertical-align: top + a uniform padding-top across every cell so
+   each cell's primary control (select, input, preview text) lands
+   at the same Y. Validation errors flow below the input inside
+   .pv-prob-cell only, without dragging the other cells down. */
 #pv-edit-table thead th,
-#pv-edit-table tbody td { vertical-align: middle; }
+#pv-edit-table tbody td { vertical-align: top; padding: 6px; }
 #pv-edit-table thead th:first-child,
-#pv-edit-table tbody td:first-child { width: 56px !important; min-width: 56px; max-width: 56px; padding: 2px 4px !important; }
-#pv-edit-table .pv-col-select { width: 48px; padding: 6px 4px; }
-#pv-edit-table .pv-prob-cell         { padding: 4px 6px; }
-#pv-edit-table .pv-ans-cell          { width: 140px; padding: 4px 6px; }
-#pv-edit-table .pv-prob-preview-cell { padding: 4px 6px; }
-#pv-edit-table .pv-ans-preview-cell  { width: 160px; padding: 4px 6px; }
-#pv-edit-table .pv-del-cell          { width: 36px; padding: 2px; text-align: center; }
+#pv-edit-table tbody td:first-child { width: 56px !important; min-width: 56px; max-width: 56px; padding: 6px 4px !important; }
+#pv-edit-table .pv-col-select { width: 48px; padding: 6px 4px; margin: 0; }
+#pv-edit-table .pv-ans-cell          { width: 140px; }
+#pv-edit-table .pv-ans-preview-cell  { width: 160px; }
+#pv-edit-table .pv-del-cell          { width: 36px; text-align: center; }
 #pv-edit-table .pv-prob-input,
-#pv-edit-table .pv-ans-input { width: 100%; min-width: 0; }
+#pv-edit-table .pv-ans-input { width: 100%; min-width: 0; margin: 0; }
+.pv-prob-preview, .pv-ans-preview { margin: 0; }
 .pv-prob-preview,
 .pv-ans-preview {
   min-height: 20px; font-size: .82rem; color: var(--text-muted);
