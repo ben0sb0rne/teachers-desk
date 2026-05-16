@@ -1048,8 +1048,8 @@ function renderHomepage() {
       <div class="hp-upload-row">
         <button class="hp-btn" id="hp-choose-file-btn"><svg class="icon" aria-hidden="true"><use href="#icon-upload"/></svg> Choose File</button>
         <button class="hp-btn" id="hp-new-blank-btn"><svg class="icon" aria-hidden="true"><use href="#icon-file-plus"/></svg> New Blank Set</button>
-        <button class="hp-btn" id="hp-format-help-btn">Format Help</button>
-        <button class="hp-btn" id="hp-dl-template-btn">Download Template</button>
+        <button class="hp-btn" id="hp-format-help-btn"><svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg> Format Help</button>
+        <button class="hp-btn" id="hp-dl-template-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Download Template</button>
       </div>
       <div id="hp-upload-error" hidden></div>
     </div>`;
@@ -1726,10 +1726,12 @@ function renderPvEditTable() {
     tr.className = 'pv-edit-row' + (allErrors.length ? ' pv-row-error' : '');
     tr.innerHTML = `
       <td style="background:${colBg};text-align:center;padding:2px 3px;"><select class="pv-col-select">${colOptions}</select></td>
-      <td style="min-width:130px">
-        <input class="pv-prob-input${probErr}" type="text"
-               value="${escHtml(row.problem)}" placeholder="e.g. 2+2 or \\frac{1}{2}">
-        <div class="pv-prob-preview"></div>
+      <td class="pv-prob-cell" style="min-width:260px">
+        <div class="pv-prob-inputs">
+          <input class="pv-prob-input${probErr}" type="text"
+                 value="${escHtml(row.problem)}" placeholder="e.g. 2+2 or \\frac{1}{2}">
+          <div class="pv-prob-preview"></div>
+        </div>
         ${errList}
       </td>
       <td style="width:100px">
@@ -2076,6 +2078,10 @@ function applySettings() {
   document.getElementById('board-grid').classList.toggle('mode-hidden', isRecent);
   document.getElementById('recent-balls-strip').classList.toggle('mode-hidden', !isRecent);
   applyBallStyleClass();
+  // Propagate the teacher's column color picks to the caller view.
+  // applyCardColors writes --col-{B|I|N|G|O} to <html>; the photoreal
+  // ball, recent-balls strip, and column-letter buttons all read those.
+  applyCardColors();
 }
 
 function renderProgress() {
@@ -3282,9 +3288,6 @@ document.addEventListener('keydown', e => {
 /* ============================================================
    FULLSCREEN
    ============================================================ */
-const FS_ENTER_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5V1h4M9 1h4v4M1 9v4h4M13 9v4H9"/></svg>`;
-const FS_EXIT_SVG  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 1v4H1M13 5H9V1M5 13V9H1M9 9h4v4"/></svg>`;
-
 function updateFullscreenBtn() {
   const btn = document.getElementById('btn-fullscreen');
   // Read both the standard property AND the webkit prefix so iOS Safari
@@ -3294,7 +3297,8 @@ function updateFullscreenBtn() {
   // leaving only the fullscreen toggle visible as a floating button.
   document.body.classList.toggle('is-fullscreen', inFs);
   if (!btn) return;
-  btn.innerHTML = inFs ? FS_EXIT_SVG : FS_ENTER_SVG;
+  const use = btn.querySelector('use');
+  if (use) use.setAttribute('href', inFs ? '#icon-fullscreen-exit' : '#icon-fullscreen');
   btn.setAttribute('aria-label', inFs ? 'Exit fullscreen' : 'Enter fullscreen');
   btn.title = inFs ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)';
 }

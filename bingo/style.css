@@ -49,14 +49,20 @@
 
   /* Photoreal-ball highlight + shadow variants. Used by the .ball-body
      gradient stack to fake a 3D sphere — -hi catches the rim light,
-     -sh deepens the rim shadow. Functional like the base column
-     colors; live globally so they're available regardless of which
-     ball style is active. */
-  --col-B-hi:     #4a89d9;  --col-B-sh:  #0a3e80;
-  --col-I-hi:     #5da862;  --col-I-sh:  #1a4a1f;
-  --col-N-hi:     #ff8a42;  --col-N-sh:  #8c2e00;
-  --col-G-hi:     #9b4dca;  --col-G-sh:  #3f0e5c;
-  --col-O-hi:     #e94f4f;  --col-O-sh:  #6e0e0e;
+     -sh deepens the rim shadow. Derived from the base column color
+     via color-mix so they auto-track when the teacher picks a custom
+     color in the card designer (applyCardColors writes the --col-X
+     tokens at <html>; these expressions re-resolve on the next paint). */
+  --col-B-hi:  color-mix(in srgb, var(--col-B) 65%, white);
+  --col-B-sh:  color-mix(in srgb, var(--col-B) 55%, black);
+  --col-I-hi:  color-mix(in srgb, var(--col-I) 65%, white);
+  --col-I-sh:  color-mix(in srgb, var(--col-I) 55%, black);
+  --col-N-hi:  color-mix(in srgb, var(--col-N) 65%, white);
+  --col-N-sh:  color-mix(in srgb, var(--col-N) 55%, black);
+  --col-G-hi:  color-mix(in srgb, var(--col-G) 65%, white);
+  --col-G-sh:  color-mix(in srgb, var(--col-G) 55%, black);
+  --col-O-hi:  color-mix(in srgb, var(--col-O) 65%, white);
+  --col-O-sh:  color-mix(in srgb, var(--col-O) 55%, black);
 
   /* Suite cap on rounded corners is 6px; the shared --radius
      declared in desk.css already provides this. We re-declare
@@ -1030,28 +1036,29 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
 #ca-toggle-full-btn .ca-toggle-arrow { transition: transform .2s; display: inline-block; }
 #ca-toggle-full-btn.expanded .ca-toggle-arrow { transform: rotate(180deg); }
 
-/* BINGO win-verify button. Was a SaaS yellow→green diagonal gradient
-   (CLAUDE.md aesthetic violation); now a flat saturated bingo-tile
-   button with a deep-ink border + raised shadow that compresses on
-   press. Reads like a plastic bingo bezel, not a Bootstrap CTA. */
+/* BINGO win-verify button. Sibling of the .ca-col-btn column letter
+   buttons sitting above it in the same panel — same chunky pill, same
+   bold uppercase. The previous rule wrapped --col-O (a hex) in rgb(),
+   which is invalid CSS, so the background dropped to transparent. */
 #btn-bingo {
   grid-column: 5 / 6;
-  padding: 8px 4px; font-size: .9rem; font-weight: 800;
+  padding: 8px 4px; font-size: 1rem; font-weight: 900;
   border-radius: 6px; cursor: pointer;
-  border: 2px solid rgb(var(--bingo-paper-edge));
-  background: rgb(var(--col-O));
-  color: rgb(var(--bingo-paper));
+  border: none;
+  background: var(--col-O);
+  color: #fff;
   letter-spacing: .08em; text-transform: uppercase;
-  box-shadow: 0 3px 0 rgb(var(--bingo-paper-edge) / 0.85);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.25);
   transition: transform .08s ease-out, box-shadow .08s ease-out;
 }
 #btn-bingo:hover  {
   transform: translateY(-1px);
-  box-shadow: 0 4px 0 rgb(var(--bingo-paper-edge) / 0.85);
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.28);
 }
 #btn-bingo:active {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 rgb(var(--bingo-paper-edge) / 0.85);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.28);
 }
 #btn-bingo:focus-visible { outline: 2px solid rgb(var(--bingo-stamp)); outline-offset: 2px; }
 
@@ -1637,14 +1644,27 @@ kbd {
 .rm-soon { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
 
 /* ── Fullscreen button ──
-   Sits as the third topstrip-right action (Help → Settings → Fullscreen).
-   Visual treatment + height come from the .suite-topstrip .icon-btn rule
-   above; this rule only handles icon-only width (square) + centering. */
-#btn-fullscreen {
+   Subtler than Help / Settings — no chip background, dimmed by default,
+   brighter on hover. Uses .fs-btn (not .icon-btn) so it bypasses the
+   suite-topstrip chip styling. */
+.suite-topstrip .fs-btn {
   width: 36px;
+  height: 36px;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: rgb(var(--paper-edge));
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity .15s ease-out;
 }
+.suite-topstrip .fs-btn:hover,
+.suite-topstrip .fs-btn:focus-visible { opacity: 1; }
+.suite-topstrip .fs-btn .icon { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 #hp-set-error {
   margin-top: 12px; padding: 8px 12px;
@@ -1939,9 +1959,20 @@ kbd {
 .pv-work-scale-reset-btn { align-self: center; }
 [data-theme="dark"] .pv-prob-input.input-error,
 [data-theme="dark"] .pv-ans-input.input-error { background: #2d1010; }
+/* Card-designer row layout: input + KaTeX preview sit side-by-side
+   instead of stacked, so roughly twice as many rows fit before scroll. */
+.pv-prob-cell { padding: 4px 6px; }
+.pv-prob-inputs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pv-prob-inputs .pv-prob-input { flex: 1 1 130px; min-width: 0; }
 .pv-prob-preview {
-  min-height: 20px; font-size: .82rem; color: var(--text-muted);
-  padding: 2px 0 1px; overflow: hidden;
+  flex: 1 1 0; min-width: 0; min-height: 20px;
+  font-size: .82rem; color: var(--text-muted);
+  padding: 2px 0; overflow: hidden;
+  text-align: left;
 }
 .pv-prob-preview.preview-error { color: #c62828; font-size: .75rem; }
 .pv-del-btn { padding: 2px 6px; font-size: .85rem; line-height: 1; opacity: .5; }
