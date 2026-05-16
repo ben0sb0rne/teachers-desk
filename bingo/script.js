@@ -878,6 +878,12 @@ function showView(view) {
   document.getElementById('homepage-view').hidden = (view !== 'home');
   document.getElementById('print-view').hidden    = (view !== 'print');
   document.getElementById('app').hidden            = (view !== 'caller');
+  // Body class drives the topstrip's per-view chrome: the bingo
+  // homepage uses a minimal strip (back / suite-settings / fullscreen),
+  // while print + caller keep the full strip with Help + bingo settings.
+  document.body.classList.toggle('view-home',    view === 'home');
+  document.body.classList.toggle('view-print',   view === 'print');
+  document.body.classList.toggle('view-caller',  view === 'caller');
   // In-bar caller chrome (back-to-Sets link + progress display) is only
   // meaningful while playing. Toggle along with the view switch so both
   // the topstrip-left contents stay clean across views.
@@ -1708,7 +1714,7 @@ function renderPvEditTable() {
   // Footer row with "Add Row" button
   const tFoot = document.createElement('tfoot');
   tFoot.innerHTML = `<tr id="pv-add-row-row"><td colspan="6">
-    <button class="hp-btn" id="pv-add-row-btn">+ Add PROBLEM</button>
+    <button class="hp-btn" id="pv-add-row-btn">+ Add Problem</button>
   </td></tr>`;
 
   const table = document.createElement('table');
@@ -2346,7 +2352,7 @@ function renderSettings() {
     <div class="settings-section">
       <span class="settings-label">Display</span>
       <div class="settings-row">
-        <label for="s-show-nav">Show Next / Check Answer / Back buttons</label>
+        <label for="s-show-nav">Show Next / Check Answers / Back buttons</label>
         <input type="checkbox" id="s-show-nav" ${s.showNavButtons ? 'checked' : ''}>
       </div>
       <div class="settings-row">
@@ -3437,6 +3443,12 @@ function wireEvents() {
   document.getElementById('btn-close-csv-help').onclick = () => closeOverlay('csv-help-overlay');
   document.getElementById('btn-close-roadmap').onclick = () => closeOverlay('roadmap-overlay');
   document.getElementById('btn-fullscreen').onclick = () => toggleFullscreen();
+  // Bingo-homepage-only topstrip buttons: back to suite + suite-level
+  // settings dialog (Appearance / Sound / Data — NOT the bingo overlay).
+  document.getElementById('hp-back-btn').onclick = () => { window.location.href = '../'; };
+  document.getElementById('hp-suite-settings-btn').onclick = () => {
+    import('../shared/settings.js').then(m => m.openSettings()).catch(() => {});
+  };
 
 
   // Print view

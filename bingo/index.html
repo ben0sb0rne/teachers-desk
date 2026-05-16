@@ -33,23 +33,30 @@
 </head>
 <body class="wood-bg is-bingo">
 
-<!-- Single suite topstrip — back link, tool name, in-bar action buttons.
-     The "Sets" link + progress display are visible only in caller view
-     (toggled in showView). Help / Settings / Fullscreen are always present
-     in the right slot so their location is constant across screens. -->
+<!-- Single suite topstrip. On the bingo homepage (body.view-home), only
+     the minimal trio is visible: back, suite settings, fullscreen — all
+     styled as .fs-btn (transparent, dimmed). On print / caller views
+     the full strip shows: wordmark, tool name, Help, bingo settings,
+     fullscreen. CSS scoped by body.view-{home,print,caller} class. -->
 <div class="suite-topstrip">
   <div class="suite-topstrip-left">
-    <a class="suite-wordmark" href="../">The Teacher's Desk</a>
-    <span class="suite-tool-name">Math Bingo</span>
+    <button class="fs-btn topstrip-home-only" id="hp-back-btn" title="Back to The Teacher's Desk" aria-label="Back to The Teacher's Desk">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+    </button>
+    <a class="suite-wordmark topstrip-non-home" href="../">The Teacher's Desk</a>
+    <span class="suite-tool-name topstrip-non-home">Math Bingo</span>
     <a class="suite-topstrip-link" id="topstrip-back-sets" href="#" hidden>Sets</a>
     <span id="progress-display" class="topstrip-progress" hidden></span>
   </div>
   <div class="suite-topstrip-right">
-    <button class="icon-btn" id="btn-help" title="Keyboard shortcuts (?)">
+    <button class="fs-btn topstrip-home-only" id="hp-suite-settings-btn" title="Settings" aria-label="Settings">
+      <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>
+    </button>
+    <button class="icon-btn topstrip-non-home" id="btn-help" title="Keyboard shortcuts (?)">
       <svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg>
       <span>Help</span>
     </button>
-    <button class="settings-button" id="btn-settings" type="button"
+    <button class="settings-button topstrip-non-home" id="btn-settings" type="button"
             aria-label="Settings" title="Settings (S)"></button>
     <button class="fs-btn" id="btn-fullscreen" title="Fullscreen (F)" aria-label="Enter fullscreen">
       <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
@@ -359,7 +366,7 @@
 <div class="overlay" id="check-answers-overlay" hidden>
   <div class="panel">
     <div class="panel-header">
-      <h2>Check Answer</h2>
+      <h2>Check Answers</h2>
       <button class="close-btn" id="btn-close-check-answers" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body">
@@ -418,9 +425,9 @@
         <tr><td><kbd>P</kbd></td><td>Pause / resume auto-advance timer</td></tr>
         <tr><td><kbd>B</kbd></td><td>Toggle called-numbers board</td></tr>
         <tr><td><kbd>K</kbd></td><td>Toggle board style (Grid / Recent Balls)</td></tr>
-        <tr><td><kbd>R</kbd></td><td>Reset game (with confirmation)</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Reset Game (with confirmation)</td></tr>
         <tr><td><kbd>S</kbd></td><td>Open / close settings</td></tr>
-        <tr><td><kbd>A</kbd></td><td>View called answers</td></tr>
+        <tr><td><kbd>A</kbd></td><td>Open Check Answers panel</td></tr>
         <tr><td><kbd>F</kbd></td><td>Toggle fullscreen</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Close panel / exit fullscreen</td></tr>
       </table>

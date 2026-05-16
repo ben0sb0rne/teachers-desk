@@ -897,10 +897,10 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
   100% { transform: rotateX(0deg); }
 }
 @keyframes ball-cast-grow {
-  0%   { transform: translateX(-50%) scale(0.08); opacity: 0; }
-  10%  { opacity: 0.04; }
-  60%  { transform: translateX(-50%) scale(0.45); opacity: 0.18; }
-  100% { transform: translateX(-50%) scale(1);    opacity: 0.5; }
+  0%   { transform: translate(-50%, -28px) scale(0.08); opacity: 0; }
+  10%  { transform: translate(-50%, -24px) scale(0.12); opacity: 0.04; }
+  60%  { transform: translate(-50%, -10px) scale(0.45); opacity: 0.18; }
+  100% { transform: translate(-50%, 0)     scale(1);    opacity: 0.5; }
 }
 
 body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper {
@@ -1668,6 +1668,16 @@ kbd {
 .rm-ready { background: #c8e6c9; color: #2e7d32; }
 [data-theme="dark"] .rm-ready { background: #1b3d1f; color: #81c784; }
 .rm-soon { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* Topstrip per-view scoping. The bingo homepage (body.view-home) shows
+   only the .topstrip-home-only items (back + suite settings + fullscreen)
+   while print / caller views show the .topstrip-non-home items (wordmark,
+   tool name, Help, bingo settings). The fullscreen button has no scope
+   class so it stays on all views. !important needed because the per-view
+   buttons share .fs-btn / .icon-btn classes whose rules set display. */
+.suite-topstrip .topstrip-home-only { display: none !important; }
+body.view-home .suite-topstrip .topstrip-home-only { display: inline-flex !important; }
+body.view-home .suite-topstrip .topstrip-non-home  { display: none !important; }
 
 /* ── Fullscreen button ──
    Subtler than Help / Settings — no chip background, dimmed by default,
