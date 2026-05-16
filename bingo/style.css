@@ -729,6 +729,7 @@ body.is-bingo.has-photoreal-balls #col-ball .cast-shadow {
   filter: blur(6px);
   opacity: 0.5;
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
@@ -739,6 +740,7 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
     drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
     drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
     blur(var(--motion-blur, 0px));
+  will-change: transform, filter;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-body {
@@ -792,6 +794,7 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-spin {
   inset: 0;
   transform-style: preserve-3d;
   transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-label {
@@ -805,8 +808,7 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-label {
       rgb(220 210 184) 100%);
   box-shadow:
     inset 0 2px 4px rgb(0 0 0 / 0.15),
-    inset 0 -1px 2px rgb(255 255 255 / 0.6),
-    0 1px 2px rgb(0 0 0 / 0.1);
+    inset 0 -1px 2px rgb(255 255 255 / 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -854,9 +856,8 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
     opacity: 0;
     --motion-blur: 3px;
   }
-  10%  { opacity: 1; --motion-blur: 2.6px; }
-  55%  { --motion-blur: 1.2px; }
-  85%  { --motion-blur: 0.2px; }
+  10%  { opacity: 1; }
+  50%  { --motion-blur: 1px; }
   100% {
     transform: translateZ(0) translateY(0);
     opacity: 1;

@@ -472,6 +472,7 @@ const DEFAULT_SETTINGS = {
   cardColors: { B: '#1565c0', I: '#2e7d32', N: '#e65100', G: '#6a1b9a', O: '#b71c1c' },
   ballStyle: 'photoreal',    // 'photoreal' | 'classic' — switches between the 3D rolling ball and the flat chip
   ballAnimation: 'drop',     // 'drop' | 'pop' | 'roll' | 'none' — only applies to classic mode
+  ballPhotorealAnimation: 'roll-forward', // 'roll-forward' | 'none' — only applies to photoreal mode
   soundEnabled: true,
   soundMuted: false,
   soundVolume: 0.6,          // 0.0 – 1.0
@@ -577,9 +578,15 @@ const audio = (() => {
     play(name) {
       if (!state.settings.soundEnabled || state.settings.soundMuted) return;
       if (name === 'ballDrop') {
-        const variant = state.settings.ballAnimation;
-        if (!variant || variant === 'none') return;
-        name = variant;  // resolve to drop / pop / roll
+        if (state.settings.ballStyle === 'photoreal') {
+          const variant = state.settings.ballPhotorealAnimation;
+          if (!variant || variant === 'none') return;
+          name = 'roll';  // photoreal entrance always uses Roll-In.flac
+        } else {
+          const variant = state.settings.ballAnimation;
+          if (!variant || variant === 'none') return;
+          name = variant;  // resolve to drop / pop / roll
+        }
       } else if (name === 'tick') {
         if (!state.settings.soundTick) return;
         // Stop any still-playing tick before starting a new one
@@ -2263,13 +2270,15 @@ function renderProblem() {
   const isFreshArrival = !isReplay() && animKey !== _lastAnimatedKey;
   if (isFreshArrival) {
     if (photoreal) {
-      // Photoreal: trigger .is-rolling on the ball-slot. The text-rise
-      // is normally fired by triggerBallAnimation; since we're not
-      // calling that, fire it directly so the problem text still
-      // animates in sync with the ball.
+      // Photoreal: trigger .is-rolling on the ball-slot only when the
+      // user picked the roll animation. Either way fire text-anim-rise
+      // since that's tied to the problem text appearing, not the ball.
       ball.classList.remove('is-rolling');
-      void ball.offsetWidth;
-      ball.classList.add('is-rolling');
+      const photoMode = state.settings.ballPhotorealAnimation || 'roll-forward';
+      if (photoMode !== 'none') {
+        void ball.offsetWidth;
+        ball.classList.add('is-rolling');
+      }
       problemTextEl.classList.remove('text-anim-rise');
       void problemTextEl.offsetWidth;
       problemTextEl.classList.add('text-anim-rise');
@@ -2361,12 +2370,16 @@ function renderSettings() {
         </div>
       </div>
       <div class="settings-row">
-        <label for="s-ball-anim">Ball entrance <span style="color:var(--text-muted);font-size:.85em;">(classic only)</span></label>
+        <label for="s-ball-anim">Ball entrance</label>
         <select id="s-ball-anim">
-          <option value="drop"${s.ballAnimation==='drop'?' selected':''}>Drop &amp; bounce</option>
-          <option value="pop"${s.ballAnimation==='pop'?' selected':''}>Pop spring</option>
-          <option value="roll"${s.ballAnimation==='roll'?' selected':''}>Roll-in</option>
-          <option value="none"${s.ballAnimation==='none'?' selected':''}>None</option>
+          ${s.ballStyle === 'photoreal'
+            ? `<option value="roll-forward"${(s.ballPhotorealAnimation||'roll-forward')==='roll-forward'?' selected':''}>Roll forward</option>
+               <option value="none"${s.ballPhotorealAnimation==='none'?' selected':''}>None</option>`
+            : `<option value="drop"${s.ballAnimation==='drop'?' selected':''}>Drop &amp; bounce</option>
+               <option value="pop"${s.ballAnimation==='pop'?' selected':''}>Pop spring</option>
+               <option value="roll"${s.ballAnimation==='roll'?' selected':''}>Roll-in</option>
+               <option value="none"${s.ballAnimation==='none'?' selected':''}>None</option>`
+          }
         </select>
       </div>
       <div class="settings-row">
@@ -2557,7 +2570,8 @@ function renderSettings() {
 
   // Animation & Sound handlers
   sBody.querySelector('#s-ball-anim').onchange = e => {
-    state.settings.ballAnimation = e.target.value;
+    const key = state.settings.ballStyle === 'photoreal' ? 'ballPhotorealAnimation' : 'ballAnimation';
+    state.settings[key] = e.target.value;
     saveSettings();
   };
   sBody.querySelector('#s-sound-enabled').onchange = e => {
