@@ -460,7 +460,6 @@ const DEFAULT_SETTINGS = {
   theme: 'light',
   showBoard: true,
   boardContent: 'problems',   // 'problems' | 'answers'
-  showColumn: true,
   showNavButtons: true,
   showProgress: false,
   showRecentBalls: true,
@@ -478,7 +477,6 @@ const DEFAULT_SETTINGS = {
   soundVolume: 0.6,          // 0.0 – 1.0
   soundTick: true,
   font: 'default',  // 'default' | 'inter' | 'alfa-slab-one' | 'comic-neue' | 'creepster' | 'jetbrains-mono'
-  surfaceTexture: true,      // subtle paper-grain on bingo card surfaces; toggle off for flat
 };
 
 // PDF TTF URLs from the official google/fonts GitHub repo via jsDelivr.
@@ -685,78 +683,6 @@ function deleteCustomSet(name) {
   }
 }
 
-/* ============================================================
-   CLASSROOM EXPORT / IMPORT
-   Saves and restores the entire suite (all tools) as a JSON file.
-   ============================================================ */
-function triggerClassroomExport() {
-  try {
-    sharedStorage.downloadExport();
-  } catch (e) {
-    showNotification(['Export failed: ' + (e && e.message ? e.message : 'unknown error')], 'error');
-  }
-}
-
-function triggerClassroomImport() {
-  // Open a file picker without committing to a mode yet — we'll ask after parsing.
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'application/json,.json';
-  input.onchange = (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (loadEv) => {
-      let parsed;
-      try {
-        parsed = JSON.parse(loadEv.target.result);
-      } catch (e) {
-        showNotification(['Import failed: that file is not valid JSON.'], 'error');
-        return;
-      }
-      askImportMode((mode) => {
-        if (!mode) return; // cancelled
-        try {
-          sharedStorage.importClassroom(parsed, mode);
-          showNotification(['Imported successfully. Reloading…'], 'success');
-          // Reload so all tools pick up the fresh state cleanly.
-          setTimeout(() => location.reload(), 600);
-        } catch (e) {
-          showNotification(['Import failed: ' + (e && e.message ? e.message : 'unknown error')], 'error');
-        }
-      });
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
-
-// Lightweight modal: "Replace existing data, or merge?"
-function askImportMode(callback) {
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.innerHTML = `
-    <div class="panel confirm-panel">
-      <div class="panel-header"><h2>Import classroom data</h2></div>
-      <div class="panel-body">
-        <p>Replace your current data with the imported file, or merge them?</p>
-        <div class="confirm-buttons">
-          <button class="btn-danger" data-mode="replace">Replace</button>
-          <button data-mode="merge">Merge</button>
-          <button data-mode="">Cancel</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-mode]');
-    if (!btn) return;
-    const mode = btn.dataset.mode || '';
-    document.body.removeChild(overlay);
-    callback(mode);
-  });
-}
-
 function playBingoSound() {
   if (!state.settings.soundEnabled || state.settings.soundMuted) return;
   if (!BINGO_SOUNDS.length) return;
@@ -837,7 +763,9 @@ const state = {
  *  Called on boot and on toggle. The class is the CSS hook for the
  *  bingo-paper-noise SVG background-image (see bingo/style.css). */
 function applyTextureClass() {
-  document.body.classList.toggle('has-bingo-textures', !!state.settings.surfaceTexture);
+  // Paper-grain texture is always on now (the toggle was removed).
+  // The body class kept for CSS scoping that already references it.
+  document.body.classList.add('has-bingo-textures');
 }
 applyTextureClass();
 
@@ -1811,11 +1739,16 @@ let rafId = null;
 // animation on the very next render (used by resets and settings
 // changes — see resetRenderState).
 let _prevTopKey = null;
+// Snapshot of the previous render's full key list, used to detect when
+// a ball was just dropped off the trailing edge so renderRecentBalls
+// can render a brief ghost for the fade-out.
+let _prevKeys = [];
 
 // Centralized reset for per-game render-state trackers.
 // Call when loading a new set, resetting the game, or otherwise wiping history.
 function resetRenderState() {
   _prevTopKey      = null;
+  _prevKeys        = [];
   _lastAnimatedKey = null;
   _lastTickSec     = null;
 }
@@ -2147,24 +2080,22 @@ function triggerBallAnimation(chip, textEl, variant) {
 }
 
 /**
- * Stateless render of the recent-balls strip.
+ * Stateless render of the recent-balls strip, plus a brief slide-in /
+ * slide-out animation overlay when a new ball arrives.
  *
- * Every call rebuilds the strip from state.history.slice(...). No FLIP,
- * no setTimeout, no position: absolute, no JS-driven transforms. The
- * strip always contains exactly min(visible.length, recentCount) cards
- * after this function returns — no race window where rapid Next presses
- * can accumulate orphan cards.
+ * On a normal new arrival, the row shifts one slot to the right:
+ *   - The new lead card slides in from the left, fading in.
+ *   - All carryover cards slide right by one slot (no opacity change).
+ *   - If a ball was just bumped off the trailing edge, a ghost copy of
+ *     it is appended at the end and slides + fades out at the same
+ *     speed/easing as everything else. The ghost is removed when its
+ *     animation finishes.
  *
- * Animation surface is a single CSS class (.ball-entering) applied to
- * the new top card when its identity actually changed since the last
- * render. The existing @keyframes ball-enter handles the 120ms slide-
- * down + fade — already brief-compliant simple realism.
- *
- * Why old cards "teleport" to new positions: they shift ~1 card width
- * to the right per new call, all look similar (column color + small
- * label), and the eye's attention is on the new card popping in.
- * Church-bingo aesthetic ≠ slot-machine FLIP. Cheap, robust, readable.
+ * Every card — new, carryover, ghost — uses the same 320ms cubic-bezier
+ * so the whole row reads as one consistent slide.
  */
+const RBS_ANIM_MS = 320;
+function keyOf(p) { return `${p.column}:${p.answer}:${p.problem}`; }
 function renderRecentBalls() {
   const strip = document.getElementById('recent-balls-strip');
   const n = state.settings.recentCount;
@@ -2173,19 +2104,38 @@ function renderRecentBalls() {
     ? state.history.slice(Math.max(0, ci - n), ci)
     : [];
   const desiredOrder = [...visible].reverse(); // newest at left
+  const newKeys = desiredOrder.map(keyOf);
 
-  const topKey = desiredOrder[0]
-    ? `${desiredOrder[0].column}:${desiredOrder[0].answer}:${desiredOrder[0].problem}`
-    : null;
-  const isNewTop = topKey !== null && topKey !== _prevTopKey;
-  _prevTopKey = topKey;
+  const prevKeys = _prevKeys;
+  _prevKeys = newKeys;
+  _prevTopKey = newKeys[0] || null;
+
+  // Only animate when a genuinely new lead arrived. Idempotent renders,
+  // settings changes (which call resetRenderState), and replays all skip
+  // the animation path.
+  const hasNewLead = newKeys.length > 0 && newKeys[0] !== prevKeys[0];
 
   strip.innerHTML = '';
   desiredOrder.forEach((p, i) => {
     const card = createBallCardEl(p);
-    if (i === 0 && isNewTop) card.classList.add('ball-entering');
+    if (hasNewLead) {
+      card.classList.add(i === 0 ? 'is-new' : 'is-shifting');
+    }
     strip.appendChild(card);
   });
+
+  // If we trimmed a tail card off the end, render a ghost of it that
+  // slides + fades out as the row shifts.
+  if (hasNewLead && prevKeys.length >= n) {
+    const droppedIndex = state.currentIndex - n - 1;
+    const dropped = droppedIndex >= 0 ? state.history[droppedIndex] : null;
+    if (dropped) {
+      const ghost = createBallCardEl(dropped);
+      ghost.classList.add('is-leaving');
+      strip.appendChild(ghost);
+      setTimeout(() => { ghost.remove(); }, RBS_ANIM_MS + 30);
+    }
+  }
 }
 
 function renderBoardGrid() {
@@ -2251,13 +2201,12 @@ function renderProblem() {
   const chip = document.getElementById('col-chip');
   const ball = document.getElementById('col-ball');
   const problemTextEl = document.getElementById('problem-text');
-  const showCol = state.settings.showColumn;
   const photoreal = state.settings.ballStyle === 'photoreal';
 
-  chip.hidden = photoreal || !showCol;
-  ball.hidden = !photoreal || !showCol;
+  chip.hidden = photoreal;
+  ball.hidden = !photoreal;
 
-  if (showCol) {
+  {
     if (photoreal) {
       ball.querySelector('.ball-letter').textContent = p.column;
       ball.setAttribute('data-col', p.column);
@@ -2345,10 +2294,6 @@ function renderSettings() {
     <div class="settings-section">
       <span class="settings-label">Display</span>
       <div class="settings-row">
-        <label for="s-show-col">Show column letter (B/I/N/G/O)</label>
-        <input type="checkbox" id="s-show-col" ${s.showColumn ? 'checked' : ''}>
-      </div>
-      <div class="settings-row">
         <label for="s-show-nav">Show Next / Check Answer / Back buttons</label>
         <input type="checkbox" id="s-show-nav" ${s.showNavButtons ? 'checked' : ''}>
       </div>
@@ -2359,10 +2304,6 @@ function renderSettings() {
       <div class="settings-row">
         <label for="s-show-recent">Show recently called numbers</label>
         <input type="checkbox" id="s-show-recent" ${s.showRecentBalls ? 'checked' : ''}>
-      </div>
-      <div class="settings-row">
-        <label for="s-surface-texture">Surface texture (subtle paper grain)</label>
-        <input type="checkbox" id="s-surface-texture" ${s.surfaceTexture ? 'checked' : ''}>
       </div>
     </div>
 
@@ -2462,18 +2403,6 @@ function renderSettings() {
     </div>
 
     <div class="settings-section">
-      <span class="settings-label">Classroom data</span>
-      <div class="file-info" style="margin-bottom:10px">
-        Save your sets, settings, and other Teacher's Desk data as a single JSON file —
-        or import a previously-saved file to restore everything.
-      </div>
-      <div class="settings-row" style="gap:8px;flex-wrap:wrap">
-        <button class="hp-btn"         id="settings-export">Export classroom</button>
-        <button class="hp-btn" id="settings-import">Import classroom…</button>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <span class="settings-label">Game</span>
       <button class="btn-danger" id="settings-reset">Reset Game</button>
     </div>
@@ -2495,10 +2424,6 @@ function renderSettings() {
     if (state.settings.autoAdvanceOn && currentProblem()) { stopTimer(); startTimer(); }
     render();
   };
-  document.getElementById('s-show-col').onchange = e => {
-    state.settings.showColumn = e.target.checked;
-    saveSettings(); render();
-  };
   document.getElementById('s-show-nav').onchange = e => {
     state.settings.showNavButtons = e.target.checked;
     saveSettings(); render();
@@ -2510,11 +2435,6 @@ function renderSettings() {
   document.getElementById('s-show-recent').onchange = e => {
     state.settings.showRecentBalls = e.target.checked;
     saveSettings(); render();
-  };
-  document.getElementById('s-surface-texture').onchange = e => {
-    state.settings.surfaceTexture = e.target.checked;
-    saveSettings();
-    applyTextureClass();
   };
   document.getElementById('s-show-board').onchange = e => {
     state.settings.showBoard = e.target.checked;
@@ -2621,13 +2541,6 @@ function renderSettings() {
   document.getElementById('settings-reset').onclick = () => {
     closeOverlay('settings-overlay');
     showConfirm();
-  };
-  document.getElementById('settings-export').onclick = () => {
-    triggerClassroomExport();
-  };
-  document.getElementById('settings-import').onclick = () => {
-    closeOverlay('settings-overlay');
-    triggerClassroomImport();
   };
 }
 

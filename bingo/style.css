@@ -329,10 +329,8 @@ body.is-fullscreen .suite-topstrip-right {
   z-index: 100;
   padding: 0;
 }
-body.is-fullscreen #btn-fullscreen {
-  background: rgb(var(--paper-cream));
-  box-shadow: var(--shadow-paper);
-}
+/* Fullscreen mode: the toggle stays subtle (icon only, no chip). */
+body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; }
 
 /* ── Inline SVG icons ── */
 .icon {
@@ -477,6 +475,9 @@ body.is-fullscreen #btn-fullscreen {
   gap: calc(24px * var(--rbs));
   padding: calc(8px * var(--rbs)) calc(16px * var(--rbs));
   flex-shrink: 0;
+  /* One "slot" = card width + gap. Used by the slide animations below
+     so every card travels the same distance with the same easing. */
+  --rbs-slot: calc(114px * var(--rbs));
 }
 .recent-ball-card {
   display: flex;
@@ -543,16 +544,27 @@ body.is-fullscreen #btn-fullscreen {
 .chip-anim-roll,
 .bingo-stamp-anim { animation: bingo-stamp 100ms ease-out both; }
 
-/* Recent-ball entrance — the only animation surface on the strip now
-   that renderRecentBalls is stateless (no JS-driven exits). Short slide-
-   in from above + fade. Applied via .ball-entering only to the new top
-   card when its identity changes; carryover cards just appear at their
-   new positions. */
-@keyframes ball-enter {
-  0%   { transform: translateY(-4px); opacity: 0; }
-  100% { transform: translateY(0);    opacity: 1; }
+/* Recent-balls slide. When a new ball arrives, the whole row shifts
+   one slot to the right; the new card fades in as it slides; the ball
+   that just got pushed off the back is rendered briefly as a ghost
+   and fades out as it slides past the trailing edge. Every card —
+   new, carryover, ghost — shares the same duration and easing, so
+   the row reads as one consistent motion. */
+@keyframes rbs-slide {
+  from { transform: translateX(calc(var(--rbs-slot) * -1)); }
+  to   { transform: translateX(0); }
 }
-.recent-ball-card.ball-entering { animation: ball-enter 120ms ease-out both; }
+@keyframes rbs-slide-in {
+  from { transform: translateX(calc(var(--rbs-slot) * -1)); opacity: 0; }
+  to   { transform: translateX(0);                          opacity: 1; }
+}
+@keyframes rbs-slide-out {
+  from { transform: translateX(calc(var(--rbs-slot) * -1)); opacity: 1; }
+  to   { transform: translateX(0);                          opacity: 0; }
+}
+.recent-ball-card.is-shifting { animation: rbs-slide     320ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.recent-ball-card.is-new      { animation: rbs-slide-in  320ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.recent-ball-card.is-leaving  { animation: rbs-slide-out 320ms cubic-bezier(0.4, 0, 0.2, 1) both; }
 
 /* Text rise — used when the problem display advances. 6px nudge +
    fade, no big lift. */
@@ -572,7 +584,9 @@ body.is-fullscreen #btn-fullscreen {
 @media (prefers-reduced-motion: reduce) {
   .chip-anim-drop, .chip-anim-pop, .chip-anim-roll,
   .bingo-stamp-anim,
-  .recent-ball-card.ball-entering,
+  .recent-ball-card.is-shifting,
+  .recent-ball-card.is-new,
+  .recent-ball-card.is-leaving,
   .text-anim-rise {
     animation: none;
   }
