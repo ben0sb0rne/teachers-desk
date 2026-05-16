@@ -1784,14 +1784,19 @@ function downloadTemplate() {
    AUTO-ADVANCE TIMER
    ============================================================ */
 let rafId = null;
-let _lastRenderedIndex = -1;
+// Tracks the identity of the current top card in the recent-balls strip
+// so the next render can decide whether to apply the .ball-entering
+// animation class to the new top. Set to null to suppress the entry
+// animation on the very next render (used by resets and settings
+// changes — see resetRenderState).
+let _prevTopKey = null;
 
 // Centralized reset for per-game render-state trackers.
 // Call when loading a new set, resetting the game, or otherwise wiping history.
 function resetRenderState() {
-  _lastRenderedIndex = -1;
-  _lastAnimatedKey   = null;
-  _lastTickSec       = null;
+  _prevTopKey      = null;
+  _lastAnimatedKey = null;
+  _lastTickSec     = null;
 }
 let _resizeDebounceTimer = null;
 let timerEnd = null;
@@ -2115,91 +2120,45 @@ function triggerBallAnimation(chip, textEl, variant) {
   textEl.classList.add('text-anim-rise');
 }
 
+/**
+ * Stateless render of the recent-balls strip.
+ *
+ * Every call rebuilds the strip from state.history.slice(...). No FLIP,
+ * no setTimeout, no position: absolute, no JS-driven transforms. The
+ * strip always contains exactly min(visible.length, recentCount) cards
+ * after this function returns — no race window where rapid Next presses
+ * can accumulate orphan cards.
+ *
+ * Animation surface is a single CSS class (.ball-entering) applied to
+ * the new top card when its identity actually changed since the last
+ * render. The existing @keyframes ball-enter handles the 120ms slide-
+ * down + fade — already brief-compliant simple realism.
+ *
+ * Why old cards "teleport" to new positions: they shift ~1 card width
+ * to the right per new call, all look similar (column color + small
+ * label), and the eye's attention is on the new card popping in.
+ * Church-bingo aesthetic ≠ slot-machine FLIP. Cheap, robust, readable.
+ */
 function renderRecentBalls() {
   const strip = document.getElementById('recent-balls-strip');
   const n = state.settings.recentCount;
   const ci = state.currentIndex;
-  const isNewCall = ci > _lastRenderedIndex && ci >= 0;
-  _lastRenderedIndex = ci;
-
-  // DEFENSIVE CAP: the FLIP exit removes the oldest card 450ms after a
-  // Next press. Click faster than that and the previous exiting card
-  // hasn't been removed yet, but the new render only marks ONE more as
-  // exiting — extras pile up unboundedly. Snap any accumulated overflow
-  // back to the cap before doing anything else. Safe on first render too
-  // (the loop is a no-op when children.length <= n).
-  while (strip.children.length > n) {
-    strip.lastElementChild.remove();
-  }
-
   const visible = ci > 0
     ? state.history.slice(Math.max(0, ci - n), ci)
     : [];
+  const desiredOrder = [...visible].reverse(); // newest at left
 
-  if (!isNewCall || strip.children.length === 0) {
-    strip.innerHTML = '';
-    [...visible].reverse().forEach(p => strip.appendChild(createBallCardEl(p)));
-    return;
-  }
+  const topKey = desiredOrder[0]
+    ? `${desiredOrder[0].column}:${desiredOrder[0].answer}:${desiredOrder[0].problem}`
+    : null;
+  const isNewTop = topKey !== null && topKey !== _prevTopKey;
+  _prevTopKey = topKey;
 
-  const willOverflow = strip.children.length >= n;
-  const allExisting  = [...strip.children];
-  const exiting      = willOverflow ? allExisting[allExisting.length - 1] : null;
-
-  // Pull exiting card out of flex flow NOW so it doesn't affect layout
-  // during FLIP measurement — removing it later won't cause any reflow
-  if (exiting) {
-    const er = exiting.getBoundingClientRect();
-    const sr = strip.getBoundingClientRect();
-    Object.assign(exiting.style, {
-      position: 'absolute',
-      left: (er.left - sr.left) + 'px',
-      top:  (er.top  - sr.top)  + 'px',
-      width: er.width + 'px',
-      margin: '0',
-      pointerEvents: 'none',
-    });
-  }
-
-  const staying = allExisting.filter(c => c !== exiting);
-
-  // FLIP step 1: record positions now that exiting is out of flow
-  const firstLefts = staying.map(c => c.getBoundingClientRect().left);
-
-  // Insert new card at left, invisible
-  const newCard = createBallCardEl(visible[visible.length - 1]);
-  Object.assign(newCard.style, { opacity: '0', transform: 'translateX(-70px) scale(0.78)', transition: 'none' });
-  strip.prepend(newCard);
-
-  // FLIP step 2: measure shifted positions, apply inverse transforms
-  staying.forEach((card, i) => {
-    const dx = firstLefts[i] - card.getBoundingClientRect().left;
-    card.style.transition = 'none';
-    card.style.transform = `translateX(${dx}px)`;
-  });
-
-  // Force reflow
-  strip.offsetWidth;
-
-  // FLIP step 3: play — all staying cards slide smoothly, new card springs in
-  requestAnimationFrame(() => {
-    const slide = 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-    staying.forEach(c => { c.style.transition = slide; c.style.transform = ''; });
-    Object.assign(newCard.style, {
-      transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
-      transform: '', opacity: '1',
-    });
-
-    // Fade out the absolutely-positioned exiting card, then remove it
-    // Since it's out of flex flow, its removal causes zero layout shift
-    if (exiting) {
-      Object.assign(exiting.style, {
-        transition: 'transform 0.42s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.32s ease',
-        transform: 'translateX(90px) scale(0.78)',
-        opacity: '0',
-      });
-      setTimeout(() => exiting.remove(), 450);
-    }
+  strip.innerHTML = '';
+  desiredOrder.forEach((p, i) => {
+    const card = createBallCardEl(p);
+    if (i === 0 && isNewTop) card.classList.add('ball-entering');
+    strip.appendChild(card);
   });
 }
 
@@ -2499,7 +2458,7 @@ function renderSettings() {
   sBody.querySelectorAll('[data-board-mode]').forEach(btn => {
     btn.onclick = () => {
       state.settings.boardMode = btn.dataset.boardMode;
-      _lastRenderedIndex = -1; // force a fresh static render of the strip
+      _prevTopKey = null; // suppress entry animation on the next strip render
       saveSettings(); renderSettings(); render();
     };
   });
@@ -3231,7 +3190,7 @@ document.addEventListener('keydown', e => {
     case 'k': case 'K':
       e.preventDefault();
       state.settings.boardMode = state.settings.boardMode === 'grid' ? 'recent' : 'grid';
-      _lastRenderedIndex = -1; // force a fresh static render of the strip
+      _prevTopKey = null; // suppress entry animation on the next strip render
       saveSettings(); render();
       break;
     case 'f': case 'F':

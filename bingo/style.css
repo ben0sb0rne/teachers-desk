@@ -512,23 +512,16 @@ body.is-fullscreen #btn-fullscreen {
 .chip-anim-roll,
 .bingo-stamp-anim { animation: bingo-stamp 100ms ease-out both; }
 
-/* Recent-ball entrance: short slide-in from above + fade. The previous
-   version translated across the full ball width with a 0.72 scale and
-   an overshoot cubic-bezier — cartoony. */
+/* Recent-ball entrance — the only animation surface on the strip now
+   that renderRecentBalls is stateless (no JS-driven exits). Short slide-
+   in from above + fade. Applied via .ball-entering only to the new top
+   card when its identity changes; carryover cards just appear at their
+   new positions. */
 @keyframes ball-enter {
   0%   { transform: translateY(-4px); opacity: 0; }
   100% { transform: translateY(0);    opacity: 1; }
 }
-@keyframes ball-exit {
-  0%   { opacity: 1; max-width: calc(90px * var(--rbs)); transform: translateY(0); }
-  60%  { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 0; max-width: 0; padding: 0; transform: translateY(4px); }
-}
 .recent-ball-card.ball-entering { animation: ball-enter 120ms ease-out both; }
-.recent-ball-card.ball-exiting  {
-  overflow: hidden;
-  animation: ball-exit 200ms ease-in both;
-}
 
 /* Text rise — used when the problem display advances. 6px nudge +
    fade, no big lift. */
@@ -547,7 +540,7 @@ body.is-fullscreen #btn-fullscreen {
 @media (prefers-reduced-motion: reduce) {
   .chip-anim-drop, .chip-anim-pop, .chip-anim-roll,
   .bingo-stamp-anim,
-  .recent-ball-card.ball-entering, .recent-ball-card.ball-exiting,
+  .recent-ball-card.ball-entering,
   .text-anim-rise {
     animation: none;
   }
