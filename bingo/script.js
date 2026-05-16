@@ -425,11 +425,11 @@ function loadProblems(csvText, filename) {
     const ansRaw = row[answerIdx].trim();
 
     const rowErrors = [];
-    if (!VALID_COLS.has(col))               rowErrors.push('Column must be B, I, N, G, or O');
-    if (!prob)                              rowErrors.push('Problem is empty');
-    const ansNum = parseFloat(ansRaw);
+    if (!VALID_COLS.has(col))   rowErrors.push('Column must be B, I, N, G, or O');
+    if (!prob)                  rowErrors.push('Problem is empty');
+    // Answer can be numeric OR a LaTeX expression. Only require non-empty.
     if (ansRaw === '')          rowErrors.push('Answer is required');
-    else if (isNaN(ansNum))     rowErrors.push('Answer must be a number');
+    const ansNum = parseFloat(ansRaw);
 
     const editRow = { id: newRowId(), column: col || '', problem: prob, answer: ansRaw, errors: rowErrors };
     allRows.push(editRow);
@@ -1391,8 +1391,10 @@ function validateEditRow(row) {
   if (!VALID_COLS.has((row.column || '').toUpperCase())) errors.push('Column must be B, I, N, G, or O');
   if (!(row.problem || '').trim())                       errors.push('Problem is empty');
   const ansStr = (row.answer || '').trim();
-  if (ansStr === '')              errors.push('Answer is required');
-  else if (isNaN(parseFloat(ansStr))) errors.push('Answer must be a number');
+  // Answer can be a number OR a LaTeX expression. Only require that
+  // it's non-empty; downstream code (PDF rendering, KaTeX preview)
+  // handles whichever form it takes.
+  if (ansStr === '') errors.push('Answer is required');
   row.errors = errors;
   return errors;
 }
@@ -1492,11 +1494,15 @@ function updatePvPreviewCount() {
  */
 function checkProblemAnswer(problem, answerStr) {
   if (!/^[0-9+\-*\/\(\)\s.]+$/.test(problem || '')) return null;
+  // LaTeX answer? Skip the numeric equality check — we don't try to
+  // evaluate \frac{1}{2} et al against the problem's value.
+  const answerNum = parseFloat(answerStr);
+  if (!isFinite(answerNum)) return null;
   try {
     // eslint-disable-next-line no-new-func
     const result = Function('"use strict"; return (' + problem + ')')();
     if (typeof result !== 'number' || !isFinite(result)) return null;
-    return Math.abs(result - parseFloat(answerStr)) < 0.001 ? 'ok' : 'bad';
+    return Math.abs(result - answerNum) < 0.001 ? 'ok' : 'bad';
   } catch { return null; }
 }
 
@@ -1596,6 +1602,18 @@ function wirePvEditEvents(tBody, tFoot) {
     validateEditRow(row);
     updateEditRowUI(tr, row);
     syncProblemsFromEditRows();
+    // Debounced KaTeX preview — answer can be a LaTeX expression too.
+    clearTimeout(inp._pvDebounce);
+    inp._pvDebounce = setTimeout(() => {
+      const previewEl = tr.querySelector('.pv-ans-preview');
+      if (!previewEl) return;
+      previewEl.innerHTML = '';
+      previewEl.classList.remove('preview-error');
+      if (inp.value.trim()) {
+        try { renderMath(previewEl, inp.value); }
+        catch { previewEl.textContent = '⚠ LaTeX error'; previewEl.classList.add('preview-error'); }
+      }
+    }, 280);
   });
 
   // Delete row
@@ -1654,27 +1672,31 @@ function renderPvEditTable() {
     tr.className = 'pv-edit-row' + (allErrors.length ? ' pv-row-error' : '');
     tr.innerHTML = `
       <td style="background:${colBg};text-align:center;padding:2px 3px;"><select class="pv-col-select">${colOptions}</select></td>
-      <td class="pv-prob-cell" style="min-width:260px">
-        <div class="pv-prob-inputs">
-          <input class="pv-prob-input${probErr}" type="text"
-                 value="${escHtml(row.problem)}" placeholder="e.g. 2+2 or \\frac{1}{2}">
-          <div class="pv-prob-preview"></div>
-        </div>
+      <td class="pv-prob-cell">
+        <input class="pv-prob-input${probErr}" type="text"
+               value="${escHtml(row.problem)}" placeholder="e.g. 2+2 or \\frac{1}{2}">
         ${errList}
       </td>
-      <td style="width:100px">
+      <td class="pv-ans-cell">
         <input class="pv-ans-input${ansErr}" type="text"
-               value="${escHtml(row.answer)}" placeholder="e.g. 4">
+               value="${escHtml(row.answer)}" placeholder="e.g. 4 or \\frac{1}{2}">
       </td>
-      <td style="width:30px;text-align:center">
+      <td class="pv-prob-preview-cell"><div class="pv-prob-preview"></div></td>
+      <td class="pv-ans-preview-cell"><div class="pv-ans-preview"></div></td>
+      <td class="pv-del-cell">
         <button class="pv-del-btn icon-btn" title="Delete row" aria-label="Delete row">${icon('x')}</button>
       </td>`;
 
-    // Render initial KaTeX preview
-    const previewEl = tr.querySelector('.pv-prob-preview');
-    if (previewEl && (row.problem || '').trim()) {
-      try { renderMath(previewEl, row.problem); }
-      catch { previewEl.textContent = '⚠ LaTeX error'; previewEl.classList.add('preview-error'); }
+    // Render initial KaTeX previews for both problem and answer
+    const probPreviewEl = tr.querySelector('.pv-prob-preview');
+    if (probPreviewEl && (row.problem || '').trim()) {
+      try { renderMath(probPreviewEl, row.problem); }
+      catch { probPreviewEl.textContent = '⚠ LaTeX error'; probPreviewEl.classList.add('preview-error'); }
+    }
+    const ansPreviewEl = tr.querySelector('.pv-ans-preview');
+    if (ansPreviewEl && (row.answer || '').trim()) {
+      try { renderMath(ansPreviewEl, row.answer); }
+      catch { ansPreviewEl.textContent = '⚠ LaTeX error'; ansPreviewEl.classList.add('preview-error'); }
     }
 
     tBody.appendChild(tr);
@@ -1682,17 +1704,19 @@ function renderPvEditTable() {
 
   // Footer row with "Add Row" button
   const tFoot = document.createElement('tfoot');
-  tFoot.innerHTML = `<tr id="pv-add-row-row"><td colspan="4">
+  tFoot.innerHTML = `<tr id="pv-add-row-row"><td colspan="6">
     <button class="hp-btn" id="pv-add-row-btn">+ Add PROBLEM</button>
   </td></tr>`;
 
   const table = document.createElement('table');
   table.id = 'pv-edit-table';
   table.innerHTML = `<thead><tr>
-    <th style="width:56px">Col</th>
-    <th>Problem (LaTeX or plain text)</th>
-    <th style="width:100px">Answer</th>
-    <th style="width:30px"></th>
+    <th></th>
+    <th>Problem</th>
+    <th>Answer</th>
+    <th></th>
+    <th></th>
+    <th></th>
   </tr></thead>`;
   table.appendChild(tBody);
   table.appendChild(tFoot);

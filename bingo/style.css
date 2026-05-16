@@ -1973,22 +1973,23 @@ kbd {
 .pv-work-scale-reset-btn { align-self: center; }
 [data-theme="dark"] .pv-prob-input.input-error,
 [data-theme="dark"] .pv-ans-input.input-error { background: #2d1010; }
-/* Card-designer row layout: input + KaTeX preview sit side-by-side
-   instead of stacked, so roughly twice as many rows fit before scroll. */
-.pv-prob-cell { padding: 4px 6px; }
-.pv-prob-inputs {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.pv-prob-inputs .pv-prob-input { flex: 1 1 130px; min-width: 0; }
-.pv-prob-preview {
-  flex: 1 1 0; min-width: 0; min-height: 20px;
-  font-size: .82rem; color: var(--text-muted);
+/* Card-designer row layout (6 columns): color picker, Problem input,
+   Answer input, problem preview, answer preview, delete. */
+#pv-edit-table .pv-prob-cell         { width: auto; padding: 4px 6px; }
+#pv-edit-table .pv-ans-cell          { width: 120px; padding: 4px 6px; }
+#pv-edit-table .pv-prob-preview-cell { width: auto; padding: 4px 6px; }
+#pv-edit-table .pv-ans-preview-cell  { width: 140px; padding: 4px 6px; }
+#pv-edit-table .pv-del-cell          { width: 30px; text-align: center; }
+#pv-edit-table .pv-prob-input,
+#pv-edit-table .pv-ans-input { width: 100%; min-width: 0; }
+.pv-prob-preview,
+.pv-ans-preview {
+  min-height: 20px; font-size: .82rem; color: var(--text-muted);
   padding: 2px 0; overflow: hidden;
   text-align: left;
 }
-.pv-prob-preview.preview-error { color: #c62828; font-size: .75rem; }
+.pv-prob-preview.preview-error,
+.pv-ans-preview.preview-error { color: #c62828; font-size: .75rem; }
 .pv-del-btn { padding: 2px 6px; font-size: .85rem; line-height: 1; opacity: .5; }
 .pv-del-btn:hover { opacity: 1; color: #c62828; }
 #pv-add-row-row td { padding: 6px 4px; }
