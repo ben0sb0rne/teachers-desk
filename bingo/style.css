@@ -1975,6 +1975,11 @@ kbd {
 [data-theme="dark"] .pv-ans-input.input-error { background: #2d1010; }
 /* Card-designer row layout (6 columns): color picker, Problem input,
    Answer input, problem preview, answer preview, delete. */
+#pv-edit-table thead th,
+#pv-edit-table tbody td { vertical-align: middle; }
+#pv-edit-table thead th:first-child,
+#pv-edit-table tbody td:first-child { width: 1%; white-space: nowrap; padding: 2px 4px; }
+#pv-edit-table .pv-col-select { width: auto; }
 #pv-edit-table .pv-prob-cell         { width: auto; padding: 4px 6px; }
 #pv-edit-table .pv-ans-cell          { width: 120px; padding: 4px 6px; }
 #pv-edit-table .pv-prob-preview-cell { width: auto; padding: 4px 6px; }
