@@ -2122,6 +2122,16 @@ function renderRecentBalls() {
   const isNewCall = ci > _lastRenderedIndex && ci >= 0;
   _lastRenderedIndex = ci;
 
+  // DEFENSIVE CAP: the FLIP exit removes the oldest card 450ms after a
+  // Next press. Click faster than that and the previous exiting card
+  // hasn't been removed yet, but the new render only marks ONE more as
+  // exiting — extras pile up unboundedly. Snap any accumulated overflow
+  // back to the cap before doing anything else. Safe on first render too
+  // (the loop is a no-op when children.length <= n).
+  while (strip.children.length > n) {
+    strip.lastElementChild.remove();
+  }
+
   const visible = ci > 0
     ? state.history.slice(Math.max(0, ci - n), ci)
     : [];
