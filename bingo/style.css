@@ -1974,17 +1974,19 @@ kbd {
 [data-theme="dark"] .pv-prob-input.input-error,
 [data-theme="dark"] .pv-ans-input.input-error { background: #2d1010; }
 /* Card-designer row layout (6 columns): color picker, Problem input,
-   Answer input, problem preview, answer preview, delete. */
+   Answer input, problem preview, answer preview, delete. Explicit
+   widths on the fixed columns so the auto-width Problem and Problem-
+   preview columns share the remaining space evenly. */
 #pv-edit-table thead th,
 #pv-edit-table tbody td { vertical-align: middle; }
 #pv-edit-table thead th:first-child,
-#pv-edit-table tbody td:first-child { width: 1%; white-space: nowrap; padding: 2px 4px; }
-#pv-edit-table .pv-col-select { width: auto; }
-#pv-edit-table .pv-prob-cell         { width: auto; padding: 4px 6px; }
-#pv-edit-table .pv-ans-cell          { width: 120px; padding: 4px 6px; }
-#pv-edit-table .pv-prob-preview-cell { width: auto; padding: 4px 6px; }
-#pv-edit-table .pv-ans-preview-cell  { width: 140px; padding: 4px 6px; }
-#pv-edit-table .pv-del-cell          { width: 30px; text-align: center; }
+#pv-edit-table tbody td:first-child { width: 56px !important; min-width: 56px; max-width: 56px; padding: 2px 4px !important; }
+#pv-edit-table .pv-col-select { width: 48px; padding: 6px 4px; }
+#pv-edit-table .pv-prob-cell         { padding: 4px 6px; }
+#pv-edit-table .pv-ans-cell          { width: 140px; padding: 4px 6px; }
+#pv-edit-table .pv-prob-preview-cell { padding: 4px 6px; }
+#pv-edit-table .pv-ans-preview-cell  { width: 160px; padding: 4px 6px; }
+#pv-edit-table .pv-del-cell          { width: 36px; padding: 2px; text-align: center; }
 #pv-edit-table .pv-prob-input,
 #pv-edit-table .pv-ans-input { width: 100%; min-width: 0; }
 .pv-prob-preview,
