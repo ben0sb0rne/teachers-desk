@@ -314,6 +314,23 @@
       <div id="problem-card" hidden>
         <div id="replay-badge" hidden><svg class="icon" aria-hidden="true"><use href="#icon-refresh-cw"/></svg> REPLAY</div>
         <div id="col-chip"></div>
+        <!-- Photoreal ball — sibling of #col-chip. Visibility is driven
+             by body.has-photoreal-balls (set by applyBallStyleClass);
+             one of these two is shown at any time. -->
+        <div id="col-ball">
+          <div class="cast-shadow"></div>
+          <div class="ball-wrapper">
+            <div class="ball-body"></div>
+            <div class="ball-stage">
+              <div class="ball-spin">
+                <div class="ball-label">
+                  <div class="ball-letter"></div>
+                </div>
+              </div>
+            </div>
+            <div class="ball-highlight"></div>
+          </div>
+        </div>
         <div id="problem-text"></div>
         <div id="answer-reveal" hidden>
           <div id="answer-value"></div>

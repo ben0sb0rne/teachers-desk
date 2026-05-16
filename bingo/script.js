@@ -470,7 +470,8 @@ const DEFAULT_SETTINGS = {
   recentCount: 5,       // 1–10
   recentBallScale: 1.5, // 0.5–2.5
   cardColors: { B: '#1565c0', I: '#2e7d32', N: '#e65100', G: '#6a1b9a', O: '#b71c1c' },
-  ballAnimation: 'drop',     // 'drop' | 'pop' | 'roll' | 'none'
+  ballStyle: 'photoreal',    // 'photoreal' | 'classic' — switches between the 3D rolling ball and the flat chip
+  ballAnimation: 'drop',     // 'drop' | 'pop' | 'roll' | 'none' — only applies to classic mode
   soundEnabled: true,
   soundMuted: false,
   soundVolume: 0.6,          // 0.0 – 1.0
@@ -832,6 +833,17 @@ function applyTextureClass() {
   document.body.classList.toggle('has-bingo-textures', !!state.settings.surfaceTexture);
 }
 applyTextureClass();
+
+/** Apply the photoreal-ball class to <body> based on state.settings.
+ *  Called on boot and on toggle. The class is the CSS hook that swaps
+ *  the visibility of #col-chip (classic) for #col-ball (photoreal). */
+function applyBallStyleClass() {
+  document.body.classList.toggle(
+    'has-photoreal-balls',
+    state.settings.ballStyle === 'photoreal'
+  );
+}
+applyBallStyleClass();
 
 function shuffle(arr) {
   const a = [...arr];
@@ -2056,6 +2068,7 @@ function applySettings() {
   document.getElementById('board-panel').classList.toggle('hidden', !panelVisible);
   document.getElementById('board-grid').classList.toggle('mode-hidden', isRecent);
   document.getElementById('recent-balls-strip').classList.toggle('mode-hidden', !isRecent);
+  applyBallStyleClass();
 }
 
 function renderProgress() {
@@ -2219,13 +2232,26 @@ function renderProblem() {
   // Replay badge
   document.getElementById('replay-badge').hidden = !isReplay();
 
-  // Column chip
+  // Column chip / photoreal ball — only one shows at a time, based on
+  // state.settings.ballStyle. The CSS visibility rules guard which gets
+  // displayed; we update text/data-col on whichever is active.
   const chip = document.getElementById('col-chip');
+  const ball = document.getElementById('col-ball');
   const problemTextEl = document.getElementById('problem-text');
-  chip.hidden = !state.settings.showColumn;
-  if (state.settings.showColumn) {
-    chip.textContent = p.column;
-    chip.setAttribute('data-col', p.column);
+  const showCol = state.settings.showColumn;
+  const photoreal = state.settings.ballStyle === 'photoreal';
+
+  chip.hidden = photoreal || !showCol;
+  ball.hidden = !photoreal || !showCol;
+
+  if (showCol) {
+    if (photoreal) {
+      ball.querySelector('.ball-letter').textContent = p.column;
+      ball.setAttribute('data-col', p.column);
+    } else {
+      chip.textContent = p.column;
+      chip.setAttribute('data-col', p.column);
+    }
   }
 
   // Problem text
@@ -2236,9 +2262,22 @@ function renderProblem() {
   const animKey = state.currentIndex + ':' + p.column + ':' + p.problem;
   const isFreshArrival = !isReplay() && animKey !== _lastAnimatedKey;
   if (isFreshArrival) {
-    const variant = state.settings.ballAnimation;
-    if (variant && variant !== 'none') {
-      triggerBallAnimation(chip, problemTextEl, variant);
+    if (photoreal) {
+      // Photoreal: trigger .is-rolling on the ball-slot. The text-rise
+      // is normally fired by triggerBallAnimation; since we're not
+      // calling that, fire it directly so the problem text still
+      // animates in sync with the ball.
+      ball.classList.remove('is-rolling');
+      void ball.offsetWidth;
+      ball.classList.add('is-rolling');
+      problemTextEl.classList.remove('text-anim-rise');
+      void problemTextEl.offsetWidth;
+      problemTextEl.classList.add('text-anim-rise');
+    } else {
+      const variant = state.settings.ballAnimation;
+      if (variant && variant !== 'none') {
+        triggerBallAnimation(chip, problemTextEl, variant);
+      }
     }
     audio.play('ballDrop');
     _lastAnimatedKey = animKey;
@@ -2315,7 +2354,14 @@ function renderSettings() {
     <div class="settings-section">
       <span class="settings-label">Animation &amp; Sound</span>
       <div class="settings-row">
-        <label for="s-ball-anim">Ball entrance</label>
+        <label>Ball style</label>
+        <div class="seg-group">
+          <button class="seg-btn${s.ballStyle==='photoreal'?' active':''}" data-ball-style="photoreal">Photoreal</button>
+          <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' active':''}" data-ball-style="classic">Classic</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label for="s-ball-anim">Ball entrance <span style="color:var(--text-muted);font-size:.85em;">(classic only)</span></label>
         <select id="s-ball-anim">
           <option value="drop"${s.ballAnimation==='drop'?' selected':''}>Drop &amp; bounce</option>
           <option value="pop"${s.ballAnimation==='pop'?' selected':''}>Pop spring</option>
@@ -2460,6 +2506,18 @@ function renderSettings() {
       state.settings.boardMode = btn.dataset.boardMode;
       _prevTopKey = null; // suppress entry animation on the next strip render
       saveSettings(); renderSettings(); render();
+    };
+  });
+  sBody.querySelectorAll('[data-ball-style]').forEach(btn => {
+    btn.onclick = () => {
+      state.settings.ballStyle = btn.dataset.ballStyle;
+      saveSettings();
+      applyBallStyleClass();
+      // Reset the animation key so the new style's next render animates
+      // (otherwise switching mid-problem would leave it static until Next).
+      _lastAnimatedKey = null;
+      renderSettings();
+      renderProblem();
     };
   });
   const recentDec = sBody.querySelector('#s-recent-dec');

@@ -3,6 +3,18 @@
    tokens defined in ../shared/desk.css. Light theme inherits the
    suite palette; dark theme keeps bingo's existing dark scheme.
    ────────────────────────────────────────────────────────────── */
+
+/* Registered custom property so the photoreal ball's keyframes
+   can interpolate --motion-blur smoothly. Without @property,
+   custom-property animations would step-change at the midpoint
+   instead of lerping. Has zero effect in classic mode (nothing
+   reads --motion-blur there). */
+@property --motion-blur {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 :root {
   /* Surface + text — point at suite tokens */
   --bg:           rgb(var(--paper-cream));
@@ -34,6 +46,17 @@
   --col-N-light:  #fff3e0;
   --col-G-light:  #f3e5f5;
   --col-O-light:  #ffebee;
+
+  /* Photoreal-ball highlight + shadow variants. Used by the .ball-body
+     gradient stack to fake a 3D sphere — -hi catches the rim light,
+     -sh deepens the rim shadow. Functional like the base column
+     colors; live globally so they're available regardless of which
+     ball style is active. */
+  --col-B-hi:     #4a89d9;  --col-B-sh:  #0a3e80;
+  --col-I-hi:     #5da862;  --col-I-sh:  #1a4a1f;
+  --col-N-hi:     #ff8a42;  --col-N-sh:  #8c2e00;
+  --col-G-hi:     #9b4dca;  --col-G-sh:  #3f0e5c;
+  --col-O-hi:     #e94f4f;  --col-O-sh:  #6e0e0e;
 
   /* Suite cap on rounded corners is 6px; the shared --radius
      declared in desk.css already provides this. We re-declare
@@ -193,7 +216,8 @@ body.is-bingo.has-bingo-textures .pv-style-thumb > * {
   z-index: 1;
 }
 
-/* Print: textures off. Printed bingo cards stay flat-white. */
+/* Print: textures off. Printed bingo cards stay flat-white.
+   Photoreal ball is also hidden — 3D gradients print badly. */
 @media print {
   body.is-bingo #pv-preview::before,
   body.is-bingo #problem-area::before,
@@ -203,6 +227,7 @@ body.is-bingo.has-bingo-textures .pv-style-thumb > * {
   body.is-bingo .pv-style-thumb::before {
     display: none !important;
   }
+  body.is-bingo #col-ball { display: none !important; }
 }
 
 /* Dark mode is handled at the suite level (shared/desk.css). Bingo's
@@ -536,12 +561,18 @@ body.is-fullscreen #btn-fullscreen {
 #timer-fill.paused { opacity: 0.55; }
 
 /* Respect reduced motion — kill the few remaining short animations
-   so motion-sensitive users see snap transitions. */
+   so motion-sensitive users see snap transitions. Photoreal ball
+   appears instantly at its rest pose. */
 @media (prefers-reduced-motion: reduce) {
   .chip-anim-drop, .chip-anim-pop, .chip-anim-roll,
   .bingo-stamp-anim,
   .recent-ball-card.ball-entering,
   .text-anim-rise {
+    animation: none;
+  }
+  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper,
+  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin,
+  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
     animation: none;
   }
 }
@@ -625,6 +656,233 @@ body.is-fullscreen #btn-fullscreen {
 #col-chip[data-col="G"] { background: var(--col-G); }
 #col-chip[data-col="O"] { background: var(--col-O); }
 #col-chip.hidden { display: none; }
+
+/* ──────────────────────────────────────────────────────────────
+   Photoreal ball — opt-in 3D rolling ball that replaces the flat
+   #col-chip when body has .has-photoreal-balls. Ported from
+   caller-photoreal-animated.html (the mockup we iterated through
+   over several sessions).
+
+   Structure (a sibling of #col-chip inside #problem-card):
+     #col-ball.ball-slot           ← perspective container, sized via
+                                     calc on --problem-font-size so it
+                                     scales with the equation in fullscreen
+       .cast-shadow                ← 2D shadow ellipse, color-mixed with
+                                     the ball color for bounced light
+       .ball-wrapper               ← carries translateZ depth motion +
+                                     drop-shadow + animated --motion-blur
+         .ball-body                ← colored sphere, gradients fake a
+                                     3D shape; solid base color occludes
+                                     the label when it rolls behind
+         .ball-body::after         ← paper / plastic texture overlay,
+                                     multiply blend, masked at rim
+         .ball-stage               ← clip-path: circle so the label
+                                     clips at the sphere silhouette
+                                     when it rolls past the rim
+           .ball-spin              ← rotates rotateX 540°→0° during roll
+             .ball-label           ← cream "sticker" disc, translateZ
+                                     so it sits near the front surface
+               .ball-letter        ← B/I/N/G/O glyph
+         .ball-highlight           ← specular gloss, never rotates
+                                     (anchors the light source)
+
+   The visibility toggle uses body.is-bingo[:not].has-photoreal-balls
+   to swap which of #col-chip / #col-ball renders.
+   ────────────────────────────────────────────────────────────── */
+
+body.is-bingo.has-photoreal-balls #col-chip { display: none; }
+body.is-bingo:not(.has-photoreal-balls) #col-ball { display: none; }
+
+body.is-bingo.has-photoreal-balls #col-ball {
+  /* Scale with the equation font like #col-chip does. The 1.6 factor
+     gives a ball ~25% larger than the classic chip — more visual
+     presence because the 3D shading earns the space. */
+  width: calc(var(--problem-font-size, 4rem) * 1.6);
+  height: calc(var(--problem-font-size, 4rem) * 1.6);
+  aspect-ratio: 1 / 1;
+  position: relative;
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+  /* Per-letter color tokens default to I (green). data-col on
+     #col-ball remaps these to the column-specific values. */
+  --c:  var(--col-I);
+  --hi: var(--col-I-hi);
+  --sh: var(--col-I-sh);
+}
+body.is-bingo.has-photoreal-balls #col-ball[data-col="B"] { --c: var(--col-B); --hi: var(--col-B-hi); --sh: var(--col-B-sh); }
+body.is-bingo.has-photoreal-balls #col-ball[data-col="I"] { --c: var(--col-I); --hi: var(--col-I-hi); --sh: var(--col-I-sh); }
+body.is-bingo.has-photoreal-balls #col-ball[data-col="N"] { --c: var(--col-N); --hi: var(--col-N-hi); --sh: var(--col-N-sh); }
+body.is-bingo.has-photoreal-balls #col-ball[data-col="G"] { --c: var(--col-G); --hi: var(--col-G-hi); --sh: var(--col-G-sh); }
+body.is-bingo.has-photoreal-balls #col-ball[data-col="O"] { --c: var(--col-O); --hi: var(--col-O-hi); --sh: var(--col-O-sh); }
+
+body.is-bingo.has-photoreal-balls #col-ball .cast-shadow {
+  position: absolute;
+  bottom: -8%;
+  left: 50%;
+  width: 85%;
+  height: 14%;
+  transform: translateX(-50%) scale(1);
+  background: radial-gradient(ellipse,
+    color-mix(in srgb, var(--c) 10%, rgb(0 0 0 / 0.6)) 0%,
+    color-mix(in srgb, var(--c) 5%, rgb(0 0 0 / 0.22)) 50%,
+    rgb(0 0 0 / 0) 78%);
+  filter: blur(6px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  filter:
+    drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
+    drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
+    blur(var(--motion-blur, 0px));
+}
+
+body.is-bingo.has-photoreal-balls #col-ball .ball-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: var(--c);
+  background-image:
+    radial-gradient(circle at 72% 78%, var(--hi) 0%, rgb(255 255 255 / 0) 35%),
+    radial-gradient(circle at 50% 50%, transparent 55%, var(--sh) 92%, rgb(0 0 0 / 0.45) 100%);
+  box-shadow:
+    inset -10px -12px 28px rgb(0 0 0 / 0.32),
+    inset 8px 8px 18px rgb(255 255 255 / 0.18);
+}
+
+/* Texture overlay — primary is a raster image (user supplies it at
+   assets/textures/ball-surface.jpg). Fallback is inline SVG turbulence
+   so the ball still renders when the file is missing. Multiply blend
+   so the texture darkens the column color but doesn't overwrite it. */
+body.is-bingo.has-photoreal-balls #col-ball .ball-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-image:
+    url('../assets/textures/ball-surface.jpg'),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='4' seed='7'/><feColorMatrix values='0.2 0 0 0 0.8  0 0.2 0 0 0.74  0 0 0.2 0 0.68  0 0 0 0 1'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");
+  background-size: 140%, 100% 100%;
+  background-position: 50% 50%, 0 0;
+  background-repeat: no-repeat, no-repeat;
+  -webkit-mask-image: radial-gradient(circle, black 35%, transparent 85%);
+          mask-image: radial-gradient(circle, black 35%, transparent 85%);
+  opacity: 0.95;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* clip-path on a non-rotating wrapper between the perspective parent
+   and the rotating spin element. The label's foreshortened projection
+   can extend past the sphere silhouette at mid-rotation angles; this
+   clip cuts it off cleanly — physically correct sticker-on-sphere. */
+body.is-bingo.has-photoreal-balls #col-ball .ball-stage {
+  position: absolute;
+  inset: 0;
+  clip-path: circle(50% at 50% 50%);
+  transform-style: preserve-3d;
+}
+
+body.is-bingo.has-photoreal-balls #col-ball .ball-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+}
+
+body.is-bingo.has-photoreal-balls #col-ball .ball-label {
+  position: absolute;
+  top: 22%; left: 22%; right: 22%; bottom: 22%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 40%,
+      rgb(255 252 240) 0%,
+      rgb(244 234 208) 65%,
+      rgb(220 210 184) 100%);
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 0.15),
+    inset 0 -1px 2px rgb(255 255 255 / 0.6),
+    0 1px 2px rgb(0 0 0 / 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateZ(calc(var(--problem-font-size, 4rem) * 0.7));
+  backface-visibility: hidden;
+}
+
+body.is-bingo.has-photoreal-balls #col-ball .ball-letter {
+  font-size: calc(var(--problem-font-size, 4rem) * 0.65);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: rgb(var(--paper-edge));
+  line-height: 1;
+  text-shadow: 1px 1px 0 rgb(var(--paper-edge) / 0.15);
+}
+
+/* Specular gloss — the layer that DOESN'T rotate. Anchored to the
+   light source (top-left). This is what sells the 3D illusion during
+   rotation: the highlight stays put while everything else turns. */
+body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%,
+    rgb(255 255 255 / 0.85) 0%,
+    rgb(255 255 255 / 0) 18%);
+  pointer-events: none;
+}
+
+/* Keyframes. Three motions run in parallel for ~1.7s.
+   roll-forward: depth (translateZ -1800 → 0) + opacity + motion-blur
+                 ramp. Cubic-bezier(0.2, 0.65, 0.25, 1) leaves the
+                 distance quickly, decelerates strongly on arrival.
+   label-roll:  rotateX 540° → 0° (1.5 forward turns). Cubic-bezier
+                (0.08, 0.75, 0.18, 1) — hard kickstart, soft landing
+                so the letter locks dead-on facing camera.
+   cast-grow:   shadow scale + opacity. Front-loaded easing — most of
+                the growth happens in the last 30% as the ball nears
+                the ground plane.
+   --motion-blur ramps from 3px (fast in the distance) to 0 (crisp
+   at landing) via the @property registration at the top of the file. */
+@keyframes ball-roll-forward {
+  0% {
+    transform: translateZ(-1800px) translateY(-30px);
+    opacity: 0;
+    --motion-blur: 3px;
+  }
+  10%  { opacity: 1; --motion-blur: 2.6px; }
+  55%  { --motion-blur: 1.2px; }
+  85%  { --motion-blur: 0.2px; }
+  100% {
+    transform: translateZ(0) translateY(0);
+    opacity: 1;
+    --motion-blur: 0px;
+  }
+}
+@keyframes ball-label-roll {
+  0%   { transform: rotateX(540deg); }
+  100% { transform: rotateX(0deg); }
+}
+@keyframes ball-cast-grow {
+  0%   { transform: translateX(-50%) scale(0.08); opacity: 0; }
+  10%  { opacity: 0.04; }
+  60%  { transform: translateX(-50%) scale(0.45); opacity: 0.18; }
+  100% { transform: translateX(-50%) scale(1);    opacity: 0.5; }
+}
+
+body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper {
+  animation: ball-roll-forward 1.7s cubic-bezier(0.2, 0.65, 0.25, 1) both;
+}
+body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin {
+  animation: ball-label-roll 1.7s cubic-bezier(0.08, 0.75, 0.18, 1) both;
+}
+body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
+  animation: ball-cast-grow 1.7s cubic-bezier(0.3, 0.5, 0.35, 1) both;
+}
 
 #problem-text {
   font-size: var(--problem-font-size, 4rem);
