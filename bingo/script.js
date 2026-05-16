@@ -2138,12 +2138,23 @@ function renderRecentBalls() {
   // settings changes (which call resetRenderState), and replays all skip
   // the animation path.
   const hasNewLead = newKeys.length > 0 && newKeys[0] !== prevKeys[0];
+  // When the strip is still filling up (no ball dropped), justify-content:
+  // center shifts the whole row by half a slot to accommodate the new
+  // card — existing cards actually move only HALF a slot, not a full one.
+  const isPartialGrow = hasNewLead && prevKeys.length < n;
 
   strip.innerHTML = '';
   desiredOrder.forEach((p, i) => {
     const card = createBallCardEl(p);
     if (hasNewLead) {
-      card.classList.add(i === 0 ? 'is-new' : 'is-shifting');
+      if (i === 0) {
+        card.classList.add('is-new');
+      } else {
+        card.classList.add('is-shifting');
+        if (isPartialGrow) {
+          card.style.setProperty('--rbs-shift', 'calc(var(--rbs-slot) / 2)');
+        }
+      }
     }
     strip.appendChild(card);
   });

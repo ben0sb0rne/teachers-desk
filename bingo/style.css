@@ -545,13 +545,20 @@ body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; 
 .bingo-stamp-anim { animation: bingo-stamp 100ms ease-out both; }
 
 /* Recent-balls slide. When a new ball arrives, the whole row shifts
-   one slot to the right; the new card fades in as it slides; the ball
-   that just got pushed off the back is rendered briefly as a ghost
-   and fades out as it slides past the trailing edge. Every card —
-   new, carryover, ghost — shares the same duration and easing, so
-   the row reads as one consistent motion. */
+   to the right; the new card fades in as it slides; the ball that
+   just got pushed off the back is rendered briefly as a ghost and
+   fades out as it slides past the trailing edge. Every card —
+   new, carryover, ghost — shares the same duration and easing.
+
+   --rbs-shift defaults to one full slot (used when the strip is
+   already at capacity, so each existing card actually moved one
+   full slot). When the strip is still filling up, justify-content:
+   center recenters the row and each existing card only actually
+   moves HALF a slot — renderRecentBalls overrides --rbs-shift on
+   those cards so the animation starts from their true previous
+   position. */
 @keyframes rbs-slide {
-  from { transform: translateX(calc(var(--rbs-slot) * -1)); }
+  from { transform: translateX(calc(var(--rbs-shift, var(--rbs-slot)) * -1)); }
   to   { transform: translateX(0); }
 }
 @keyframes rbs-slide-in {
