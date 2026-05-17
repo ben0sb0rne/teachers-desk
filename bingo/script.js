@@ -878,17 +878,20 @@ function showView(view) {
   document.getElementById('homepage-view').hidden = (view !== 'home');
   document.getElementById('print-view').hidden    = (view !== 'print');
   document.getElementById('app').hidden            = (view !== 'caller');
-  // Body class drives the topstrip's per-view chrome: the bingo
-  // homepage uses a minimal strip (back / suite-settings / fullscreen),
-  // while print + caller keep the full strip with Help + bingo settings.
+  // Body classes drive the topstrip's per-view chrome via shared/desk.css
+  // (transparent vs paper-cream) plus per-tool fullscreen behavior.
   document.body.classList.toggle('view-home',    view === 'home');
   document.body.classList.toggle('view-print',   view === 'print');
   document.body.classList.toggle('view-caller',  view === 'caller');
-  // In-bar caller chrome (back-to-Sets link + progress display) is only
-  // meaningful while playing. Toggle along with the view switch so both
-  // the topstrip-left contents stay clean across views.
-  document.getElementById('topstrip-back-sets').hidden = (view !== 'caller');
-  document.getElementById('progress-display').hidden    = (view !== 'caller');
+  document.body.classList.toggle('app-view',     view !== 'home');
+  // Breadcrumb visibility — tool + context shown only in app-views.
+  const showCrumbs = view !== 'home';
+  document.getElementById('crumb-tool').hidden    = !showCrumbs;
+  document.getElementById('crumb-context').hidden = !showCrumbs;
+  // Right-side actions — Help only in caller, Host only in print-view.
+  document.getElementById('btn-help').hidden = (view !== 'caller');
+  document.getElementById('btn-host').hidden = (view !== 'print');
+  document.getElementById('progress-display').hidden = (view !== 'caller');
 }
 
 function applyLoadedSet(problems, name, allRows = null) {
@@ -1319,7 +1322,7 @@ function renderRoadmapOverlay() {
   }).join('');
 }
 function renderPrintView() {
-  document.getElementById('pv-title').textContent = state.setName || 'Print Cards';
+  document.getElementById('crumb-context').textContent = state.setName || 'New Set';
   applyCardColors();
   const loadErrEl = document.getElementById('pv-load-error');
   if (loadErrEl) loadErrEl.hidden = true;
@@ -3435,27 +3438,36 @@ function wireEvents() {
     });
   });
 
-  document.getElementById('topstrip-back-sets').addEventListener('click', (e) => {
+  // Breadcrumb middle item — "Math Bingo" link returns to the bingo
+  // homepage. Routed through confirmIfDirty so leaving the print-view
+  // with unsaved edits still prompts.
+  document.getElementById('crumb-tool').addEventListener('click', (e) => {
     e.preventDefault();
     stopTimer();
-    showView('home');
+    if (state.currentView === 'print') {
+      confirmIfDirty('Save before leaving?', () => showView('home'));
+    } else {
+      showView('home');
+    }
   });
   document.getElementById('btn-close-csv-help').onclick = () => closeOverlay('csv-help-overlay');
   document.getElementById('btn-close-roadmap').onclick = () => closeOverlay('roadmap-overlay');
   document.getElementById('btn-fullscreen').onclick = () => toggleFullscreen();
-  // Bingo-homepage-only topstrip buttons: back to suite + suite-level
-  // settings dialog (Appearance / Sound / Data — NOT the bingo overlay).
-  document.getElementById('hp-back-btn').onclick = () => { window.location.href = '../'; };
-  document.getElementById('hp-suite-settings-btn').onclick = () => {
-    import('../shared/settings.js').then(m => m.openSettings()).catch(() => {});
+  // Settings button branches on view: on the bingo homepage it opens
+  // the suite-level settings dialog (Appearance / Sound / Data) since
+  // no bingo-specific options are relevant before a set is picked;
+  // on print + caller views it opens the bingo settings overlay with
+  // game-specific controls (ball style, sounds, etc.).
+  document.getElementById('btn-settings').onclick = () => {
+    if (state.currentView === 'home') {
+      import('../shared/settings.js').then(m => m.openSettings()).catch(() => {});
+    } else {
+      renderSettings();
+      openOverlay('settings-overlay');
+    }
   };
-
-
-  // Print view
-  document.getElementById('pv-back-btn').onclick = () => {
-    confirmIfDirty('Save before leaving?', () => showView('home'));
-  };
-  document.getElementById('pv-host-btn').onclick = () => {
+  // Host Game in the topstrip (visible only on print-view).
+  document.getElementById('btn-host').onclick = () => {
     confirmIfDirty('Save before starting the game?', runHostGame);
   };
   function runHostGame() {

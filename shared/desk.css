@@ -193,10 +193,19 @@ a:hover { text-decoration-thickness: 2px; }
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  font-family: var(--font-slab);
+}
+
+/* Paper chip background only on "app" views — the screens where the
+   user is actively running the tool (caller, card-designer, wheel
+   spinner, seat editor). Toggled per-tool via body.app-view. */
+body.app-view .suite-topstrip {
   background: rgb(var(--paper-cream));
   border-bottom: 1px solid rgb(var(--paper-edge) / 0.18);
   box-shadow: 0 1px 0 rgb(26 22 20 / 0.06);
-  font-family: var(--font-slab);
 }
 
 .suite-topstrip-left,
@@ -205,6 +214,113 @@ a:hover { text-decoration-thickness: 2px; }
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
+}
+
+/* Every topstrip button / link is icon-only by default: transparent,
+   dimmed, brighter on hover. No borders, no shadows. Centralizes what
+   used to be sprinkled per-tool as .fs-btn / .audio-toggle / .icon-btn
+   variants. */
+.suite-topstrip button,
+.suite-topstrip-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: rgb(var(--paper-edge));
+  opacity: 0.55;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--type-13);
+  text-decoration: none;
+  transition: opacity 120ms ease-out;
+}
+.suite-topstrip button:hover,
+.suite-topstrip button:focus-visible,
+.suite-topstrip-actions a:hover,
+.suite-topstrip-actions a:focus-visible { opacity: 1; outline: none; }
+.suite-topstrip button .icon,
+.suite-topstrip-actions a .icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Breadcrumb on the left side of the topstrip. The first item carries
+   a back-arrow chevron and always links to suite home. Subsequent
+   items navigate one level deeper in the tool. The last item is plain
+   text (current context, not interactive). */
+.suite-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.suite-breadcrumb > a,
+.suite-breadcrumb > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--type-13);
+  color: rgb(var(--paper-edge));
+  text-decoration: none;
+  white-space: nowrap;
+  opacity: 0.7;
+  transition: opacity 120ms ease-out, color 120ms ease-out;
+}
+.suite-breadcrumb > a { cursor: pointer; }
+.suite-breadcrumb > a:hover,
+.suite-breadcrumb > a:focus-visible {
+  opacity: 1;
+  color: rgb(var(--accent-blue));
+  outline: none;
+}
+.suite-breadcrumb > span.is-current {
+  opacity: 1;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.suite-breadcrumb > a + a::before,
+.suite-breadcrumb > a + span::before,
+.suite-breadcrumb > span + span::before,
+.suite-breadcrumb > span + a::before {
+  content: '\203A';        /* › */
+  margin-right: var(--space-2);
+  opacity: 0.5;
+  font-weight: 400;
+}
+.suite-breadcrumb .crumb-home {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.suite-breadcrumb .crumb-home .icon {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.suite-topstrip-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .suite-wordmark {
@@ -329,6 +445,12 @@ a.suite-tool-name:focus-visible {
   top: auto;
   right: auto;
   z-index: auto;
+  /* In the topstrip, inherit the transparent icon-only recipe from
+     `.suite-topstrip button` above. Override the floating-button
+     chrome that the standalone .settings-button rule paints. */
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 .settings-button:hover  { background: rgb(var(--paper-edge) / 0.05); }
 .settings-button:active { transform: translateY(1px); }

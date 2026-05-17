@@ -473,35 +473,36 @@ body.is-wheel-stage #wheel-class-source.tag {
   }
 }
 
-/* ── audio toggle (visible at all times per the brief) ─────── */
+/* ── audio toggle (visible at all times per the brief).
+   Visual recipe (transparent / icon-only / dimmed) comes from the
+   shared .suite-topstrip button rule in shared/desk.css. We only
+   need to size the inner SVG and handle the muted state here. */
 
-.audio-toggle {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.2);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-paper);
-  cursor: pointer;
-  padding: 0;
-  transition: transform 80ms ease, background 80ms ease;
-}
-.audio-toggle:hover  { background: rgb(var(--paper-edge) / 0.05); }
-.audio-toggle:active { transform: translateY(1px); }
-.audio-toggle:focus-visible {
-  outline: 2px solid rgb(var(--accent-blue) / 0.5);
-  outline-offset: 2px;
-}
-.audio-toggle svg {
-  width: 18px;
-  height: 18px;
+#btn-audio-toggle svg {
+  width: 20px;
+  height: 20px;
   display: block;
 }
-.audio-toggle.is-muted { color: rgb(var(--paper-edge) / 0.55); }
+#btn-audio-toggle.is-muted { opacity: 0.35; }
+#btn-audio-toggle.is-muted:hover { opacity: 0.75; }
+
+/* Fullscreen-hides-others — only on the spin view, per user direction.
+   Class-select view keeps its full strip when fullscreened. */
+body.view-spin.is-fullscreen .suite-topstrip {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  padding: 0;
+}
+body.view-spin.is-fullscreen .suite-breadcrumb { display: none; }
+body.view-spin.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
+body.view-spin.is-fullscreen .suite-topstrip-actions {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 100;
+  padding: 0;
+}
 
 /* ── picker-specific settings rows in the shared dialog ─────── */
 

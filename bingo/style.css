@@ -314,23 +314,24 @@ body {
 /* Fullscreen mode: collapse the topstrip and float the Fullscreen toggle
    to the top-right corner so it's the only chrome visible. The body class
    is set by updateFullscreenBtn() in script.js. */
-body.is-fullscreen .suite-topstrip {
+/* Fullscreen-hides-others applies ONLY in caller view — the user
+   wants the immersive cleanup specifically while playing the game.
+   Print-view and homepage keep their full strip in fullscreen. */
+body.view-caller.is-fullscreen .suite-topstrip {
   background: transparent;
   border-bottom: none;
   box-shadow: none;
   padding: 0;
 }
-body.is-fullscreen .suite-topstrip-left { display: none; }
-body.is-fullscreen .suite-topstrip-right > *:not(#btn-fullscreen) { display: none; }
-body.is-fullscreen .suite-topstrip-right {
+body.view-caller.is-fullscreen .suite-breadcrumb { display: none; }
+body.view-caller.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
+body.view-caller.is-fullscreen .suite-topstrip-actions {
   position: fixed;
   top: var(--space-2);
   right: var(--space-2);
   z-index: 100;
   padding: 0;
 }
-/* Fullscreen mode: the toggle stays subtle (icon only, no chip). */
-body.is-fullscreen #btn-fullscreen { background: transparent; box-shadow: none; }
 
 /* ── Inline SVG icons ── */
 .icon {
@@ -1669,38 +1670,11 @@ kbd {
 [data-theme="dark"] .rm-ready { background: #1b3d1f; color: #81c784; }
 .rm-soon { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
 
-/* Topstrip per-view scoping. The bingo homepage (body.view-home) shows
-   only the .topstrip-home-only items (back + suite settings + fullscreen)
-   while print / caller views show the .topstrip-non-home items (wordmark,
-   tool name, Help, bingo settings). The fullscreen button has no scope
-   class so it stays on all views. !important needed because the per-view
-   buttons share .fs-btn / .icon-btn classes whose rules set display. */
-.suite-topstrip .topstrip-home-only { display: none !important; }
-body.view-home .suite-topstrip .topstrip-home-only { display: inline-flex !important; }
-body.view-home .suite-topstrip .topstrip-non-home  { display: none !important; }
-
-/* ── Fullscreen button ──
-   Subtler than Help / Settings — no chip background, dimmed by default,
-   brighter on hover. Uses .fs-btn (not .icon-btn) so it bypasses the
-   suite-topstrip chip styling. */
-.suite-topstrip .fs-btn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  color: rgb(var(--paper-edge));
-  opacity: 0.55;
-  cursor: pointer;
-  transition: opacity .15s ease-out;
-}
-.suite-topstrip .fs-btn:hover,
-.suite-topstrip .fs-btn:focus-visible { opacity: 1; }
-.suite-topstrip .fs-btn .icon { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Topstrip visuals are now defined in shared/desk.css — all controls
+   are icon-only, transparent, dimmed-by-default, brighten on hover.
+   Per-view show/hide for breadcrumb items + action buttons happens in
+   showView() (script.js) by toggling element.hidden. No CSS overrides
+   needed here. */
 
 #hp-set-error {
   margin-top: 12px; padding: 8px 12px;
@@ -1761,23 +1735,22 @@ body.view-home .suite-topstrip .topstrip-non-home  { display: none !important; }
   display: flex; flex-direction: column; flex: 1; min-height: 0;
   background: transparent; overflow: hidden;
 }
-#pv-topbar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 0 16px; height: var(--topbar-h);
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow); flex-shrink: 0;
-}
-#pv-title {
-  flex: 1; font-weight: 700; font-size: .95rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+/* Host error banner now lives at the top of the print-view body
+   (used to be inside the removed #pv-topbar). Visible only while a
+   host validation message is active. */
 #pv-host-error {
-  font-size: .82rem; color: #c62828; font-weight: 600;
-  white-space: nowrap; opacity: 0; transition: opacity .3s;
-  pointer-events: none;
+  display: none;
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #c62828;
+  font-size: .9rem;
+  font-weight: 600;
 }
-#pv-host-error.visible { opacity: 1; }
-#pv-host-btn, #pv-save-csv-btn { min-width: 148px; flex-shrink: 0; }
+#pv-host-error.visible { display: block; }
+#pv-save-csv-btn { min-width: 148px; flex-shrink: 0; }
 #pv-body {
   display: flex; flex: 1; overflow: hidden; gap: 0;
 }
@@ -2055,8 +2028,8 @@ body.view-home .suite-topstrip .topstrip-non-home  { display: none !important; }
     border-bottom: 1px solid var(--border);
     max-height: 50vh;
   }
-  /* Print topbar buttons: drop the 148px min so they shrink with viewport. */
-  #pv-host-btn, #pv-save-csv-btn { min-width: 0; }
+  /* Save-as-CSV button shrinks with viewport on narrow widths. */
+  #pv-save-csv-btn { min-width: 0; }
 
   /* Caller view: drop the 700px min on the problem card so it fits
      narrow viewports without forcing horizontal overflow. */

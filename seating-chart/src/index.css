@@ -27,4 +27,9 @@
   .input { @apply w-full rounded-md border border-ink/20 bg-paper px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/30; }
   .label { @apply block text-xs font-semibold uppercase tracking-wide text-ink-muted; }
   .card { @apply rounded-md border border-ink/15 bg-paper shadow-sm; }
+  /* Class-editor sub-nav (Roster / Room / History) — pill bar that sits in
+     the topstrip alongside the breadcrumb. */
+  .seating-tabs { @apply flex items-center gap-0.5 rounded-md bg-ink/5 p-0.5; }
+  .seating-tabs a { @apply rounded px-2.5 py-1 text-xs font-medium transition text-ink-muted hover:text-ink no-underline; }
+  .seating-tabs a.is-active { @apply bg-paper text-ink shadow-sm; }
 }

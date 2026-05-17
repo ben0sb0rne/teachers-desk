@@ -53,58 +53,58 @@ export default function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Toggle body.app-view on class-editor routes so the topstrip switches
+  // from transparent (homepage) to paper-cream (app-view) per the suite
+  // convention in shared/desk.css.
+  useEffect(() => {
+    document.body.classList.toggle("app-view", !!isClassRoute);
+    document.body.classList.toggle("view-home", !isClassRoute);
+    document.body.classList.toggle("view-class", !!isClassRoute);
+    return () => {
+      document.body.classList.remove("app-view", "view-home", "view-class");
+    };
+  }, [isClassRoute]);
+
   return (
     <div className="flex h-full flex-col">
-      {/* Single header. The .suite-topstrip class (defined in shared/desk.css) gives
-          us the cream surface, ink border, and slab-serif font. The seating chart's
-          own tool nav (class name, tabs, help, menu) lives inside the same strip. */}
+      {/* Topstrip uses the shared breadcrumb pattern: every screen leads
+          with [← THE TEACHER'S DESK], then drills down. Class-editor
+          routes show the class switcher + Roster/Room/History tabs as a
+          single contextual nav. Background is transparent on the index
+          and paper-cream on class-editor routes (driven by body.app-view). */}
       <header className="suite-topstrip">
-        <div className="suite-topstrip-left">
-          {/* Out-of-app link: leaves the React app, navigates to the suite root.
-              The wordmark is its own affordance — no back-arrow needed. */}
-          <a className="suite-wordmark" href="../" title="Back to The Teacher's Desk">
-            The Teacher's Desk
+        <nav className="suite-breadcrumb" aria-label="Breadcrumb">
+          <a href="../" className="crumb-home" title="Back to The Teacher's Desk">
+            <Icon name="chevron-left" size={14} />
+            <span>The Teacher's Desk</span>
           </a>
-          {/* In-app link to the classes index. Hidden when we're already
-              there — would just be a no-op link otherwise. */}
           {!isIndexRoute && (
-            <Link
-              to="/"
-              className="suite-tool-name hover:text-accent-blue"
-              title="Back to all classes"
-            >
+            <Link to="/" title="Back to all classes">
               All Classes
             </Link>
           )}
           {isClassRoute && klass && (
-            <>
-              <span className="h-5 w-px bg-ink/20" aria-hidden />
+            <span className="is-current">
               <ClassSwitcher currentClassId={klass.id} currentClassName={klass.name} />
-              <nav className="ml-2 flex items-center gap-0.5 rounded-md bg-ink/5 p-0.5">
-                <TabLink to={`/classes/${klass.id}/roster`}>Roster</TabLink>
-                <TabLink to={`/classes/${klass.id}/room`}>Room</TabLink>
-                <TabLink to={`/classes/${klass.id}/history`}>History</TabLink>
-              </nav>
-            </>
+            </span>
           )}
-        </div>
-        <div className="suite-topstrip-right">
-          {/* Order across every tool's topstrip is Help → Settings → Fullscreen
-              (the seating chart has no fullscreen toggle so it stops at
-              Settings). Both buttons use btn-secondary so heights match. */}
+        </nav>
+        {isClassRoute && klass && (
+          <nav className="seating-tabs" aria-label="Class views">
+            <TabLink to={`/classes/${klass.id}/roster`}>Roster</TabLink>
+            <TabLink to={`/classes/${klass.id}/room`}>Room</TabLink>
+            <TabLink to={`/classes/${klass.id}/history`}>History</TabLink>
+          </nav>
+        )}
+        <div className="suite-topstrip-actions">
           <button
-            className="btn-secondary"
+            type="button"
             onClick={() => setHelpOpen(true)}
             title="Keyboard shortcuts (?)"
+            aria-label="Help"
           >
-            <Icon name="help-circle" size={14} />
-            <span className="hidden md:inline">Help</span>
+            <Icon name="help-circle" size={20} />
           </button>
-          {/* Use the shared .settings-button class so the gear matches the
-              36x36 paper-card square the bingo + wheel tools render. The
-              shell rule lives in shared/desk.css; the inner Icon sizes to
-              18px to fill the same area as the .settings-button-icon SVG
-              the vanilla tools inject. */}
           <button
             type="button"
             className="settings-button"
@@ -112,7 +112,7 @@ export default function AppShell() {
             title="Settings (S)"
             aria-label="Settings"
           >
-            <Icon name="settings" size={18} />
+            <Icon name="settings" size={20} />
           </button>
         </div>
       </header>
@@ -127,16 +127,7 @@ export default function AppShell() {
 
 function TabLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          "rounded px-2.5 py-1 text-xs font-medium transition",
-          // Active tab pops up out of the bg-ink/5 nav onto the topstrip's cream surface.
-          isActive ? "bg-paper text-ink shadow-sm" : "text-ink-muted hover:text-ink",
-        )
-      }
-    >
+    <NavLink to={to} className={({ isActive }) => cn(isActive && "is-active")}>
       {children}
     </NavLink>
   );

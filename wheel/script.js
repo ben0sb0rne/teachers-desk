@@ -106,8 +106,15 @@ const state = {
 function showView(name) {
   for (const [k, el] of Object.entries(VIEW)) el.hidden = k !== name;
   document.body.classList.toggle('is-wheel-stage', name === 'wheel');
-  const allClassesLink = document.getElementById('topstrip-all-classes');
-  if (allClassesLink) allClassesLink.hidden = name === 'classSelect';
+  // Per-view body class drives the topstrip background (cream on app-view,
+  // transparent on home) via shared/desk.css, and per-tool fullscreen
+  // behavior (wheel hides chrome only on the spin view).
+  document.body.classList.toggle('view-home', name === 'classSelect');
+  document.body.classList.toggle('view-spin', name === 'wheel');
+  document.body.classList.toggle('app-view', name === 'wheel');
+  // Breadcrumb: tool name + class context only visible in spin view.
+  document.getElementById('crumb-tool').hidden    = name !== 'wheel';
+  document.getElementById('crumb-context').hidden = name !== 'wheel';
 }
 
 // -------------------------------------------------------------
@@ -160,6 +167,8 @@ function openClass(classId) {
   const cls = storage.listClasses().find((c) => c.id === classId);
   document.getElementById('wheel-class-source').hidden = !cls || cls.source !== 'seating-chart';
   document.getElementById('wheel-class-name').textContent = state.activeClassName;
+  // Surface the class name as the breadcrumb's current-context label.
+  document.getElementById('crumb-context').textContent = state.activeClassName;
 
   // Reset wheel transform without animating.
   wheelSvg.style.transition = 'none';
@@ -274,7 +283,9 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 // WHEEL VIEW
 // -------------------------------------------------------------
 
-document.getElementById('topstrip-all-classes').addEventListener('click', (e) => {
+// Breadcrumb middle item — "Wheel of Names" link returns to the
+// class-select view. Visible only while a class is open.
+document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
   abortPendingSpin();
   hideReveal();
@@ -282,6 +293,40 @@ document.getElementById('topstrip-all-classes').addEventListener('click', (e) =>
   if (activeClassUnsubscribe) {
     activeClassUnsubscribe();
     activeClassUnsubscribe = null;
+  }
+});
+
+// Fullscreen toggle. Mirrors the bingo implementation so behaviour
+// (icon swap, body class, webkit fallback) stays consistent.
+function updateFullscreenBtn() {
+  const btn = document.getElementById('btn-fullscreen');
+  if (!btn) return;
+  const inFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  document.body.classList.toggle('is-fullscreen', inFs);
+  const use = btn.querySelector('use');
+  if (use) use.setAttribute('href', inFs ? '#icon-fullscreen-exit' : '#icon-fullscreen');
+  btn.setAttribute('aria-label', inFs ? 'Exit fullscreen' : 'Enter fullscreen');
+  btn.title = inFs ? 'Exit fullscreen (F)' : 'Enter fullscreen (F)';
+}
+function toggleFullscreen() {
+  const inFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!inFs) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    req?.call(el)?.catch?.(() => {});
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    exit?.call(document)?.catch?.(() => {});
+  }
+}
+document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', updateFullscreenBtn);
+document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    toggleFullscreen();
   }
 });
 

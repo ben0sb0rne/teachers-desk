@@ -33,32 +33,31 @@
 </head>
 <body class="wood-bg is-bingo">
 
-<!-- Single suite topstrip. On the bingo homepage (body.view-home), only
-     the minimal trio is visible: back, suite settings, fullscreen — all
-     styled as .fs-btn (transparent, dimmed). On print / caller views
-     the full strip shows: wordmark, tool name, Help, bingo settings,
-     fullscreen. CSS scoped by body.view-{home,print,caller} class. -->
+<!-- Unified topstrip. Breadcrumb on the left always starts with
+     [← THE TEACHER'S DESK]; print + caller views add Math Bingo and
+     the current set name. Right side has icon-only actions. The
+     background is transparent on the bingo homepage and paper-cream
+     on print + caller views — driven by body.app-view (set in showView). -->
 <div class="suite-topstrip">
-  <div class="suite-topstrip-left">
-    <button class="fs-btn topstrip-home-only" id="hp-back-btn" title="Back to The Teacher's Desk" aria-label="Back to The Teacher's Desk">
+  <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+    <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
       <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
-    </button>
-    <a class="suite-wordmark topstrip-non-home" href="../">The Teacher's Desk</a>
-    <span class="suite-tool-name topstrip-non-home">Math Bingo</span>
-    <a class="suite-topstrip-link" id="topstrip-back-sets" href="#" hidden>Sets</a>
+      <span>The Teacher's Desk</span>
+    </a>
+    <a href="#" id="crumb-tool" hidden>Math Bingo</a>
+    <span id="crumb-context" class="is-current" hidden></span>
     <span id="progress-display" class="topstrip-progress" hidden></span>
-  </div>
-  <div class="suite-topstrip-right">
-    <button class="fs-btn topstrip-home-only" id="hp-suite-settings-btn" title="Settings" aria-label="Settings">
-      <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg>
-    </button>
-    <button class="icon-btn topstrip-non-home" id="btn-help" title="Keyboard shortcuts (?)">
+  </nav>
+  <div class="suite-topstrip-actions">
+    <button id="btn-help" type="button" hidden title="Keyboard shortcuts (?)" aria-label="Help">
       <svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg>
-      <span>Help</span>
     </button>
-    <button class="settings-button topstrip-non-home" id="btn-settings" type="button"
+    <button id="btn-host" type="button" hidden title="Host Game" aria-label="Host Game">
+      <svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg>
+    </button>
+    <button class="settings-button" id="btn-settings" type="button"
             aria-label="Settings" title="Settings (S)"></button>
-    <button class="fs-btn" id="btn-fullscreen" title="Fullscreen (F)" aria-label="Enter fullscreen">
+    <button id="btn-fullscreen" type="button" title="Fullscreen (F)" aria-label="Enter fullscreen">
       <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
     </button>
   </div>
@@ -80,6 +79,7 @@
   <symbol id="icon-help-circle"    viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
   <symbol id="icon-fullscreen"      viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
   <symbol id="icon-fullscreen-exit" viewBox="0 0 24 24"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+  <symbol id="icon-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></symbol>
 </svg>
 
 <!-- ═══════════════════════════════════════════════════
@@ -102,12 +102,7 @@
      PRINT VIEW
      ═══════════════════════════════════════════════════ -->
 <div id="print-view" hidden>
-  <div id="pv-topbar">
-    <button class="icon-btn" id="pv-back-btn"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg> Back</button>
-    <span id="pv-title"></span>
-    <span id="pv-host-error"></span>
-    <button class="hp-btn" id="pv-host-btn">Host Game <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg></button>
-  </div>
+  <div id="pv-host-error" hidden></div>
   <div id="pv-body">
     <!-- Left: options + download -->
     <div id="pv-options">

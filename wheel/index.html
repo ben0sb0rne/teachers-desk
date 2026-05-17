@@ -24,18 +24,32 @@
 <body class="wood-bg">
 
   <div class="suite-topstrip">
-    <div class="suite-topstrip-left">
-      <a class="suite-wordmark" href="../">The Teacher's Desk</a>
-      <a class="suite-tool-name" id="topstrip-all-classes" href="#" hidden>All Classes</a>
-      <span class="suite-tool-name">Wheel of Names</span>
-    </div>
-    <div class="suite-topstrip-right">
-      <button type="button" class="audio-toggle" id="btn-audio-toggle"
+    <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+      <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+        <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+        <span>The Teacher's Desk</span>
+      </a>
+      <a href="#" id="crumb-tool" hidden>Wheel of Names</a>
+      <span id="crumb-context" class="is-current" hidden></span>
+    </nav>
+    <div class="suite-topstrip-actions">
+      <button type="button" id="btn-audio-toggle"
               aria-label="Mute audio" title="Mute audio (M)"></button>
       <button type="button" class="settings-button" id="btn-settings-topstrip"
               aria-label="Settings" title="Settings (S)"></button>
+      <button type="button" id="btn-fullscreen"
+              title="Fullscreen (F)" aria-label="Enter fullscreen">
+        <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
+      </button>
     </div>
   </div>
+
+  <!-- SVG icon sprite. Shared with other tools' patterns. -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
+    <symbol id="icon-chevron-left"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></symbol>
+    <symbol id="icon-fullscreen"      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="icon-fullscreen-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+  </svg>
 
   <main class="picker-main">
 
