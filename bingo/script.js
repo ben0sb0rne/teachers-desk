@@ -1119,6 +1119,7 @@ function renderHomepage() {
                <div class="hp-upload-row" style="margin-top:10px">
                  <button class="hp-btn primary" data-cs-action="play"   data-cs-id="${escHtml(set.id)}">Host Game</button>
                  <button class="hp-btn"         data-cs-action="edit"   data-cs-id="${escHtml(set.id)}">Edit / Print</button>
+                 <button class="hp-btn"         data-cs-action="rename" data-cs-id="${escHtml(set.id)}">Rename</button>
                  <button class="hp-btn"         data-cs-action="delete" data-cs-id="${escHtml(set.id)}">Delete</button>
                </div>
              </div>
@@ -1151,6 +1152,43 @@ function renderHomepage() {
           if (errors.length) { errEl.textContent = errors.join('\n'); errEl.hidden = false; }
           else { errEl.hidden = true; }
         }
+      } else if (action === 'rename') {
+        // Inline rename: swap the set-name div for a text input. Enter
+        // commits, Esc cancels, blur commits. Re-render either way so
+        // the once-bound listener gets reattached and the card resets.
+        const card = btn.closest('.hp-set-card');
+        const nameEl = card.querySelector('.hp-set-name');
+        if (!nameEl) return;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = set.name;
+        input.maxLength = 100;
+        input.className = 'hp-set-name-edit';
+        input.setAttribute('aria-label', 'Rename set');
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+        let done = false;
+        const commit = (save) => {
+          if (done) return;
+          done = true;
+          const newName = input.value.trim();
+          if (save && newName && newName !== set.name) {
+            const tool = sharedStorage.getToolState('bingo') || {};
+            const sets = Array.isArray(tool.customSets) ? tool.customSets.slice() : [];
+            const idx = sets.findIndex(s => s && s.id === set.id);
+            if (idx >= 0) {
+              sets[idx] = { ...sets[idx], name: newName, savedAt: new Date().toISOString() };
+              sharedStorage.setToolState('bingo', { ...tool, customSets: sets });
+            }
+          }
+          renderHomepage();
+        };
+        input.addEventListener('blur', () => commit(true));
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
+          else if (ev.key === 'Escape') { ev.preventDefault(); commit(false); }
+        });
       } else if (action === 'delete') {
         if (confirm(`Delete saved set "${set.name}"? This cannot be undone.`)) {
           deleteCustomSet(set.id);
@@ -1417,6 +1455,8 @@ function renderRoadmapOverlay() {
 }
 function renderPrintView() {
   document.getElementById('crumb-context').textContent = state.setName || 'New Set';
+  const nameInput = document.getElementById('pv-set-name-input');
+  if (nameInput) nameInput.value = state.setName || '';
   applyCardColors();
   const loadErrEl = document.getElementById('pv-load-error');
   if (loadErrEl) loadErrEl.hidden = true;
@@ -3310,18 +3350,17 @@ function showConfirm({ title = 'Confirm', message = '', buttons = [] }) {
    when the current editRows diverges from that snapshot — used by
    the Back / Host Game buttons to prompt the user to save first.
    ============================================================ */
-let _pvBaseline = '[]';
-function snapshotPvBaseline() {
-  _pvBaseline = JSON.stringify(state.editRows.map(r => ({
-    column: r.column, problem: r.problem, answer: r.answer
-  })));
+let _pvBaseline = '';
+function _pvSnapshot() {
+  return JSON.stringify({
+    name: state.setName || '',
+    rows: state.editRows.map(r => ({
+      column: r.column, problem: r.problem, answer: r.answer
+    })),
+  });
 }
-function isPvDirty() {
-  const now = JSON.stringify(state.editRows.map(r => ({
-    column: r.column, problem: r.problem, answer: r.answer
-  })));
-  return now !== _pvBaseline;
-}
+function snapshotPvBaseline() { _pvBaseline = _pvSnapshot(); }
+function isPvDirty() { return _pvSnapshot() !== _pvBaseline; }
 function confirmIfDirty(actionLabel, onProceed) {
   if (!isPvDirty()) return onProceed();
   showConfirm({
@@ -3623,6 +3662,17 @@ function wireEvents() {
   }
   document.getElementById('pv-download-btn').onclick = () => pvDownloadCards();
   document.getElementById('pv-save-csv-btn').onclick = () => { pvSaveSetCsv(); snapshotPvBaseline(); };
+
+  // Editable set name: live-update state + breadcrumb on every keystroke;
+  // scheduleAutoSave's existing debounce + dirty check handles the rest.
+  const nameInput = document.getElementById('pv-set-name-input');
+  if (nameInput) {
+    nameInput.addEventListener('input', () => {
+      state.setName = nameInput.value;
+      document.getElementById('crumb-context').textContent = state.setName || 'New Set';
+      scheduleAutoSave();
+    });
+  }
 
   // Pre-assign by class
   const assignToggle = document.getElementById('pv-assign-toggle');
