@@ -2031,7 +2031,7 @@ kbd {
 #pv-edit-table thead th:first-child,
 #pv-edit-table tbody td:first-child { width: 56px !important; min-width: 56px; max-width: 56px; padding: 6px 4px !important; }
 #pv-edit-table .pv-col-select { width: 48px; padding: 6px 4px; margin: 0; }
-#pv-edit-table .pv-ans-cell          { width: 140px; }
+#pv-edit-table .pv-ans-cell          { width: 220px; }
 #pv-edit-table .pv-ans-preview-cell  { width: 160px; }
 #pv-edit-table .pv-del-cell          { width: 36px; text-align: center; }
 #pv-edit-table .pv-prob-input,
