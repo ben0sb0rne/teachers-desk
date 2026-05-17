@@ -350,7 +350,10 @@ function topicPrimaryGrade(group, allowed = GRADE_ORDER) {
    ============================================================ */
 function parseCSVText(text) {
   const rows = [];
-  const raw = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Strip UTF-8 BOM (Excel adds one when "Save As CSV UTF-8"). Without
+  // this, the first header parses as "﻿column" and loadProblems
+  // reports a spurious "Missing required header" error.
+  const raw = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   let i = 0;
   while (i <= raw.length) {
     const row = [];
@@ -1770,8 +1773,9 @@ function downloadTemplate() {
    ============================================================ */
 let rafId = null;
 // Tracks the identity of the current top card in the recent-balls strip
-// so the next render can decide whether to apply the .ball-entering
-// animation class to the new top. Set to null to suppress the entry
+// so the next render can decide which slide animation to apply
+// (.is-new on the new lead, .is-shifting on carryovers, .is-leaving on
+// the ghost of the dropped tail). Set to null to suppress the entry
 // animation on the very next render (used by resets and settings
 // changes — see resetRenderState).
 let _prevTopKey = null;
@@ -3149,11 +3153,32 @@ function renderMath(el, text) {
 /* ============================================================
    OVERLAYS
    ============================================================ */
+// Track the element that had focus when each overlay opened, so closeOverlay
+// can restore focus there. Per-overlay because openOverlay can be nested
+// (e.g., Settings → Reset Game confirm).
+const _overlayFocusReturn = new Map();
 function openOverlay(id) {
-  document.getElementById(id).hidden = false;
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Remember where focus was so we can restore on close.
+  _overlayFocusReturn.set(id, document.activeElement);
+  el.hidden = false;
+  // Move focus to the first interactive element inside the panel — prefer
+  // the close button, fall back to any focusable child.
+  const focusable = el.querySelector(
+    '.close-btn, button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (focusable) setTimeout(() => focusable.focus(), 0);
 }
 function closeOverlay(id) {
-  document.getElementById(id).hidden = true;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = true;
+  const ret = _overlayFocusReturn.get(id);
+  _overlayFocusReturn.delete(id);
+  if (ret && typeof ret.focus === 'function' && document.body.contains(ret)) {
+    setTimeout(() => ret.focus(), 0);
+  }
 }
 function closeAllOverlays() {
   ['settings-overlay','help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].forEach(closeOverlay);
@@ -3657,6 +3682,10 @@ function init() {
   applyFont();
   audio.init();
   renderHomepage();
+  // Anchor the dirty-tracking baseline AFTER state hydration so a fresh
+  // page load on a previously-edited set doesn't show "Save changes?"
+  // prompts on Back / Host Game when the user hasn't actually edited.
+  snapshotPvBaseline();
   showView('home');
 }
 

@@ -89,7 +89,7 @@
     </div>
 
     <div id="hp-tiles"><!-- rendered by renderHomepage() --></div>
-    <div id="hp-set-error" hidden></div>
+    <div id="hp-set-error" hidden aria-live="polite" aria-atomic="true"></div>
 
   </div>
 </div>
@@ -98,7 +98,7 @@
      PRINT VIEW
      ═══════════════════════════════════════════════════ -->
 <div id="print-view" hidden>
-  <div id="pv-host-error" hidden></div>
+  <div id="pv-host-error" hidden aria-live="polite" aria-atomic="true"></div>
   <div id="pv-body">
     <!-- Left: options + download -->
     <div id="pv-options">
@@ -200,27 +200,27 @@
           <div class="pv-color-row" data-col="B">
             <span class="pv-color-col-label">B</span>
             <input type="color" class="pv-color-input" id="pv-color-B" value="#1565c0">
-            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+            <button class="pv-color-reset icon-btn" title="Reset to default" aria-label="Reset B column color to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
           </div>
           <div class="pv-color-row" data-col="I">
             <span class="pv-color-col-label">I</span>
             <input type="color" class="pv-color-input" id="pv-color-I" value="#2e7d32">
-            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+            <button class="pv-color-reset icon-btn" title="Reset to default" aria-label="Reset I column color to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
           </div>
           <div class="pv-color-row" data-col="N">
             <span class="pv-color-col-label">N</span>
             <input type="color" class="pv-color-input" id="pv-color-N" value="#e65100">
-            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+            <button class="pv-color-reset icon-btn" title="Reset to default" aria-label="Reset N column color to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
           </div>
           <div class="pv-color-row" data-col="G">
             <span class="pv-color-col-label">G</span>
             <input type="color" class="pv-color-input" id="pv-color-G" value="#6a1b9a">
-            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+            <button class="pv-color-reset icon-btn" title="Reset to default" aria-label="Reset G column color to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
           </div>
           <div class="pv-color-row" data-col="O">
             <span class="pv-color-col-label">O</span>
             <input type="color" class="pv-color-input" id="pv-color-O" value="#b71c1c">
-            <button class="pv-color-reset icon-btn" title="Reset to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
+            <button class="pv-color-reset icon-btn" title="Reset to default" aria-label="Reset O column color to default"><svg class="icon" aria-hidden="true"><use href="#icon-rotate-ccw"/></svg></button>
           </div>
         </div>
       </div>
@@ -273,7 +273,7 @@
         </div>
       </details>
       <button class="hp-btn primary" id="pv-download-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Download Cards</button>
-      <div id="pv-dl-error" hidden></div>
+      <div id="pv-dl-error" hidden aria-live="polite" aria-atomic="true"></div>
     </div>
     <!-- Right: problem/answer preview (always-editable) -->
     <div id="pv-preview">
@@ -283,7 +283,7 @@
         <button class="hp-btn" id="pv-save-csv-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Save as CSV</button>
         <button class="hp-btn primary" id="pv-host-btn"><svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg> Host Game</button>
       </div>
-      <div id="pv-load-error" hidden></div>
+      <div id="pv-load-error" hidden aria-live="polite" aria-atomic="true"></div>
       <div id="pv-problems-table"></div>
     </div>
   </div>
@@ -355,10 +355,10 @@
 </div>
 
 <!-- Check Answers overlay -->
-<div class="overlay" id="check-answers-overlay" hidden>
+<div class="overlay" id="check-answers-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="check-answers-title">
   <div class="panel">
     <div class="panel-header">
-      <h2>Check Answers</h2>
+      <h2 id="check-answers-title">Check Answers</h2>
       <button class="close-btn" id="btn-close-check-answers" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body">
@@ -392,10 +392,10 @@
 </div>
 
 <!-- Settings overlay -->
-<div class="overlay" id="settings-overlay" hidden>
+<div class="overlay" id="settings-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
   <div class="panel">
     <div class="panel-header">
-      <h2><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Settings</h2>
+      <h2 id="settings-title"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Settings</h2>
       <button class="close-btn" id="btn-close-settings" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body" id="settings-body"></div>
@@ -403,10 +403,10 @@
 </div>
 
 <!-- Help overlay -->
-<div class="overlay" id="help-overlay" hidden>
+<div class="overlay" id="help-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
   <div class="panel">
     <div class="panel-header">
-      <h2>? Keyboard Shortcuts</h2>
+      <h2 id="help-title">? Keyboard Shortcuts</h2>
       <button class="close-btn" id="btn-close-help" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body">
@@ -430,7 +430,7 @@
 <!-- Confirm dialog — title, message, and buttons are populated by JS
      via showConfirm() in script.js so this overlay can be reused for
      any "are you sure?" flow. -->
-<div class="overlay" id="confirm-overlay" hidden>
+<div class="overlay" id="confirm-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
   <div class="panel confirm-panel">
     <div class="panel-header"><h2 id="confirm-title">Confirm</h2></div>
     <div class="panel-body">
@@ -441,10 +441,10 @@
 </div>
 
 <!-- CSV Format Help overlay -->
-<div class="overlay" id="csv-help-overlay" hidden>
+<div class="overlay" id="csv-help-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="csv-help-title">
   <div class="panel">
     <div class="panel-header">
-      <h2>CSV Format Guide</h2>
+      <h2 id="csv-help-title">CSV Format Guide</h2>
       <button class="close-btn" id="btn-close-csv-help" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body">
@@ -471,10 +471,10 @@ O,20 + (-3),17</pre>
 </div>
 
 <!-- Topic roadmap overlay -->
-<div class="overlay" id="roadmap-overlay" hidden>
+<div class="overlay" id="roadmap-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="roadmap-title">
   <div class="panel">
     <div class="panel-header">
-      <h2>Topic Roadmap</h2>
+      <h2 id="roadmap-title">Topic Roadmap</h2>
       <button class="close-btn" id="btn-close-roadmap" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     </div>
     <div class="panel-body">
