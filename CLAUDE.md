@@ -11,7 +11,7 @@ A static suite of free classroom tools for K–12 teachers, made by Mr. Osborne.
 - Don't expand scope past what a brief specifies.
 - Both this file and the briefs are living documents. If a decision in conversation contradicts a brief, the user updates the brief — Claude does not silently update either. **Flag the contradiction explicitly when it happens.**
 
-The briefs currently exist as a single Word document at `briefs/teachers-desk-briefs.docx`. The plan is to split it into per-tool `.md` files (`briefs/00-suite-conventions.md`, `briefs/01-homepage.md`, etc.) when ready.
+Briefs live in `briefs/`. The original consolidated Word document is at `briefs/teachers-desk-briefs.docx`; per-tool `.md` files are added as each tool is specced (e.g. [`briefs/02-bingo.md`](briefs/02-bingo.md)). When a brief and the .docx disagree, the `.md` wins.
 
 ## Repo structure
 
@@ -67,7 +67,7 @@ Each tool has its own intentional visual character. Don't fight the impulse to m
 - **Timer** — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
 - **Who's Been Called** — 1970s grade book / green-bar accountant pad.
 - **Around the World** — boxing-match broadcast.
-- **Bingo** — existing aesthetic, no brief yet.
+- **Bingo** — church-hall / 1970s bingo night, paper-cream surfaces. See [`briefs/02-bingo.md`](briefs/02-bingo.md).
 - **Seating Chart** — existing aesthetic, no brief yet.
 
 Cohesion comes from:
@@ -91,11 +91,20 @@ Per-tool state lives under `tools.<toolName>` in the storage envelope.
 
 **`recordCall(periodId, studentName)`** is shared infrastructure: any tool that picks or calls on a student should invoke it, so participation data is consistent regardless of which tool selected the student. The Wheel calls it on each spin. Around the World calls it on each round. Future pickers should too.
 
-## Tool navigation
+## Tool navigation — the topstrip pattern
 
-- Every tool has **one** "← The Teacher's Desk" link in its top-left corner that returns to the homepage.
-- **No cross-tool navigation.** Tools never link to each other.
-- **No top nav, no footer, no sidebar.** Discovery happens at the desk.
+Every tool uses the same `.suite-topstrip` shell (defined in [`shared/desk.css`](shared/desk.css)) with three rules:
+
+- **Left:** a breadcrumb starting with `The Teacher's Desk` (text-only, no back-arrow icon). The wordmark itself links to the suite root. Deeper crumbs are tool-internal levels (e.g. `Math Bingo › Set Name`). Last crumb is plain text — current context, not a link.
+- **Right:** icon-only action buttons. No chip backgrounds, no shadows. Color follows the bar: cream on the transparent home strip (over the dark wood backdrop), ink-dark on the paper-cream app-view bar. Hover is a unified `paper-edge / 0.08` overlay.
+- **Background:** transparent by default; paper-cream on app-views (caller, card designer, wheel spinner, seat editor). Toggled by `body.app-view` from each tool's view switcher.
+
+Additional conventions:
+
+- **Fullscreen-hides-others** is opt-in per view. Bingo enables it on the caller; wheel on the spin view. Other screens keep their full strip in fullscreen.
+- **No cross-tool navigation.** Tools never link to each other. The breadcrumb only walks to suite root or within the current tool.
+- **No footer, no sidebar.** Discovery happens at the desk.
+- Tool homepages still keep the same widget set as app-views — just transparent background — so the user can hit Settings or Fullscreen from any screen.
 
 ## Audience and devices
 
