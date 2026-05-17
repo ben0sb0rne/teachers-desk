@@ -4,17 +4,6 @@
    suite palette; dark theme keeps bingo's existing dark scheme.
    ────────────────────────────────────────────────────────────── */
 
-/* Registered custom property so the photoreal ball's keyframes
-   can interpolate --motion-blur smoothly. Without @property,
-   custom-property animations would step-change at the midpoint
-   instead of lerping. Has zero effect in classic mode (nothing
-   reads --motion-blur there). */
-@property --motion-blur {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
 :root {
   /* Surface + text — point at suite tokens */
   --bg:           rgb(var(--paper-cream));
@@ -790,7 +779,7 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
   filter:
     drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
     drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
-    blur(var(--motion-blur, 0px));
+    blur(0px);
   will-change: transform, filter;
 }
 
@@ -874,23 +863,35 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
    label-roll:  rotateX 540° → 0° (1.5 forward turns). Cubic-bezier
                 (0.08, 0.75, 0.18, 1) — hard kickstart, soft landing
                 so the letter locks dead-on facing camera.
-   cast-grow:   shadow scale + opacity. Front-loaded easing — most of
-                the growth happens in the last 30% as the ball nears
-                the ground plane.
-   --motion-blur ramps from 3px (fast in the distance) to 0 (crisp
-   at landing) via the @property registration at the top of the file. */
+   cast-grow:   shadow tracks the ball via translateZ + translateY so
+                its perspective scale and vertical offset stay in sync
+                with the ball. Uses the same easing curve as the ball
+                so they progress together.
+   Blur ramps from 3px (fast in the distance) to 0 (crisp at landing)
+   directly in the filter chain — no @property indirection needed. */
 @keyframes ball-roll-forward {
   0% {
     transform: translateZ(-1800px) translateY(-30px);
     opacity: 0;
-    --motion-blur: 3px;
+    filter:
+      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
+      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
+      blur(3px);
   }
-  10%  { opacity: 1; }
-  50%  { --motion-blur: 1px; }
+  10% { opacity: 1; }
+  50% {
+    filter:
+      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
+      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
+      blur(1px);
+  }
   100% {
     transform: translateZ(0) translateY(0);
     opacity: 1;
-    --motion-blur: 0px;
+    filter:
+      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
+      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
+      blur(0px);
   }
 }
 @keyframes ball-label-roll {
@@ -898,10 +899,9 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
   100% { transform: rotateX(0deg); }
 }
 @keyframes ball-cast-grow {
-  0%   { transform: translate(-50%, -28px) scale(0.08); opacity: 0; }
-  10%  { transform: translate(-50%, -24px) scale(0.12); opacity: 0.04; }
-  60%  { transform: translate(-50%, -10px) scale(0.45); opacity: 0.18; }
-  100% { transform: translate(-50%, 0)     scale(1);    opacity: 0.5; }
+  0%   { transform: translate(-50%, -30px) translateZ(-1800px); opacity: 0; }
+  10%  { opacity: 0.5; }
+  100% { transform: translate(-50%, 0)     translateZ(0);       opacity: 0.5; }
 }
 
 body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper {
@@ -911,7 +911,7 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin {
   animation: ball-label-roll 1.7s cubic-bezier(0.08, 0.75, 0.18, 1) both;
 }
 body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
-  animation: ball-cast-grow 1.7s cubic-bezier(0.3, 0.5, 0.35, 1) both;
+  animation: ball-cast-grow 1.7s cubic-bezier(0.2, 0.65, 0.25, 1) both;
 }
 
 #problem-text {
