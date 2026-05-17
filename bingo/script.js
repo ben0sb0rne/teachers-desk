@@ -731,6 +731,13 @@ let _autoSaveTimer = null;
 function scheduleAutoSave() {
   if (state.currentView !== 'print') return;
   if (state.editRows.length === 0) return;
+  // Fork-on-edit: only auto-save when the user has actually changed
+  // something since the set was loaded. syncProblemsFromEditRows()
+  // is also called for validation when the editor opens — at that
+  // point editRows matches the baseline and isPvDirty() is false,
+  // so we skip the save and don't pollute My Sets with copies of
+  // built-in topics that the user merely opened to look at.
+  if (!isPvDirty()) return;
   clearTimeout(_autoSaveTimer);
   _autoSaveTimer = setTimeout(() => {
     if (!state.currentSetId) state.currentSetId = generateSetId();
