@@ -75,7 +75,6 @@ export default function AppShell() {
       <header className="suite-topstrip">
         <nav className="suite-breadcrumb" aria-label="Breadcrumb">
           <a href="../" className="crumb-home" title="Back to The Teacher's Desk">
-            <Icon name="chevron-left" size={14} />
             <span>The Teacher's Desk</span>
           </a>
           {!isIndexRoute && (

@@ -888,9 +888,9 @@ function showView(view) {
   const showCrumbs = view !== 'home';
   document.getElementById('crumb-tool').hidden    = !showCrumbs;
   document.getElementById('crumb-context').hidden = !showCrumbs;
-  // Right-side actions — Help only in caller, Host only in print-view.
+  // Right-side actions — Help only in caller; Host Game now lives in
+  // the print-view's preview toolbar next to Save as CSV, not the topstrip.
   document.getElementById('btn-help').hidden = (view !== 'caller');
-  document.getElementById('btn-host').hidden = (view !== 'print');
   document.getElementById('progress-display').hidden = (view !== 'caller');
 }
 
@@ -3466,8 +3466,8 @@ function wireEvents() {
       openOverlay('settings-overlay');
     }
   };
-  // Host Game in the topstrip (visible only on print-view).
-  document.getElementById('btn-host').onclick = () => {
+  // Host Game lives in the print-view's preview toolbar next to Save as CSV.
+  document.getElementById('pv-host-btn').onclick = () => {
     confirmIfDirty('Save before starting the game?', runHostGame);
   };
   function runHostGame() {

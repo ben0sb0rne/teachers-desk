@@ -41,7 +41,6 @@
 <div class="suite-topstrip">
   <nav class="suite-breadcrumb" aria-label="Breadcrumb">
     <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
-      <svg class="icon" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
       <span>The Teacher's Desk</span>
     </a>
     <a href="#" id="crumb-tool" hidden>Math Bingo</a>
@@ -51,9 +50,6 @@
   <div class="suite-topstrip-actions">
     <button id="btn-help" type="button" hidden title="Keyboard shortcuts (?)" aria-label="Help">
       <svg class="icon" aria-hidden="true"><use href="#icon-help-circle"/></svg>
-    </button>
-    <button id="btn-host" type="button" hidden title="Host Game" aria-label="Host Game">
-      <svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg>
     </button>
     <button class="settings-button" id="btn-settings" type="button"
             aria-label="Settings" title="Settings (S)"></button>
@@ -285,6 +281,7 @@
         <div id="pv-col-counts"></div>
         <span id="pv-topbar-msg"></span>
         <button class="hp-btn" id="pv-save-csv-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Save as CSV</button>
+        <button class="hp-btn primary" id="pv-host-btn"><svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg> Host Game</button>
       </div>
       <div id="pv-load-error" hidden></div>
       <div id="pv-problems-table"></div>

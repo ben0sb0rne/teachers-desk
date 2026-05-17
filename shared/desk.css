@@ -216,10 +216,12 @@ body.app-view .suite-topstrip {
   min-width: 0;
 }
 
-/* Every topstrip button / link is icon-only by default: transparent,
-   dimmed, brighter on hover. No borders, no shadows. Centralizes what
-   used to be sprinkled per-tool as .fs-btn / .audio-toggle / .icon-btn
-   variants. */
+/* Every topstrip button / link is icon-only with a unified visual:
+   - Color follows the bar's surface — cream on the transparent home
+     strip (over the dark wood backdrop), ink-dark on the paper-cream
+     app-view bar. Full opacity in both cases.
+   - Hover is a subtle ink-tint background overlay; no opacity flicker,
+     no color shift. Same recipe on every clickable element. */
 .suite-topstrip button,
 .suite-topstrip-actions a {
   display: inline-flex;
@@ -232,18 +234,31 @@ body.app-view .suite-topstrip {
   background: transparent;
   border: none;
   box-shadow: none;
-  color: rgb(var(--paper-edge));
-  opacity: 0.55;
+  color: rgb(var(--paper-cream));
   cursor: pointer;
   font-family: inherit;
   font-size: var(--type-13);
   text-decoration: none;
-  transition: opacity 120ms ease-out;
+  border-radius: var(--radius-tight);
+  transition: background 120ms ease-out, color 120ms ease-out;
 }
+body.app-view .suite-topstrip button,
+body.app-view .suite-topstrip-actions a { color: rgb(var(--paper-edge)); }
+
 .suite-topstrip button:hover,
 .suite-topstrip button:focus-visible,
 .suite-topstrip-actions a:hover,
-.suite-topstrip-actions a:focus-visible { opacity: 1; outline: none; }
+.suite-topstrip-actions a:focus-visible {
+  background: rgb(var(--paper-cream) / 0.18);
+  outline: none;
+}
+body.app-view .suite-topstrip button:hover,
+body.app-view .suite-topstrip button:focus-visible,
+body.app-view .suite-topstrip-actions a:hover,
+body.app-view .suite-topstrip-actions a:focus-visible {
+  background: rgb(var(--paper-edge) / 0.08);
+}
+
 .suite-topstrip button .icon,
 .suite-topstrip-actions a .icon {
   width: 20px;
@@ -255,10 +270,10 @@ body.app-view .suite-topstrip {
   stroke-linejoin: round;
 }
 
-/* Breadcrumb on the left side of the topstrip. The first item carries
-   a back-arrow chevron and always links to suite home. Subsequent
-   items navigate one level deeper in the tool. The last item is plain
-   text (current context, not interactive). */
+/* Breadcrumb on the left side of the topstrip. The first item is the
+   wordmark (links to suite home); subsequent items navigate deeper into
+   the tool. The final item is plain text (current context). Color +
+   hover match the topstrip-action buttons. */
 .suite-breadcrumb {
   display: flex;
   align-items: center;
@@ -272,48 +287,51 @@ body.app-view .suite-topstrip {
   align-items: center;
   gap: 6px;
   font-size: var(--type-13);
-  color: rgb(var(--paper-edge));
+  color: rgb(var(--paper-cream));
   text-decoration: none;
   white-space: nowrap;
-  opacity: 0.7;
-  transition: opacity 120ms ease-out, color 120ms ease-out;
+  border-radius: var(--radius-tight);
+  padding: 4px 6px;
+  transition: background 120ms ease-out, color 120ms ease-out;
 }
+body.app-view .suite-breadcrumb > a,
+body.app-view .suite-breadcrumb > span { color: rgb(var(--paper-edge)); }
+
 .suite-breadcrumb > a { cursor: pointer; }
 .suite-breadcrumb > a:hover,
 .suite-breadcrumb > a:focus-visible {
-  opacity: 1;
-  color: rgb(var(--accent-blue));
+  background: rgb(var(--paper-cream) / 0.18);
   outline: none;
 }
+body.app-view .suite-breadcrumb > a:hover,
+body.app-view .suite-breadcrumb > a:focus-visible {
+  background: rgb(var(--paper-edge) / 0.08);
+}
+
 .suite-breadcrumb > span.is-current {
-  opacity: 1;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
 }
-.suite-breadcrumb > a + a::before,
-.suite-breadcrumb > a + span::before,
-.suite-breadcrumb > span + span::before,
-.suite-breadcrumb > span + a::before {
+
+/* Separator › between visible items. :not(:empty) skips the separator
+   before an item that exists in the DOM but has no text yet (e.g., a
+   fresh "New Set" before setName is populated) so no trailing › dangles. */
+.suite-breadcrumb > a + a:not(:empty)::before,
+.suite-breadcrumb > a + span:not(:empty)::before,
+.suite-breadcrumb > span + span:not(:empty)::before,
+.suite-breadcrumb > span + a:not(:empty)::before {
   content: '\203A';        /* › */
   margin-right: var(--space-2);
   opacity: 0.5;
   font-weight: 400;
 }
+
 .suite-breadcrumb .crumb-home {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 700;
-}
-.suite-breadcrumb .crumb-home .icon {
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .suite-topstrip-actions {
