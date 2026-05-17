@@ -40,7 +40,7 @@
      on print + caller views — driven by body.app-view (set in showView). -->
 <div class="suite-topstrip">
   <nav class="suite-breadcrumb" aria-label="Breadcrumb">
-    <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+    <a href="../" id="crumb-home" class="crumb-home" title="Back to The Teacher's Desk">
       <span>The Teacher's Desk</span>
     </a>
     <a href="#" id="crumb-tool" hidden>Math Bingo</a>
@@ -120,7 +120,7 @@
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
         <div id="pv-style-picker">
-          <label class="pv-style-card active" data-pv-style="full">
+          <label class="pv-style-card is-active" data-pv-style="full">
             <!-- Full Page: portrait thumb (32×42) with one centered card (22×27, colW=4.4) -->
             <svg class="pv-style-thumb" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg">
               <rect x="5" y="7" width="22" height="27" rx="1" fill="white" stroke="#bbb" stroke-width="0.6"/>
@@ -193,7 +193,7 @@
       <div class="pv-opt-group" id="pv-colors-group">
         <label class="pv-opt-label">Card Colors</label>
         <div class="seg-group pv-color-seg">
-          <button class="seg-btn active" data-pv-color="color">Color</button>
+          <button class="seg-btn is-active" data-pv-color="color">Color</button>
           <button class="seg-btn" data-pv-color="bw">Black &amp; White</button>
         </div>
         <div id="pv-color-pickers">
@@ -241,7 +241,7 @@
           <div>
             <label class="pv-adv-sublabel">Work area style</label>
             <div class="seg-group" id="pv-work-picker">
-              <button class="seg-btn active" data-pv-work="lined">Lined</button>
+              <button class="seg-btn is-active" data-pv-work="lined">Lined</button>
               <button class="seg-btn" data-pv-work="grid">Grid</button>
               <button class="seg-btn" data-pv-work="blank">Blank</button>
             </div>
@@ -280,6 +280,7 @@
       <div id="pv-preview-topbar">
         <div id="pv-col-counts"></div>
         <span id="pv-topbar-msg"></span>
+        <span id="pv-autosaved-indicator" class="pv-autosaved" hidden></span>
         <button class="hp-btn" id="pv-save-csv-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Save as CSV</button>
         <button class="hp-btn primary" id="pv-host-btn"><svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg> Host Game</button>
       </div>
@@ -365,7 +366,7 @@
       <!-- Quick checker -->
       <div id="ca-quick-checker">
         <div id="ca-col-btns">
-          <button class="ca-col-btn active" data-col="B">B</button>
+          <button class="ca-col-btn is-active" data-col="B">B</button>
           <button class="ca-col-btn" data-col="I">I</button>
           <button class="ca-col-btn" data-col="N">N</button>
           <button class="ca-col-btn" data-col="G">G</button>
@@ -391,16 +392,9 @@
   </div>
 </div>
 
-<!-- Settings overlay -->
-<div class="overlay" id="settings-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
-  <div class="panel">
-    <div class="panel-header">
-      <h2 id="settings-title"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Settings</h2>
-      <button class="close-btn" id="btn-close-settings" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
-    </div>
-    <div class="panel-body" id="settings-body"></div>
-  </div>
-</div>
+<!-- Settings UI lives in the shared suite dialog now (shared/settings.js).
+     bingo registers its tool-specific section via registerToolSettings()
+     during init(); the in-tool overlay was removed. -->
 
 <!-- Help overlay -->
 <div class="overlay" id="help-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
@@ -457,11 +451,15 @@
       <p style="margin-bottom:8px;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">Example</p>
       <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;font-size:.85rem;overflow-x:auto;line-height:1.6;">column,problem,answer
 B,-10 + (-15),-25
-B,-8 + (-12),-20
+B,-12 + (-10),-22
 I,-7 + (-6),-13
+I,-5 + (-7),-12
 N,-4 + 3,-1
+N,-1 + (-2),-3
+G,2 + 6,8
 G,4 + 5,9
-O,20 + (-3),17</pre>
+O,8 + 9,17
+O,11 + 9,20</pre>
       <p style="margin-top:14px;font-size:.87rem;color:var(--text-muted);line-height:1.6;">
         Each column needs at least <strong>5 distinct answer values</strong> for bingo cards to work.<br>
         Answer ranges should not overlap between columns.

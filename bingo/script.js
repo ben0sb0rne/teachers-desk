@@ -2,6 +2,7 @@
 
 import * as sharedStorage from '../shared/storage.js';
 import * as rosterBridge from '../shared/roster-bridge.js';
+import { registerToolSettings, openSettings, closeSettings } from '../shared/settings.js';
 
 /* ============================================================
    DEFAULT PROBLEMS (80 integer addition/subtraction problems)
@@ -655,18 +656,30 @@ function saveSettings() {
    New behavior: user-uploaded CSV problem sets are saved to the
    suite's shared storage so they survive a reload.
    ============================================================ */
+function generateSetId() {
+  if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'set-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+}
+
 function loadCustomSets() {
   const tool = sharedStorage.getToolState('bingo') || {};
   return Array.isArray(tool.customSets) ? tool.customSets : [];
 }
 
-function saveCustomSet(name, csvText) {
-  if (!name || !csvText) return;
+/**
+ * Upsert a custom set keyed by id. If id is missing, one is generated.
+ * Migrates pre-existing entries that lack ids on the way through. Used
+ * by the CSV upload path AND by autoSaveCustomSet during editing.
+ * Returns the (possibly newly-assigned) id.
+ */
+function upsertCustomSet({ id, name, csv }) {
+  if (!id) id = generateSetId();
+  if (!name) name = 'Untitled';
   const tool = sharedStorage.getToolState('bingo') || {};
   const sets = Array.isArray(tool.customSets) ? tool.customSets.slice() : [];
-  // Replace by name if already saved; otherwise append.
-  const idx = sets.findIndex((s) => s && s.name === name);
-  const entry = { name, csv: csvText, savedAt: new Date().toISOString() };
+  sets.forEach(s => { if (s && !s.id) s.id = generateSetId(); });
+  const idx = sets.findIndex(s => s && s.id === id);
+  const entry = { id, name, csv, savedAt: new Date().toISOString() };
   if (idx >= 0) sets[idx] = entry;
   else sets.push(entry);
   try {
@@ -674,16 +687,71 @@ function saveCustomSet(name, csvText) {
   } catch (e) {
     if (e && e.name === 'StorageQuotaError') showNotification([e.message], 'error');
   }
+  return id;
 }
 
-function deleteCustomSet(name) {
+// Back-compat wrapper for the CSV upload path. Generates an id on
+// first save and returns it so callers can capture state.currentSetId.
+function saveCustomSet(name, csvText) {
+  if (!name || !csvText) return null;
+  return upsertCustomSet({ name, csv: csvText });
+}
+
+function deleteCustomSet(idOrName) {
   const tool = sharedStorage.getToolState('bingo') || {};
-  const sets = Array.isArray(tool.customSets) ? tool.customSets.filter((s) => s && s.name !== name) : [];
+  const sets = Array.isArray(tool.customSets)
+    ? tool.customSets.filter(s => s && s.id !== idOrName && s.name !== idOrName)
+    : [];
   try {
     sharedStorage.setToolState('bingo', { ...tool, customSets: sets });
   } catch (e) {
     if (e && e.name === 'StorageQuotaError') showNotification([e.message], 'error');
   }
+}
+
+/**
+ * Serialize state.editRows back to CSV text, matching the format
+ * accepted by parseCSVText / loadProblems. Used by both the explicit
+ * Save as CSV download and the auto-save flow.
+ */
+function serializeEditRowsToCsv() {
+  const lines = ['column,problem,answer'];
+  const q = s => /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  state.editRows.forEach(r => {
+    lines.push(`${q(r.column)},${q(r.problem)},${q(r.answer)}`);
+  });
+  return lines.join('\n');
+}
+
+// Debounced auto-save: every editor edit reschedules a 1500ms timer.
+// When it fires, the current rows are written to tools.bingo.customSets
+// under state.currentSetId. The dirty baseline is refreshed so the
+// "Save changes?" prompt doesn't fire on Back / Host immediately after.
+let _autoSaveTimer = null;
+function scheduleAutoSave() {
+  if (state.currentView !== 'print') return;
+  if (state.editRows.length === 0) return;
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    if (!state.currentSetId) state.currentSetId = generateSetId();
+    const csv = serializeEditRowsToCsv();
+    state.currentSetId = upsertCustomSet({
+      id: state.currentSetId,
+      name: state.setName || 'Untitled',
+      csv,
+    });
+    snapshotPvBaseline();
+    updateBeforeUnload();
+    updateAutoSavedIndicator();
+  }, 1500);
+}
+
+function updateAutoSavedIndicator() {
+  const el = document.getElementById('pv-autosaved-indicator');
+  if (!el) return;
+  const t = new Date();
+  el.textContent = `Auto-saved · ${t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  el.hidden = false;
 }
 
 function playBingoSound() {
@@ -754,6 +822,11 @@ const state = {
   calledAnswers: {},   // { B: Set<number>, I: Set<number>, ... }
   columnAnswers: {},   // { B: number[], ... } — sorted distinct answers per column
   setName: '',
+  // Stable identifier for the currently-loaded custom set in localStorage.
+  // Null when no set is loaded; assigned (or restored) when a set enters
+  // the editor; used by autoSaveCustomSet() to upsert by id rather than
+  // by name (so renames don't create duplicates).
+  currentSetId: null,
   gameOver: false,
   currentView: 'home',
   settings: loadSettings(),
@@ -895,6 +968,8 @@ function showView(view) {
   // the print-view's preview toolbar next to Save as CSV, not the topstrip.
   document.getElementById('btn-help').hidden = (view !== 'caller');
   document.getElementById('progress-display').hidden = (view !== 'caller');
+  // Refresh the beforeunload guard since print-view dirtiness now matters.
+  updateBeforeUnload();
 }
 
 function applyLoadedSet(problems, name, allRows = null) {
@@ -1007,8 +1082,8 @@ function renderHomepage() {
           aria-label="Search topics">
       </div>
       <div class="hp-chips hp-band-row" id="hp-bands" role="tablist" aria-label="Filter by grade band">
-        <button class="hp-chip${_hpFilter.band === '' ? ' active' : ''}" data-band="">All</button>
-        ${GRADE_BANDS.map(b => `<button class="hp-chip${_hpFilter.band === b.id ? ' active' : ''}" data-band="${escHtml(b.id)}">${escHtml(b.label)}</button>`).join('')}
+        <button class="hp-chip${_hpFilter.band === '' ? ' is-active' : ''}" data-band="">All</button>
+        ${GRADE_BANDS.map(b => `<button class="hp-chip${_hpFilter.band === b.id ? ' is-active' : ''}" data-band="${escHtml(b.id)}">${escHtml(b.label)}</button>`).join('')}
       </div>
       <div class="hp-chips hp-grade-row" id="hp-grades" aria-label="Filter by specific grade"></div>
       <div id="hp-sets-list" class="hp-sets-list" aria-live="polite"></div>
@@ -1023,7 +1098,10 @@ function renderHomepage() {
     ? `<div class="hp-tile">
          <div class="hp-tile-header">My sets</div>
          <div class="hp-set-cards">
-           ${customSets.map((set) => `
+           ${customSets.map((set) => {
+             // Ensure every entry has an id (migrates older saves on first paint).
+             if (!set.id) set.id = generateSetId();
+             return `
              <div class="hp-set-card" role="group" aria-label="${escHtml(set.name)}">
                <div class="hp-set-card-header">
                  <div>
@@ -1032,12 +1110,12 @@ function renderHomepage() {
                  </div>
                </div>
                <div class="hp-upload-row" style="margin-top:10px">
-                 <button class="hp-btn primary" data-cs-action="play"  data-cs-name="${escHtml(set.name)}">Host Game</button>
-                 <button class="hp-btn"         data-cs-action="edit"  data-cs-name="${escHtml(set.name)}">Edit / Print</button>
-                 <button class="hp-btn"         data-cs-action="delete" data-cs-name="${escHtml(set.name)}">Delete</button>
+                 <button class="hp-btn primary" data-cs-action="play"   data-cs-id="${escHtml(set.id)}">Host Game</button>
+                 <button class="hp-btn"         data-cs-action="edit"   data-cs-id="${escHtml(set.id)}">Edit / Print</button>
+                 <button class="hp-btn"         data-cs-action="delete" data-cs-id="${escHtml(set.id)}">Delete</button>
                </div>
              </div>
-           `).join('')}
+           `}).join('')}
          </div>
        </div>`
     : '';
@@ -1050,12 +1128,14 @@ function renderHomepage() {
       const btn = e.target.closest('button[data-cs-action]');
       if (!btn) return;
       const action = btn.dataset.csAction;
-      const name = btn.dataset.csName;
-      const set = loadCustomSets().find((s) => s.name === name);
+      const id = btn.dataset.csId;
+      const set = loadCustomSets().find((s) => s.id === id);
       if (!set) return;
       if (action === 'play') {
+        state.currentSetId = set.id;
         loadSetAndPlay(set.csv, set.name + '.csv');
       } else if (action === 'edit') {
+        state.currentSetId = set.id;
         const { problems, errors, allRows } = loadProblems(set.csv, set.name);
         applyLoadedSet(problems, set.name, allRows);
         showView('print'); renderPrintView();
@@ -1065,8 +1145,8 @@ function renderHomepage() {
           else { errEl.hidden = true; }
         }
       } else if (action === 'delete') {
-        if (confirm(`Delete saved set "${name}"? This cannot be undone.`)) {
-          deleteCustomSet(name);
+        if (confirm(`Delete saved set "${set.name}"? This cannot be undone.`)) {
+          deleteCustomSet(set.id);
           renderHomepage();
         }
       }
@@ -1082,6 +1162,9 @@ function renderHomepage() {
     state.problems = [];
     state.columnAnswers = {};
     state.setName = 'New Set';
+    // Assign a fresh id so the first edit auto-saves to a new
+    // tools.bingo.customSets entry rather than clobbering anything.
+    state.currentSetId = generateSetId();
     snapshotPvBaseline();  // freshly opened blank set is "clean"
     showView('print');
     renderPrintView();
@@ -1106,7 +1189,7 @@ function renderHomepage() {
     _hpFilter.band = chip.dataset.band;
     _hpFilter.grade = '';
     _hpFilter.expandedId = '';
-    document.querySelectorAll('#hp-bands .hp-chip').forEach(c => c.classList.toggle('active', c === chip));
+    document.querySelectorAll('#hp-bands .hp-chip').forEach(c => c.classList.toggle('is-active', c === chip));
     renderGradeChips();
     renderAvailableSets();
   });
@@ -1117,7 +1200,7 @@ function renderHomepage() {
     if (!chip) return;
     _hpFilter.grade = chip.dataset.grade;
     _hpFilter.expandedId = '';
-    document.querySelectorAll('#hp-grades .hp-chip').forEach(c => c.classList.toggle('active', c === chip));
+    document.querySelectorAll('#hp-grades .hp-chip').forEach(c => c.classList.toggle('is-active', c === chip));
     renderAvailableSets();
   });
 
@@ -1134,8 +1217,8 @@ function renderGradeChips() {
   if (!band) { row.innerHTML = ''; row.hidden = true; return; }
   row.hidden = false;
   row.innerHTML = `
-    <button class="hp-chip${_hpFilter.grade === '' ? ' active' : ''}" data-grade="">All ${escHtml(band.short)}</button>
-    ${band.grades.map(gk => `<button class="hp-chip${_hpFilter.grade === gk ? ' active' : ''}" data-grade="${escHtml(gk)}">${escHtml(GRADE_CHIP_LABELS[gk])}</button>`).join('')}
+    <button class="hp-chip${_hpFilter.grade === '' ? ' is-active' : ''}" data-grade="">All ${escHtml(band.short)}</button>
+    ${band.grades.map(gk => `<button class="hp-chip${_hpFilter.grade === gk ? ' is-active' : ''}" data-grade="${escHtml(gk)}">${escHtml(GRADE_CHIP_LABELS[gk])}</button>`).join('')}
   `;
 }
 
@@ -1198,7 +1281,8 @@ function renderAvailableSets() {
       : (_hpFilter.band ? GRADE_BANDS.find(b => b.id === _hpFilter.band)?.label : (q ? `"${escHtml(q)}"` : 'this view'));
     listEl.innerHTML = `<div class="hp-empty">
       <p>Nothing built for <strong>${filterDesc}</strong> yet.</p>
-      <p class="hp-empty-hint">Peek at the <button class="hp-link-btn-inline" id="hp-empty-roadmap">topic roadmap</button> to see what's coming, or upload your own CSV above.</p>
+      <p class="hp-empty-hint">Upload your own CSV above, or browse what's coming next.</p>
+      <button class="hp-link-btn" id="hp-empty-roadmap">View topic roadmap <svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"/></svg></button>
     </div>`;
     document.getElementById('hp-empty-roadmap')?.addEventListener('click', () => { renderRoadmapOverlay(); openOverlay('roadmap-overlay'); });
     return;
@@ -1449,6 +1533,10 @@ function syncProblemsFromEditRows() {
     .map(r => ({ column: r.column.toUpperCase(), problem: r.problem.trim(), answer: parseFloat(r.answer) }));
   state.columnAnswers = buildColumnAnswers(state.problems);
   updatePvPreviewCount();
+  // The set is now potentially dirty — refresh the beforeunload guard
+  // and schedule the debounced auto-save to localStorage.
+  updateBeforeUnload();
+  scheduleAutoSave();
 }
 
 /** Update the topbar column-count chips and guidance message. */
@@ -2332,7 +2420,18 @@ function renderProblem() {
 /* ============================================================
    SETTINGS PANEL RENDER
    ============================================================ */
-function renderSettings() {
+/**
+ * Renders bingo's tool-specific section into the shared suite settings
+ * dialog. Called by shared/settings.js#registerToolSettings every time
+ * the dialog opens. `host` is the div the suite reserves for this tool.
+ *
+ * Font and Theme aren't included here — they live in the shared
+ * Appearance section. Sound enabled / volume / tick stay here for now
+ * since the shared Sound section doesn't expose them yet.
+ */
+function renderSettings(host) {
+  if (!host) host = document.getElementById('bingo-settings-host');
+  if (!host) return;
   const s = state.settings;
   const ca = state.columnAnswers;
   const colCounts = BINGO_COLS
@@ -2341,7 +2440,8 @@ function renderSettings() {
     .join(' · ');
   const totalProblems = state.problems.length;
 
-  document.getElementById('settings-body').innerHTML = `
+  host.id = 'bingo-settings-host';
+  host.innerHTML = `
     <div class="settings-section">
       <span class="settings-label">Auto-Advance Timer</span>
       <div class="settings-row">
@@ -2377,8 +2477,8 @@ function renderSettings() {
       <div class="settings-row">
         <label>Ball style</label>
         <div class="seg-group">
-          <button class="seg-btn${s.ballStyle==='photoreal'?' active':''}" data-ball-style="photoreal">Realistic</button>
-          <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' active':''}" data-ball-style="classic">Simple</button>
+          <button class="seg-btn${s.ballStyle==='photoreal'?' is-active':''}" data-ball-style="photoreal">Realistic</button>
+          <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' is-active':''}" data-ball-style="classic">Simple</button>
         </div>
       </div>
       <div class="settings-row">
@@ -2421,8 +2521,8 @@ function renderSettings() {
       <div class="settings-row">
         <label>Board style <kbd>K</kbd></label>
         <div class="seg-group">
-          <button class="seg-btn${s.boardMode==='recent'?' active':''}" data-board-mode="recent">Recent Balls</button>
-          <button class="seg-btn${s.boardMode==='grid'?' active':''}" data-board-mode="grid">Grid</button>
+          <button class="seg-btn${s.boardMode==='recent'?' is-active':''}" data-board-mode="recent">Recent Balls</button>
+          <button class="seg-btn${s.boardMode==='grid'?' is-active':''}" data-board-mode="grid">Grid</button>
         </div>
       </div>
       <div class="settings-row" id="s-recent-count-row"${s.boardMode==='recent'?'':' hidden'}>
@@ -2444,26 +2544,9 @@ function renderSettings() {
       <div class="settings-row">
         <label>Board shows</label>
         <div class="seg-group">
-          <button class="seg-btn${s.boardContent==='problems'?' active':''}" data-board-content="problems">Problems</button>
-          <button class="seg-btn${s.boardContent==='answers'?' active':''}" data-board-content="answers">Answers</button>
+          <button class="seg-btn${s.boardContent==='problems'?' is-active':''}" data-board-content="problems">Problems</button>
+          <button class="seg-btn${s.boardContent==='answers'?' is-active':''}" data-board-content="answers">Answers</button>
         </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <span class="settings-label">Font</span>
-      <div class="settings-row">
-        <label for="s-font">Family</label>
-        <select id="s-font"></select>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <span class="settings-label">Theme</span>
-      <div class="seg-group">
-        <button class="seg-btn${s.theme==='auto'||!s.theme?' active':''}" data-theme-val="auto">Auto</button>
-        <button class="seg-btn${s.theme==='light'?' active':''}" data-theme-val="light">Light</button>
-        <button class="seg-btn${s.theme==='dark'?' active':''}" data-theme-val="dark">Dark</button>
       </div>
     </div>
 
@@ -2474,34 +2557,36 @@ function renderSettings() {
 
   `;
 
-  // Wire settings panel events
-  const sBody = document.getElementById('settings-body');
-  document.getElementById('s-auto-on').onchange = e => {
+  // Wire settings panel events. Use host.querySelector throughout —
+  // when the shared dialog calls render(host), host isn't yet attached
+  // to the document, so document.getElementById would return null.
+  const sBody = host;
+  sBody.querySelector('#s-auto-on').onchange = e => {
     state.settings.autoAdvanceOn = e.target.checked;
     saveSettings();
     if (!e.target.checked) stopTimer();
     else if (currentProblem()) startTimer();
     render();
   };
-  document.getElementById('s-auto-interval').onchange = e => {
+  sBody.querySelector('#s-auto-interval').onchange = e => {
     state.settings.autoAdvanceInterval = parseInt(e.target.value, 10);
     saveSettings();
     if (state.settings.autoAdvanceOn && currentProblem()) { stopTimer(); startTimer(); }
     render();
   };
-  document.getElementById('s-show-nav').onchange = e => {
+  sBody.querySelector('#s-show-nav').onchange = e => {
     state.settings.showNavButtons = e.target.checked;
     saveSettings(); render();
   };
-  document.getElementById('s-show-progress').onchange = e => {
+  sBody.querySelector('#s-show-progress').onchange = e => {
     state.settings.showProgress = e.target.checked;
     saveSettings(); render();
   };
-  document.getElementById('s-show-recent').onchange = e => {
+  sBody.querySelector('#s-show-recent').onchange = e => {
     state.settings.showRecentBalls = e.target.checked;
     saveSettings(); render();
   };
-  document.getElementById('s-show-board').onchange = e => {
+  sBody.querySelector('#s-show-board').onchange = e => {
     state.settings.showBoard = e.target.checked;
     saveSettings(); render();
   };
@@ -2569,7 +2654,7 @@ function renderSettings() {
     state.settings.soundEnabled = e.target.checked;
     saveSettings();
     // Show/hide dependent rows
-    const volRow = document.getElementById('s-sound-vol-row');
+    const volRow = sBody.querySelector('#s-sound-vol-row');
     if (volRow) volRow.hidden = !state.settings.soundEnabled;
   };
   const volSlider = sBody.querySelector('#s-sound-volume');
@@ -2586,25 +2671,8 @@ function renderSettings() {
     state.settings.soundTick = e.target.checked;
     saveSettings();
   };
-  const sFont = sBody.querySelector('#s-font');
-  if (sFont) {
-    populateFontSelect(sFont);
-    sFont.onchange = e => setFont(e.target.value);
-  }
-  sBody.querySelectorAll('[data-theme-val]').forEach(btn => {
-    btn.onclick = () => {
-      const v = btn.dataset.themeVal;
-      state.settings.theme = v;
-      // setTheme persists to suite preferences, applies the data-theme
-      // attribute, and dispatches a 'themechange' event for any non-CSS
-      // listeners (Konva in the seating chart). saveSettings() also writes
-      // the suite-wide preference, but setTheme handles the apply + event.
-      sharedStorage.setTheme(v);
-      saveSettings(); renderSettings(); render();
-    };
-  });
-  document.getElementById('settings-reset').onclick = () => {
-    closeOverlay('settings-overlay');
+  sBody.querySelector('#settings-reset').onclick = () => {
+    closeSettings();
     showConfirm({
       title: 'Reset Game?',
       message: 'This will clear all called numbers and reshuffle. Are you sure?',
@@ -2639,10 +2707,10 @@ async function pvDownloadCards() {
   // Re-entry guard — async work should never overlap with itself.
   if (pvDownloadCards._busy) return;
   let   n        = parseInt(document.getElementById('pv-count').value, 10);
-  const style    = document.querySelector('.pv-style-card.active')?.dataset.pvStyle || 'full';
-  const color    = document.querySelector('[data-pv-color].active')?.dataset.pvColor !== 'bw';
+  const style    = document.querySelector('.pv-style-card.is-active')?.dataset.pvStyle || 'full';
+  const color    = document.querySelector('[data-pv-color].is-active')?.dataset.pvColor !== 'bw';
   const showNums = document.getElementById('pv-show-numbers')?.checked ?? true;
-  const workType = document.querySelector('[data-pv-work].active')?.dataset.pvWork || 'lined';
+  const workType = document.querySelector('[data-pv-work].is-active')?.dataset.pvWork || 'lined';
   const errEl    = document.getElementById('pv-dl-error');
   errEl.hidden   = true;
 
@@ -2713,7 +2781,7 @@ async function pvDownloadCards() {
 function updateWorkPreview() {
   const canvas = document.getElementById('pv-work-preview');
   if (!canvas) return;
-  const workType = document.querySelector('[data-pv-work].active')?.dataset.pvWork || 'lined';
+  const workType = document.querySelector('[data-pv-work].is-active')?.dataset.pvWork || 'lined';
   const spacing  = parseFloat(document.getElementById('pv-work-scale')?.value ?? 7);
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -2746,7 +2814,7 @@ function updateWorkThumb() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, LW, LH);
 
-  const workType = document.querySelector('[data-pv-work].active')?.dataset.pvWork || 'lined';
+  const workType = document.querySelector('[data-pv-work].is-active')?.dataset.pvWork || 'lined';
   const spacing  = parseFloat(document.getElementById('pv-work-scale')?.value ?? 7);
 
   const COL_COLORS_THUMB = BINGO_COLS.map(c => COL_COLORS[c]);
@@ -2881,7 +2949,7 @@ function updateCaStatus() {
     return;
   }
 
-  const col = document.querySelector('.ca-col-btn.active')?.dataset.col || 'B';
+  const col = document.querySelector('.ca-col-btn.is-active')?.dataset.col || 'B';
   const calledSet = state.calledAnswers[col] || new Set();
   const isCalled  = calledSet.has(num);
 
@@ -3043,7 +3111,7 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
     doc.setFont(pdfFont,'bold');
     doc.setFontSize(6.5);
     doc.text('PROBLEM', x + 3, subTop + 3.2);
-    doc.text('ANS', x + colW - 3, subTop + 3.2, { align: 'right' });
+    doc.text('Answer', x + colW - 3, subTop + 3.2, { align: 'right' });
 
     // Rows
     colProblems.forEach((p, ri) => {
@@ -3181,10 +3249,12 @@ function closeOverlay(id) {
   }
 }
 function closeAllOverlays() {
-  ['settings-overlay','help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].forEach(closeOverlay);
+  ['help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].forEach(closeOverlay);
+  // Suite settings dialog (shared/settings.js) also gets a clean close.
+  closeSettings();
 }
 function anyOverlayOpen() {
-  return ['settings-overlay','help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].some(id => !document.getElementById(id).hidden);
+  return ['help-overlay','confirm-overlay','csv-help-overlay','check-answers-overlay','roadmap-overlay'].some(id => !document.getElementById(id).hidden);
 }
 
 /**
@@ -3275,8 +3345,15 @@ function showNotification(lines, type) {
    BEFOREUNLOAD GUARD
    ============================================================ */
 function updateBeforeUnload() {
-  if (state.history.length > 0) {
-    window.onbeforeunload = () => 'A game is in progress — are you sure you want to leave?';
+  // Two reasons to warn before leaving: a game is in progress, OR the
+  // user has unsaved edits in the card designer that haven't been
+  // auto-saved or downloaded yet.
+  const gameInProgress = state.history.length > 0;
+  const editorDirty = state.currentView === 'print' && isPvDirty();
+  if (gameInProgress || editorDirty) {
+    window.onbeforeunload = () => gameInProgress
+      ? 'A game is in progress — are you sure you want to leave?'
+      : 'You have unsaved changes to this set — are you sure you want to leave?';
   } else {
     window.onbeforeunload = null;
   }
@@ -3339,8 +3416,7 @@ document.addEventListener('keydown', e => {
       break;
     case 's': case 'S':
       e.preventDefault();
-      renderSettings();
-      openOverlay('settings-overlay');
+      openSettings();
       break;
     case 'b': case 'B':
       e.preventDefault();
@@ -3415,8 +3491,8 @@ function wireEvents() {
     prevProblem(); stopTimer(); render();
   };
   // Single settings entry point in the topstrip-right slot. Visible on
-  // every bingo view; same overlay as the S keyboard shortcut.
-  const openSettings = () => { renderSettings(); openOverlay('settings-overlay'); };
+  // every bingo view; opens the shared suite dialog where bingo's section
+  // is rendered via registerToolSettings (called from init()).
   document.getElementById('btn-settings').onclick = openSettings;
   // Inject the gear glyph since the HTML button is empty by convention
   // (mirrors how shared/settings.js handles the wheel's button).
@@ -3434,8 +3510,8 @@ function wireEvents() {
   document.getElementById('ca-col-btns').addEventListener('click', e => {
     const btn = e.target.closest('.ca-col-btn');
     if (!btn) return;
-    document.querySelectorAll('.ca-col-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.ca-col-btn').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
     updateCaStatus();
   });
 
@@ -3453,7 +3529,6 @@ function wireEvents() {
     if (isHidden) renderCaFullSheet();
   });
   document.getElementById('btn-bingo').addEventListener('click', triggerBingo);
-  document.getElementById('btn-close-settings').onclick = () => closeOverlay('settings-overlay');
   document.getElementById('btn-help').onclick = () => openOverlay('help-overlay');
   document.getElementById('btn-close-help').onclick = () => closeOverlay('help-overlay');
   // Click outside panel to close overlay
@@ -3461,6 +3536,16 @@ function wireEvents() {
     overlay.addEventListener('click', e => {
       if (e.target === overlay) closeOverlay(overlay.id);
     });
+  });
+
+  // Breadcrumb root — "The Teacher's Desk" link navigates back to the
+  // suite root. From the print-view with unsaved edits we intercept to
+  // prompt; from elsewhere we let the anchor's default href handle it.
+  document.getElementById('crumb-home').addEventListener('click', (e) => {
+    if (state.currentView === 'print' && isPvDirty()) {
+      e.preventDefault();
+      confirmIfDirty('Save before leaving?', () => { window.location.href = '../'; });
+    }
   });
 
   // Breadcrumb middle item — "Math Bingo" link returns to the bingo
@@ -3478,19 +3563,10 @@ function wireEvents() {
   document.getElementById('btn-close-csv-help').onclick = () => closeOverlay('csv-help-overlay');
   document.getElementById('btn-close-roadmap').onclick = () => closeOverlay('roadmap-overlay');
   document.getElementById('btn-fullscreen').onclick = () => toggleFullscreen();
-  // Settings button branches on view: on the bingo homepage it opens
-  // the suite-level settings dialog (Appearance / Sound / Data) since
-  // no bingo-specific options are relevant before a set is picked;
-  // on print + caller views it opens the bingo settings overlay with
-  // game-specific controls (ball style, sounds, etc.).
-  document.getElementById('btn-settings').onclick = () => {
-    if (state.currentView === 'home') {
-      import('../shared/settings.js').then(m => m.openSettings()).catch(() => {});
-    } else {
-      renderSettings();
-      openOverlay('settings-overlay');
-    }
-  };
+  // Settings button always opens the shared suite dialog. Bingo's
+  // tool-specific section is registered via registerToolSettings during
+  // init() and appears under Appearance / Sound / Data.
+  document.getElementById('btn-settings').onclick = openSettings;
   // Host Game lives in the print-view's preview toolbar next to Save as CSV.
   document.getElementById('pv-host-btn').onclick = () => {
     confirmIfDirty('Save before starting the game?', runHostGame);
@@ -3576,16 +3652,16 @@ function wireEvents() {
   document.getElementById('pv-style-picker').addEventListener('click', e => {
     const card = e.target.closest('.pv-style-card');
     if (!card) return;
-    document.querySelectorAll('.pv-style-card').forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
+    document.querySelectorAll('.pv-style-card').forEach(c => c.classList.remove('is-active'));
+    card.classList.add('is-active');
   });
 
   // Color/BW toggle
   document.getElementById('pv-options').addEventListener('click', e => {
     const btn = e.target.closest('[data-pv-color]');
     if (!btn) return;
-    document.querySelectorAll('[data-pv-color]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('[data-pv-color]').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
   });
 
   // Font picker
@@ -3597,8 +3673,8 @@ function wireEvents() {
   document.getElementById('pv-work-picker').addEventListener('click', e => {
     const btn = e.target.closest('[data-pv-work]');
     if (!btn) return;
-    document.querySelectorAll('[data-pv-work]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('[data-pv-work]').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
     const isBlank = btn.dataset.pvWork === 'blank';
     document.getElementById('pv-work-scale-row').style.display = isBlank ? 'none' : '';
     updateWorkPreview();
@@ -3654,7 +3730,9 @@ function wireEvents() {
       const { problems, errors, allRows } = loadProblems(csvText, file.name);
       applyLoadedSet(problems, name, allRows);
       // Persist the upload so it survives a reload (only if some problems parsed).
-      if (problems.length) saveCustomSet(name, csvText);
+      // Capture the returned id as currentSetId so subsequent auto-saves
+      // upsert into the same entry instead of creating duplicates.
+      if (problems.length) state.currentSetId = upsertCustomSet({ name, csv: csvText });
       showView('print');
       renderPrintView();
       // Show fatal errors only — row-level errors are shown inline in the editable table
@@ -3681,6 +3759,10 @@ function init() {
   applyCardColors();
   applyFont();
   audio.init();
+  // Register bingo's settings section into the shared suite dialog.
+  // The render function takes a host element provided by the dialog
+  // and populates it with bingo-specific controls.
+  registerToolSettings('bingo', 'Math Bingo', renderSettings);
   renderHomepage();
   // Anchor the dirty-tracking baseline AFTER state hydration so a fresh
   // page load on a previously-edited set doesn't show "Save changes?"
