@@ -1133,8 +1133,14 @@ function renderHomepage() {
 
   container.innerHTML = actionTile + customTile + availableTile;
 
-  // Wire custom-set actions
-  if (customSets.length) {
+  // Wire custom-set actions. Bound once per page-load against the container
+  // (which is the same DOM node across renderHomepage() calls); event
+  // delegation handles whatever buttons currently exist in its innerHTML.
+  // The earlier { once: true } version died after the first click and made
+  // My Sets actions stop working after a host/edit round-trip via the
+  // breadcrumb (the home view doesn't re-render on plain back-navigation).
+  if (!container.__csClickBound) {
+    container.__csClickBound = true;
     container.addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-cs-action]');
       if (!btn) return;
@@ -1198,9 +1204,7 @@ function renderHomepage() {
           renderHomepage();
         }
       }
-    }, { once: true });
-    // Note: { once: true } ensures we don't stack handlers across re-renders.
-    // (Re-renders rebuild the tile and re-attach.)
+    });
   }
 
   // Wire actions
