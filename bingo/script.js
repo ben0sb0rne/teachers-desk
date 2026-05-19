@@ -2050,13 +2050,19 @@ function computeProblemFontSize() {
   }
   document.body.appendChild(probe);
 
+  // The column indicator above the equation is either #col-chip (flat,
+  // 1.3em diameter = 0.65 × font-size) or #col-ball (photoreal 3D,
+  // 1.6 × font-size — see bingo/style.css:740). Use the multiplier that
+  // matches whichever is rendered, otherwise the auto-fit under-counts
+  // the ball's height on large screens and the equation overflows.
+  const indicatorMul = document.body.classList.contains('has-photoreal-balls') ? 1.6 : 0.65;
+
   let lo = 16, hi = 800, best = lo;
   for (let i = 0; i < FONT_SIZE_BINARY_SEARCH_ITERATIONS; i++) {
     const mid = Math.floor((lo + hi) / 2);
     probe.style.fontSize = mid + 'px';
-    // Chip font = 50% of equation font; circle diameter = 0.5 × 1.3 × mid = 0.65 × mid.
     // +14px safety margin absorbs sub-pixel rounding between the probe and the live element.
-    const maxEquH = Math.max(16, totalH - mid * 0.65 - 16 - 14);
+    const maxEquH = Math.max(16, totalH - mid * indicatorMul - 16 - 14);
     if (probe.offsetWidth <= availW && probe.offsetHeight <= maxEquH) {
       best = mid; lo = mid + 1;
     } else {
