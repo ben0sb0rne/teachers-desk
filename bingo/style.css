@@ -945,6 +945,31 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
 #answer-value[data-col="G"] { color: var(--col-G); }
 #answer-value[data-col="O"] { color: var(--col-O); }
 
+/* KaTeX rendered inside the big problem / answer surfaces is a vertically-
+   stacked element (\frac, etc.) — shrink its em so the whole expression fits
+   the line-height assumed by the surrounding plain-text styling. */
+#problem-text .katex,
+#answer-value .katex {
+  font-size: 0.62em;
+  line-height: 1;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Let KaTeX inherit the user-picked --app-font for digits, basic operators,
+   parentheses, and punctuation. KaTeX_Main is kept as a fallback for any
+   glyphs the chosen font doesn't have (math symbols, integral, sum, etc.). */
+.katex,
+.katex .mord,
+.katex .mbin,
+.katex .mrel,
+.katex .mopen,
+.katex .mclose,
+.katex .mpunct {
+  font-family: var(--app-font), KaTeX_Main, serif;
+}
+
 #game-over-msg {
   color: var(--text-muted);
   font-size: 1rem;
