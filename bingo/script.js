@@ -2044,6 +2044,21 @@ const FONT_SIZE_BINARY_SEARCH_ITERATIONS = 20;
 
 function computeProblemFontSize() {
   if (!state.problems || state.problems.length === 0) return;
+  // Defer past the current synchronous task so callers that fire this
+  // immediately after showView('caller') get accurate offsetWidth /
+  // offsetHeight on #problem-area. Synchronously, the new layout hasn't
+  // reflowed yet — problemArea.offsetHeight still reflects the prior
+  // (hidden) state and the binary search picks an oversized font, which
+  // made the fraction display clip on first entry before any resize
+  // event fired. setTimeout(0) is the most reliable defer here
+  // (requestAnimationFrame can be paused in inactive tabs); the visual
+  // delay is imperceptible because the caller view is already animating
+  // in during this same window.
+  setTimeout(_computeProblemFontSizeNow, 0);
+}
+
+function _computeProblemFontSizeNow() {
+  if (!state.problems || state.problems.length === 0) return;
   const problemArea = document.getElementById('problem-area');
   if (!problemArea || problemArea.offsetWidth === 0) return;
 
