@@ -1,25 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How to use Math Bingo · The Teacher's Desk</title>
-<link rel="stylesheet" href="../shared/desk.css">
-<style>
-  .wrap { max-width: 720px; margin: 0 auto; padding: var(--space-7) var(--space-5); }
-  .back { display: inline-block; margin-bottom: var(--space-5); font-size: var(--type-13); }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>How to use Math Bingo · The Teacher's Desk</title>
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <style>
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; }
+    main { flex: 1; padding: var(--space-6) var(--space-5); max-width: 720px; margin: 0 auto; width: 100%; }
+    header { text-align: center; margin-bottom: var(--space-5); color: rgb(var(--paper-on-wood)); }
+    header h1 { font-size: clamp(28px, 5vw, 44px); margin: 0 0 var(--space-2); }
+    header p { font-style: italic; opacity: 0.85; margin: 0; }
+    footer { text-align: center; padding: var(--space-5) 0 0; color: rgb(var(--paper-on-wood)); font-size: var(--type-13); }
+    footer a { color: rgb(var(--paper-on-wood)); }
+    .print-paper h2 { margin-top: var(--space-5); }
+    .print-paper h2:first-child { margin-top: 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    pre { background: rgb(var(--paper-edge) / 0.05); padding: var(--space-3) var(--space-4); border-radius: 4px; overflow-x: auto; font-size: var(--type-13); }
+    kbd { background: rgb(var(--paper-edge) / 0.1); border: 1px solid rgb(var(--paper-edge) / 0.25); border-radius: 3px; padding: 1px 5px; font-size: 0.85em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
 </head>
-<body>
-<div class="wrap">
-  <a class="back" href="../index.html">&larr; The Teacher's Desk</a>
-  <h1>How to use Math Bingo</h1>
+<body class="wood-bg">
+  <main>
+    <header>
+      <h1>Math Bingo</h1>
+      <p>How to use this tool.</p>
+    </header>
 
-  <div class="print-paper">
-    <p class="muted">A quick guide is coming soon.</p>
-    <p>For now, open the <a href="index.html">caller</a> and pick a built-in problem set, or upload your own CSV. Each problem has a column letter (B, I, N, G, or O), a problem prompt, and a numeric answer.</p>
-    <p>Press <kbd>Space</kbd> to call the next problem; <kbd>?</kbd> opens the keyboard shortcuts.</p>
-  </div>
-</div>
+    <div class="print-paper">
+      <h2>What it does</h2>
+      <p>Load a list of math problems, print bingo cards (one per student), and host a live calling round on the classroom projector. Each problem has a column letter (B, I, N, G, or O) and an answer; students mark the answer on their card when you call the problem.</p>
+
+      <h2>Getting started</h2>
+      <p>Open <a href="index.html">Math Bingo</a>. From the homepage you can:</p>
+      <ul>
+        <li><strong>Pick a topic</strong> &mdash; browse the catalog of built-in problem sets (K through Calculus). Each topic card expands to show its variants.</li>
+        <li><strong>Choose File</strong> &mdash; upload your own CSV of problems.</li>
+        <li><strong>New Blank Set</strong> &mdash; open an empty editor and type problems in by hand.</li>
+        <li><strong>Format Help</strong> &mdash; the CSV format guide.</li>
+        <li><strong>Download Template</strong> &mdash; a starter CSV you can edit in any spreadsheet app.</li>
+      </ul>
+      <p>Any set you upload or build is saved automatically to <em>My Sets</em> on the homepage. Each saved set has Host Game / Edit / Print / Rename / Delete actions; nothing leaves your browser.</p>
+
+      <h2>CSV format</h2>
+      <p>Three required columns, in this order:</p>
+      <pre>column,problem,answer
+B,-10 + (-15),-25
+I,-7 + (-6),-13
+N,\frac{2}{4},\frac{1}{2}
+...</pre>
+      <p>The column field is one of B, I, N, G, or O &mdash; that's the bingo column the problem belongs to. Each column needs at least <strong>5 distinct answers</strong> to generate cards (15 per column is recommended for variety).</p>
+
+      <h2>LaTeX problems and answers</h2>
+      <p>Both the problem and answer fields accept LaTeX. Wrap math in standard LaTeX commands and the editor, the caller view, and the printed cards will render it as proper math notation. For example:</p>
+      <pre>B,\frac{2}{4},\frac{1}{2}
+G,\sqrt{16},4
+O,3^2 + 4^2,25</pre>
+      <p>Anything containing a backslash is treated as LaTeX. Plain numbers and arithmetic expressions (like <code>-10 + (-15)</code>) stay as regular text.</p>
+
+      <h2>Printing cards</h2>
+      <p>From the editor view, the left sidebar controls the print job:</p>
+      <ul>
+        <li><strong>Number of Cards</strong> &mdash; how many unique cards to generate.</li>
+        <li><strong>Pre-Assign by Class</strong> &mdash; if you have a roster (from the Seating Chart tool), pick a class and each card prints with the student's name on it.</li>
+        <li><strong>Card Style</strong> &mdash; Full Page (one large card, portrait), Half-Page (two per landscape page), or Work Area (one card next to a work-space area).</li>
+        <li><strong>Card Colors</strong> &mdash; per-column color pickers, or switch to Black &amp; White for a print-friendly version.</li>
+        <li><strong>Advanced Options</strong> &mdash; card label, work-area style (lined / grid / blank), line spacing, caller-sheet companion.</li>
+        <li><strong>Download Cards</strong> &mdash; generates a PDF and downloads it.</li>
+      </ul>
+      <p>If your problems use LaTeX, generation takes a few seconds the first time as each unique math expression is rasterised for the PDF. Repeat downloads of the same set are quick.</p>
+
+      <h2>Hosting a game</h2>
+      <p>Click <em>Host Game</em> in the editor (or directly on a topic / My Sets card). The caller view fills the screen with a bingo ball and the current problem.</p>
+      <ul>
+        <li><kbd>Space</kbd> or click <em>Next</em> &mdash; call the next problem.</li>
+        <li><em>Back</em> &mdash; step back through the call history.</li>
+        <li><em>Check Answers</em> &mdash; opens the answer-verification panel. The big <em>Bingo!</em> button is the win-verify CTA when a student claims bingo.</li>
+        <li><kbd>?</kbd> &mdash; the full keyboard-shortcut reference.</li>
+      </ul>
+      <p>The fullscreen button collapses the topstrip down to just the fullscreen toggle so the only chrome the class sees is the problem and the ball.</p>
+
+      <h2>Settings</h2>
+      <p>The gear icon opens the settings overlay:</p>
+      <ul>
+        <li><strong>Appearance &amp; Sound</strong> &mdash; theme (auto / light / dark), display font, sound mute / volume.</li>
+        <li><strong>Ball Style</strong> &mdash; Realistic (3D rolling photoreal ball) or Simple (flat colored chip with the column letter).</li>
+        <li><strong>Called Numbers Board</strong> &mdash; show / hide the called-problems board, switch between Grid and Recent modes, set the number of recent balls shown.</li>
+        <li><strong>Auto-Advance Timer</strong> &mdash; optional pacing aid that advances the call after a set interval.</li>
+      </ul>
+
+      <p>For more games, check back soon &mdash; group makers and a few others are on the way.</p>
+    </div>
+
+    <footer>
+      <a href="index.html">&larr; Back to Math Bingo</a>
+    </footer>
+  </main>
 </body>
 </html>

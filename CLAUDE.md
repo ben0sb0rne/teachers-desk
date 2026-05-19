@@ -115,8 +115,9 @@ Additional conventions:
 
 ## Hosting and deployment
 
-- **Cloudflare Pages**, deployed from this repo.
-- The seating chart's Vite build runs as part of the deploy.
+- **GitHub Pages**, deployed by `.github/workflows/deploy.yml` on every push to `main`.
+- Currently live at https://ben0sb0rne.github.io/teachers-desk/.
+- The seating chart's Vite build runs as part of the deploy job; its `VITE_BASE` is wired from the Pages `base_path` so its absolute asset URLs work on the project-page subpath.
 - **Domain: TBD.** Will be `theteachersdesk.io` or `theteachersdesk.com` depending on availability — placeholder for now.
 
 ## Do not

@@ -31,14 +31,7 @@ npm run dev
 
 ## Deploy
 
-Cloudflare Pages, static. The seating chart requires a build:
-
-```bash
-cd seating-chart
-npm run build
-```
-
-Deploy the repo root, replacing `/seating-chart/` with the contents of `seating-chart/dist/`.
+GitHub Pages, via `.github/workflows/deploy.yml`. Every push to `main` runs the workflow: it builds the seating chart with `npm run build`, assembles `_site/` from the static roots (`index.html`, `about.html`, `bingo/`, `wheel/`, `rosters/`, `shared/`, `assets/`, plus the seating-chart's `dist/` mounted at `/seating-chart/`), and publishes via `actions/deploy-pages`. Currently live at https://ben0sb0rne.github.io/teachers-desk/. The seating chart's `VITE_BASE` is set from the Pages `base_path` so absolute asset URLs work on the project-page subpath.
 
 ## Repo conventions
 

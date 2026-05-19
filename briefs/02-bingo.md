@@ -1,7 +1,7 @@
 # Brief: Math Bingo
 
 **Status:** living document. Authoritative for the bingo tool.
-**Last updated:** 2026-05-17.
+**Last updated:** 2026-05-18.
 
 ---
 
@@ -58,8 +58,11 @@ desk surface.
 - **Topic picker:** "Pick a topic to play" — search box, grade-band chips
   (Elementary K-5 / Middle School / High School), grade-specific chips,
   and the filtered topic list. Each topic card expands to show variants.
-- **Custom sets:** any sets the user has saved (currently CSV-only — no
-  localStorage "My Sets" yet; tracked as a follow-up).
+- **My Sets:** custom sets the user has uploaded or built from scratch.
+  Persisted to `tools.bingo.customSets` in localStorage and listed as a
+  tile under "Get Started". Each card carries Host Game / Edit / Print /
+  Rename / Delete actions. Edits to a loaded custom set auto-save back
+  to its entry; opening a built-in topic doesn't write to `customSets`.
 
 ### 2. Print View / Card Designer (`view-print`)
 
@@ -80,8 +83,16 @@ Where the teacher edits problems and prints cards.
 - **Editor row layout:** color picker · Problem input · Answer input ·
   Problem preview · Answer preview · Delete. Inputs and previews share a
   baseline; errors flow below the input in the same cell only.
-- **LaTeX in answers:** the answer field accepts LaTeX (e.g.
-  `\frac{1}{2}`). Live KaTeX preview in the Answer Preview column.
+- **LaTeX everywhere:** both the problem and the answer fields accept
+  LaTeX (e.g. `\frac{1}{2}`, `\sqrt{16}`). KaTeX renders inline previews
+  in the editor's Problem Preview / Answer Preview columns, the caller
+  view's ball + problem + answer reveal, the "Show full call sheet"
+  panel, and the printable PDF cards + caller sheet. The PDF path
+  rasterises each unique LaTeX string once via KaTeX + html2canvas and
+  passes the cached PNG through jspdf's `addImage(..., alias, 'FAST')`
+  so the same fraction isn't embedded once per cell. KaTeX inherits
+  `--app-font` for digits/operators (italic variables and special math
+  glyphs fall back to `KaTeX_Main`).
 
 ### 3. Caller View (`view-caller`)
 
@@ -243,13 +254,22 @@ Storage shape:
 ```
 tools.bingo = {
   settings: { ... },        // see Settings inventory
-  // Currently no persisted set / history bucket; reload starts at home.
+  customSets: [
+    { id, name, csv, savedAt }  // ISO date string
+  ],
 }
 ```
 
 Settings persist via `saveSettings()` which wraps `localStorage.setItem`
 in a quota-aware try/catch (surfaces `showNotification` on
 `StorageQuotaError`).
+
+Custom sets are written by `upsertCustomSet()` and read via
+`loadCustomSets()`. Edits in the print view auto-save to the active
+set's entry on a debounce; opening a built-in topic uses a transient
+`state.currentSetId` of `null` so it never clobbers a saved set.
+Loading a previously-saved set restores its editor rows from the CSV
+text via `loadProblems()`.
 
 ### Dirty tracking
 
@@ -298,6 +318,12 @@ Cards (`pvDownloadCards`):
 - Color | Black & White
 - Optional caller-sheet companion at the end of the PDF
 - Pre-assign by class fills the card label with each student's name
+- LaTeX values (problems or answers containing `\\`) are rendered as
+  rasterised PNGs via KaTeX + html2canvas, pre-warmed and cached per
+  unique string, and passed to `doc.addImage(..., alias, 'FAST')` so
+  the bytes are embedded once and referenced across every cell that
+  uses the same value. Plain numeric and arithmetic values stay on the
+  native `doc.text` path for vector-crisp output.
 
 Save as CSV (`pvSaveSetCsv`): exports the current editor rows back to a
 CSV with the same column order. Rewrites the dirty baseline on success.
@@ -322,17 +348,15 @@ the brief stays the source of truth:
    + Host Game buttons).
 3. Bingo settings could register into the shared suite dialog via
    `shared/settings.js#registerToolSettings`.
-4. "My Sets" localStorage bucket for custom sets to persist across
-   reloads.
-5. iPad responsiveness pass.
-6. Firefox lag wishlist on the photoreal ball (blur isolation,
+4. iPad responsiveness pass.
+5. Firefox lag wishlist on the photoreal ball (blur isolation,
    `contain: paint`, pre-multiplied texture).
-7. Caller-sheet "ANS" abbreviation consistency.
-8. CSV Format Guide example doesn't demonstrate non-overlapping column
+6. Caller-sheet "ANS" abbreviation consistency.
+7. CSV Format Guide example doesn't demonstrate non-overlapping column
    ranges.
-9. Topic Roadmap empty-state link styling.
-10. `.active` vs `.is-active` naming divergence between bingo and the
-    suite settings dialog.
+8. Topic Roadmap empty-state link styling.
+9. `.active` vs `.is-active` naming divergence between bingo and the
+   suite settings dialog.
 
 ## Reference files
 
@@ -341,3 +365,14 @@ the brief stays the source of truth:
 - `bingo-roadmap.txt` — full topic inventory
 - `shared/desk.css`, `shared/storage.js`, `shared/roster-bridge.js`,
   `shared/settings.js` — suite utilities
+
+## External dependencies (CDN)
+
+Pinned versions loaded by `bingo/index.html`:
+
+- **KaTeX 0.16.11** — math rendering for the editor previews, caller
+  view, and PDF raster pipeline. CSS + JS pair.
+- **jspdf 2.5.2** — PDF document construction for Download Cards.
+- **html2canvas 1.4.1** — rasterises KaTeX-rendered DOM nodes to PNG
+  data URLs for embedding in the PDF (the only path that can take
+  KaTeX output and put it inside jspdf).
