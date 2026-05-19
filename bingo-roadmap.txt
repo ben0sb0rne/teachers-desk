@@ -1,0 +1,368 @@
+============================================================
+THE TEACHER'S DESK — MATH BINGO ROADMAP (Year 1 Scope)
+============================================================
+
+Source: bingo/script.js TOPIC_GROUPS (revised 2026-05-19)
+Year 1 target: middle school + fraction review (5.NF / 6.NS)
+Total topics: 24
+Currently playable: 5 topic groups (12 CSV variants)
+To build: 19 topic groups, 27 new variants
+
+Constraints applied to every variant on this list:
+- Text-only presentation (no diagrams, no figures)
+- Under-45-second solve budget per problem
+- Calculator OK on [calc]-tagged variants only
+
+Status legend:
+  [SHIPPED]  the variant has a CSV file and can be hosted today
+  [PLANNED]  the variant is on the roadmap; no CSV yet
+   ★         CCSS fluency standard for the listed grade
+   [calc]    calculator recommended
+
+
+============================================================
+FOUNDATIONAL FRACTIONS (5.NF / 6.NS.1)
+============================================================
+
+Standards live in elementary (5.NF) but high-leverage as
+review — fluency gaps in fraction operations are the most
+common upstream cause of struggle with 7.NS rational-number
+work. Pulled back into year 1 for that reason.
+
+  Simplifying Fractions
+    Standard: 4.NF.1
+    Reduce a fraction to lowest terms
+    Notes: Numerators and denominators ≤ 24. Answers in
+           lowest terms (e.g. 6/8 → 3/4).
+    Variants:
+      - Default        [SHIPPED]
+          sets/grade-4/simplifying-fractions.csv
+
+  Adding & Subtracting Fractions
+    Standard: 5.NF.1
+    Unlike denominators; answers in simplest form
+    Notes: Denominators ≤ 12. Improper-only answer format
+           (e.g. 7/4 not 1 3/4) — locks the answer pool.
+    Variants:
+      - Addition only       [SHIPPED]
+          sets/grade-5/adding-fractions.csv
+      - Subtraction only    [SHIPPED]
+          sets/grade-5/subtracting-fractions.csv
+      - Mixed (recommended) [SHIPPED]
+          sets/grade-5/mixed-fractions.csv
+
+  Multiplying & Dividing Fractions
+    Standards: 5.NF.4 (multiply) / 5.NF.7 / 6.NS.1 (divide)
+    Multiply: fraction × fraction. Divide: flip-and-multiply.
+    Notes: Numerators/denominators ≤ 10. Improper-only
+           answers in lowest terms. Division CSV excludes
+           integer-valued answers (no 1/2 ÷ 1/4 = 2) to keep
+           the answer pool format-consistent with the rest
+           of the fraction set.
+    Variants:
+      - Multiplication only [SHIPPED]
+          sets/grade-5/multiplying-fractions.csv
+      - Division only       [SHIPPED]
+          sets/grade-5/dividing-fractions.csv
+      - Mixed (recommended) [SHIPPED]
+          sets/grade-5/mixed-mult-div-fractions.csv
+
+
+============================================================
+GRADE 6
+============================================================
+
+  GCF & LCM
+    Standard: 6.NS.4
+    Greatest common factor, least common multiple
+    Notes: Constrain inputs to pairs with products under ~144.
+    Variants:
+      - GCF            [SHIPPED]
+          sets/grade-6/gcf.csv
+      - LCM            [SHIPPED]
+          sets/grade-6/lcm.csv
+
+  Absolute Value
+    Standard: 6.NS.7c
+    Distance from zero
+    Variants:
+      - Default        [PLANNED]
+
+  Unit Rates
+    Standard: 6.RP.2
+    Rates per single unit (verbal: "X in Y units, rate?")
+    Variants:
+      - Default        [PLANNED]
+
+  Percents
+    Standard: 6.RP.3c
+    Find percent of a quantity
+    Notes: Friendly percents only (10, 20, 25, 50, 75) and
+           quantities that yield clean integer answers.
+    Variants:
+      - Default        [PLANNED]
+
+  Evaluating Expressions
+    Standard: 6.EE.2c
+    Substitute values into algebraic expressions
+    Variants:
+      - Default        [PLANNED]
+
+  One-Step Equations
+    Standard: 6.EE.7
+    Solve with one operation
+    Variants:
+      - Default        [PLANNED]
+
+
+============================================================
+GRADE 7
+============================================================
+
+  Adding Negatives  ★ (fluency for Grade 7)
+    Standard: 7.NS.1
+    Adding & subtracting rational numbers
+    Variants:
+      - Mixed (recommended)                   [SHIPPED]
+          sets/grade-6/integer-operations-addition-subtraction.csv
+      - Addition only                         [SHIPPED]
+          sets/grade-6/integer-operations-addition.csv
+      - Subtraction only                      [SHIPPED]
+          sets/grade-6/integer-operations-subtraction.csv
+      - Including rationals (7.NS.3)          [PLANNED]
+
+  Multiplying Negatives  ★ (fluency for Grade 7)
+    Standard: 7.NS.2
+    Multiplying & dividing rational numbers
+    Variants:
+      - Integers              [PLANNED]
+      - Including rationals   [PLANNED]
+
+  Two-Step Equations
+    Standard: 7.EE.4a
+    Solve with two operations
+    Variants:
+      - Default        [PLANNED]
+
+  Circle Area & Circumference
+    Standard: 7.G.4
+    Using pi in answers
+    Notes: Answers in terms of pi (e.g. "16π"). Keeps the
+           variant no-calc and the answer pool small.
+    Variants:
+      - Area           [PLANNED]
+      - Circumference  [PLANNED]
+
+  Simple Probability
+    Standard: 7.SP.5
+    Single-event likelihood
+    Notes: Fraction form only — locks the answer pool and
+           matches the standard.
+    Variants:
+      - Default        [PLANNED]
+
+  Angle Relationships
+    Standard: 7.G.5
+    Complementary, supplementary, vertical, linear pair
+    Notes: Verbal-only without diagrams: e.g. "Supplement of
+           47°?", "Vertical angle to 110°?". Multi-angle
+           figure problems deferred.
+    Variants:
+      - Default        [PLANNED]
+
+  Proportions
+    Standard: 7.RP.2
+    Solving for missing parts of a proportion
+    Variants:
+      - Default        [PLANNED]
+
+  Inequalities
+    Standard: 7.EE.4b
+    Boundary value of a one-variable inequality
+    Variants:
+      - Default        [PLANNED]
+
+
+============================================================
+GRADE 8 / PRE-ALGEBRA
+============================================================
+
+  Exponent Rules
+    Standard: 8.EE.1
+    Product, quotient, and power rules
+    Variants:
+      - Integer exponents             [PLANNED]
+      - Negative & zero exponents     [PLANNED]
+
+  Square & Cube Roots
+    Standard: 8.EE.2
+    Perfect squares and cubes
+    Variants:
+      - Squares to 225      [PLANNED]
+      - Cubes to 1000       [PLANNED]
+
+  Scientific Notation  [calc]
+    Standard: 8.EE.4
+    Operations in scientific notation
+    Notes: Pick one canonical answer form (scientific only,
+           not decimal-expanded).
+    Variants:
+      - Default        [PLANNED]
+
+  Slope
+    Standard: 8.EE.6
+    Slope from points or equation
+    Notes: "From any form" deferred to year 2 — manipulating
+           standard form pushes the time budget.
+    Variants:
+      - From two points  [PLANNED]
+      - From y = mx + b  [PLANNED]
+
+  Y-Intercept
+    Standard: 8.F.4
+    Initial value of a linear function
+    Notes: Mirrors Slope variants. "From y = mx + b" is a
+           form-recognition drill; "From two points" requires
+           computing slope first then back-solving.
+    Variants:
+      - From two points  [PLANNED]
+      - From y = mx + b  [PLANNED]
+
+  Multi-Step Equations
+    Standard: 8.EE.7
+    Linear equations with multiple steps
+    Variants:
+      - Variables on both sides  [PLANNED]
+      - With distribution        [PLANNED]
+
+  Function Evaluation
+    Standard: 8.F.1 / F-IF.2
+    Evaluate functions at given inputs (merged with Function
+    Notation per design review)
+    Variants:
+      - Default        [PLANNED]
+
+
+============================================================
+SUMMARY
+============================================================
+
+Total topic groups:      24
+Total variants:           39
+Variants shipped (CSV):   12
+Variants to build:        27
+
+Topic groups by band:
+  Fraction Review:  3
+  Grade 6:          6
+  Grade 7:          8
+  Grade 8:          7
+
+Topic groups by fluency standard:
+  7.NS.1    Grade 7    Adding Negatives  (3/4 variants shipped)
+  7.NS.2    Grade 7    Multiplying Negatives
+
+Calculator-recommended variants tagged [calc]:
+  8.EE.4    Scientific Notation
+
+
+============================================================
+SHIPPED MANIFEST — FRACTIONS BATCH (new since 2026-05-17)
+============================================================
+
+All 9 CSVs in this batch verified clean: 675 total problems,
+all math correct, all answers in lowest terms, all per-column
+answer uniqueness preserved (15 unique answers / column ×
+5 columns × 9 CSVs = 675 problems).
+
+  4.NF.1                     Simplifying Fractions
+                               sets/grade-4/simplifying-fractions.csv
+
+  5.NF.1                     Adding & Subtracting Fractions
+                               sets/grade-5/adding-fractions.csv
+                               sets/grade-5/subtracting-fractions.csv
+                               sets/grade-5/mixed-fractions.csv
+
+  5.NF.4 / 5.NF.7 / 6.NS.1   Multiplying & Dividing Fractions
+                               sets/grade-5/multiplying-fractions.csv
+                               sets/grade-5/dividing-fractions.csv
+                               sets/grade-5/mixed-mult-div-fractions.csv
+
+  6.NS.4                     GCF & LCM
+                               sets/grade-6/gcf.csv
+                               sets/grade-6/lcm.csv
+
+CSV format conventions (consistent across all 9 files):
+  - Header row: column,problem,answer
+  - 5 columns (B, I, N, G, O) × 15 problems = 75 per CSV
+  - 15 unique answer values per column (cross-column
+    repeats allowed)
+  - LaTeX formatting: \frac{a}{b}, \times, \div, +, -,
+    \operatorname{GCF}, \operatorname{LCM}
+  - Fraction answers: improper form, lowest terms, no
+    integer-valued answers (the mult/div CSVs skip 1/2 ÷
+    1/4 = 2 and similar)
+
+
+============================================================
+DEFERRED TO LATER (out of year 1)
+============================================================
+
+KINDERGARTEN through GRADE 5 — all topics EXCEPT fraction
+                                operations (pulled back as
+                                year-1 review; see
+                                FOUNDATIONAL FRACTIONS).
+  Reason: out of band for a Grade 7 teacher; emerging-reader
+          K-1 needs design solutions (read-aloud cadence,
+          picture supports) outside year-1 scope.
+
+HIGH SCHOOL — all topics (Algebra I, Geometry, Algebra II,
+                          Pre-Calculus, Calculus, Statistics)
+  Reason: year-2 expansion. Several geometry topics
+          (Parallel Lines & Transversals, Circle Theorems,
+          Transformations) need diagram support before they
+          can be authored. Calculus topics need additional
+          time-budget vetting.
+
+DIAGRAM-DEPENDENT TOPICS (defer until diagram support exists)
+  Pythagorean Theorem (8.G.7)
+    Reason: students benefit from seeing the right triangle
+            with legs and hypotenuse labeled.
+
+  Polygon Areas (6.G.1)
+    Reason: "height" being perpendicular (not a side) is hard
+            to convey verbally; trapezoid two-base setups are
+            worse. Triangles, parallelograms, trapezoids all
+            want diagrams.
+
+SPECIFIC VARIANT CUTS (still inside middle school)
+  Slope "From any form" (8.EE.6)
+    Reason: standard-form-to-slope-intercept manipulation
+            pushes the 45-second budget.
+
+  Angle Relationships multi-angle figure problems (7.G.5)
+    Reason: requires diagrams to communicate the figure.
+
+  Pythagorean find-hypotenuse / find-leg [calc] (8.G.7)
+    Reason: irrational answers need curated decimal pools;
+            year-2 work. (Parent topic also deferred — see
+            DIAGRAM-DEPENDENT TOPICS above.)
+
+  Systems of Equations (8.EE.8)
+    Reason: deferred to year 2.
+
+  Volume: Cylinders, Cones, Spheres (8.G.9)
+    Reason: deferred to year 2. Format does fit one line
+            ("Cylinder: r=3, h=5. Volume?" → 45π).
+
+DROPPED FROM v2 (will not return as currently scoped)
+  Optimization (Calculus)            — multi-step, won't fit budget
+  Limits → L'Hopital variant         — answers run too long
+  Quadratic Roots: Sum/Product       — Vieta's, out of A-REI.4b scope
+  Center & Spread (6.SP.5)           — too many variants for now
+  Surface Area (7.G.6)               — deferred per teacher review
+
+
+============================================================
+END OF YEAR 1 ROADMAP
+============================================================

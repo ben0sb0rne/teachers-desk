@@ -91,6 +91,11 @@ const TOPIC_GROUPS = [
     grades:{'3':'3.NBT.3'}, variants:[{label:'Default'}] },
   { id:'equiv-fractions', short:'Equivalent Fractions', long:'Find the missing numerator',
     grades:{'3':'3.NF.3b','4':'4.NF.1'}, variants:[{label:'Default'}] },
+  { id:'simplifying-fractions', short:'Simplifying Fractions', long:'Reduce a fraction to lowest terms',
+    grades:{'4':'4.NF.1'},
+    variants:[
+      {label:'Default', path:'sets/grade-4/simplifying-fractions.csv'},
+    ] },
 
   // Grade 4
   { id:'multi-digit-add-sub', short:'Multi-Digit Add/Subtract', long:'Standard algorithm for large numbers',
@@ -116,11 +121,20 @@ const TOPIC_GROUPS = [
   { id:'decimal-ops', short:'Decimal Operations', long:'Add, subtract, multiply with decimals',
     grades:{'5':'5.NBT.7'},
     variants:[{label:'Addition/Subtraction'},{label:'Multiplication'}] },
-  { id:'frac-times-frac', short:'Multiplying Fractions', long:'Fraction × fraction',
-    grades:{'5':'5.NF.4'}, variants:[{label:'Default'}] },
-  { id:'frac-div', short:'Dividing Fractions', long:'Fraction and whole-number division',
-    grades:{'5':'5.NF.7','6':'6.NS.1'},
-    variants:[{label:'Fraction ÷ whole, whole ÷ unit fraction'},{label:'Fraction ÷ fraction'}] },
+  { id:'add-sub-fractions', short:'Adding & Subtracting Fractions', long:'Unlike denominators; answers in simplest form',
+    grades:{'5':'5.NF.1'},
+    variants:[
+      {label:'Mixed', path:'sets/grade-5/mixed-fractions.csv', recommended:true},
+      {label:'Addition only', path:'sets/grade-5/adding-fractions.csv'},
+      {label:'Subtraction only', path:'sets/grade-5/subtracting-fractions.csv'},
+    ] },
+  { id:'mult-div-fractions', short:'Multiplying & Dividing Fractions', long:'Fraction × fraction and fraction ÷ fraction',
+    grades:{'5':'5.NF.4','6':'6.NS.1'},
+    variants:[
+      {label:'Mixed', path:'sets/grade-5/mixed-mult-div-fractions.csv', recommended:true},
+      {label:'Multiplication only', path:'sets/grade-5/multiplying-fractions.csv'},
+      {label:'Division only', path:'sets/grade-5/dividing-fractions.csv'},
+    ] },
   { id:'volume-prisms', short:'Volume of Prisms', long:'Rectangular prism volume',
     grades:{'5':'5.MD.5'}, variants:[{label:'Default'}] },
   { id:'powers-of-10', short:'Powers of 10', long:'Multiplying and dividing by powers of 10',
@@ -131,7 +145,10 @@ const TOPIC_GROUPS = [
   // Grade 6
   { id:'gcf-lcm', short:'GCF & LCM', long:'Greatest common factor, least common multiple',
     grades:{'6':'6.NS.4'},
-    variants:[{label:'GCF'},{label:'LCM'}] },
+    variants:[
+      {label:'GCF', path:'sets/grade-6/gcf.csv'},
+      {label:'LCM', path:'sets/grade-6/lcm.csv'},
+    ] },
   { id:'absolute-value', short:'Absolute Value', long:'Distance from zero',
     grades:{'6':'6.NS.7c'}, variants:[{label:'Default'}] },
   { id:'unit-rates', short:'Unit Rates', long:'Rates per single unit',
