@@ -32,12 +32,24 @@ const ICON_GEAR = `<svg class="settings-button-icon" viewBox="0 0 24 24" aria-hi
 const TOOL_SECTIONS = new Map(); // toolName -> { label, render }
 
 /**
- * Register a tool-specific section to render in the dialog. The render fn
- * receives a host element it can populate. It may return a cleanup function
- * that's invoked when the dialog closes.
+ * Register a tool-specific section to render in the dialog. The third
+ * argument may be either:
+ *   - A `render(host)` function (legacy). Receives a host element to
+ *     populate; may return a cleanup function called when the dialog
+ *     closes. Renders as a flat section beneath the global Appearance /
+ *     Sound / Data sections.
+ *   - A `{ tabs: [...], suiteIntoTabs: {...} }` config (tabbed). When
+ *     present, the entire dialog renders as a tabbed layout using the
+ *     tool's tab definitions. Each tab is `{ id, label, render(host) }`.
+ *     `suiteIntoTabs` maps suite section ids (`appearance` | `sound` |
+ *     `data`) to tab ids, so the global Theme / Mute+Volume / Export+
+ *     Import controls slot into the appropriate tabs instead of stacking
+ *     at the top of the dialog. Tabs replace the flat-section layout
+ *     for this tool; other registered tools (in other tabs of the
+ *     browser, separate page loads) still see their flat layout.
  */
-export function registerToolSettings(toolName, label, render) {
-  TOOL_SECTIONS.set(toolName, { label, render });
+export function registerToolSettings(toolName, label, renderOrConfig) {
+  TOOL_SECTIONS.set(toolName, { label, render: renderOrConfig });
 }
 
 let _overlay = null;
@@ -84,32 +96,132 @@ function buildOverlay() {
 
   const body = document.createElement('div');
   body.className = 'suite-panel-body';
-  body.appendChild(renderAppearance());
-  body.appendChild(renderSound());
-  body.appendChild(renderData());
 
-  // Tool-specific sections last.
-  for (const [, { label, render }] of TOOL_SECTIONS) {
-    const section = document.createElement('div');
-    section.className = 'suite-settings-section';
-    const heading = document.createElement('h3');
-    heading.textContent = label;
-    section.appendChild(heading);
-    const host = document.createElement('div');
-    section.appendChild(host);
-    body.appendChild(section);
-    try {
-      const cleanup = render(host);
-      if (typeof cleanup === 'function') _cleanups.push(cleanup);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[teachersdesk] tool settings render failed:', e);
+  // If any registered tool ships a tabbed config, the whole dialog
+  // pivots to a tabbed layout that folds suite sections into the tabs.
+  const tabbedTool = [...TOOL_SECTIONS.values()].find(
+    (t) => t && t.render && typeof t.render === 'object' && Array.isArray(t.render.tabs),
+  );
+
+  if (tabbedTool) {
+    body.appendChild(buildTabbedBody(tabbedTool));
+  } else {
+    body.appendChild(renderAppearance());
+    body.appendChild(renderSound());
+    body.appendChild(renderData());
+
+    // Tool-specific sections last.
+    for (const [, { label, render }] of TOOL_SECTIONS) {
+      const section = document.createElement('div');
+      section.className = 'suite-settings-section';
+      const heading = document.createElement('h3');
+      heading.textContent = label;
+      section.appendChild(heading);
+      const host = document.createElement('div');
+      section.appendChild(host);
+      body.appendChild(section);
+      try {
+        const cleanup = render(host);
+        if (typeof cleanup === 'function') _cleanups.push(cleanup);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[teachersdesk] tool settings render failed:', e);
+      }
     }
   }
 
   panel.appendChild(body);
   overlay.appendChild(panel);
   return overlay;
+}
+
+// -------------------------------------------------------------
+// Tabbed layout — used when a registered tool ships a {tabs} config
+// -------------------------------------------------------------
+
+const TABS_SESSION_KEY = 'suite-settings-active-tab';
+
+function buildTabbedBody(toolEntry) {
+  const { label, render: config } = toolEntry;
+  const { tabs, suiteIntoTabs = {} } = config;
+
+  // Pre-render the three suite sections once. They are inserted into
+  // whichever tab the tool's `suiteIntoTabs` map points to.
+  const suite = {
+    appearance: renderAppearance(),
+    sound: renderSound(),
+    data: renderData(),
+  };
+
+  const container = document.createElement('div');
+  container.className = 'suite-tabbed-body';
+
+  // Tool name as a small label above the strip — keeps the in-tool
+  // dialog feeling tool-specific without crowding the tab buttons.
+  const heading = document.createElement('h3');
+  heading.className = 'suite-tabbed-tool';
+  heading.textContent = label;
+  container.appendChild(heading);
+
+  const strip = document.createElement('div');
+  strip.className = 'suite-tab-strip';
+  container.appendChild(strip);
+
+  const panels = {};
+  tabs.forEach((tab) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'suite-tab-btn';
+    btn.dataset.tabId = tab.id;
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => activateTab(tab.id));
+    strip.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'suite-tab-panel';
+    panel.dataset.tabId = tab.id;
+
+    // Suite sections that target this tab.
+    for (const [suiteId, targetTabId] of Object.entries(suiteIntoTabs)) {
+      if (targetTabId === tab.id && suite[suiteId]) {
+        panel.appendChild(suite[suiteId]);
+      }
+    }
+
+    // Tool's tab content.
+    const host = document.createElement('div');
+    panel.appendChild(host);
+    try {
+      const cleanup = typeof tab.render === 'function' ? tab.render(host) : null;
+      if (typeof cleanup === 'function') _cleanups.push(cleanup);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[teachersdesk] tab render failed:', e);
+    }
+
+    container.appendChild(panel);
+    panels[tab.id] = panel;
+  });
+
+  function activateTab(id) {
+    strip.querySelectorAll('.suite-tab-btn').forEach((b) =>
+      b.classList.toggle('is-active', b.dataset.tabId === id),
+    );
+    for (const [pid, panel] of Object.entries(panels)) {
+      panel.hidden = pid !== id;
+    }
+    try { sessionStorage.setItem(TABS_SESSION_KEY, id); } catch (e) { /* ignore */ }
+  }
+
+  // Restore the last-used tab if present and valid; otherwise default to first.
+  let initial = tabs[0]?.id;
+  try {
+    const saved = sessionStorage.getItem(TABS_SESSION_KEY);
+    if (saved && panels[saved]) initial = saved;
+  } catch (e) { /* ignore */ }
+  if (initial) activateTab(initial);
+
+  return container;
 }
 
 function buildHeader() {

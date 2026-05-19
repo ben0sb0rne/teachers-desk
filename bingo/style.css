@@ -235,8 +235,17 @@ body.is-bingo.has-bingo-textures .pv-style-thumb > * {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
 button, input, select, textarea, optgroup { font-family: inherit; }
-body {
+body.view-caller {
+  /* The user-picked font in settings → Display only takes effect inside
+     the caller view. Print, home, and every other surface fall through
+     to the suite's default sans declared in shared/desk.css so the
+     homepage never appears in a "funky" choice the teacher made for a
+     single game. The choice is also transient — state.settings.font
+     resets to 'default' whenever the user leaves the caller view
+     (see showView() in bingo/script.js). */
   font-family: var(--app-font);
+}
+body {
   background: var(--bg);
   color: var(--text);
   display: flex;
@@ -1118,7 +1127,10 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
 }
 .ca-col-body { padding: 6px 0; }
 .ca-row {
-  display: flex; justify-content: space-between; align-items: baseline;
+  /* center, not baseline — KaTeX-rendered fractions in the .ca-problem /
+     .ca-answer cells have a different baseline than plain text and the
+     row visually mis-aligns under `baseline`. */
+  display: flex; justify-content: space-between; align-items: center;
   padding: 4px 10px; gap: 8px; font-size: .88rem;
 }
 .ca-row:nth-child(odd) { background: var(--surface2); }
@@ -1931,7 +1943,7 @@ kbd {
 #pv-edit-table td {
   padding: 8px 10px;
   border-bottom: 1px solid rgb(var(--bingo-paper-rule) / 0.18);
-  vertical-align: top;
+  vertical-align: middle;
 }
 /* Alternating row colors — odd rows on cream paper, even rows on a
    subtle grey tint. Reads like a church-bingo ledger or scoresheet
@@ -2035,12 +2047,14 @@ kbd {
    Answer input, problem preview, answer preview, delete. Explicit
    widths on the fixed columns so the auto-width Problem and Problem-
    preview columns share the remaining space evenly.
-   vertical-align: top + a uniform padding-top across every cell so
-   each cell's primary control (select, input, preview text) lands
-   at the same Y. Validation errors flow below the input inside
-   .pv-prob-cell only, without dragging the other cells down. */
+   vertical-align: middle so the input, KaTeX preview, and delete
+   button visually centre within each row even when row heights vary
+   slightly (header lands at middle too — same outcome as top because
+   there's only one line of text in the header). When a row carries an
+   error message under the input the row grows taller; sibling cells
+   stay centred in the new row height — visually balanced. */
 #pv-edit-table thead th,
-#pv-edit-table tbody td { vertical-align: top; padding: 6px; }
+#pv-edit-table tbody td { vertical-align: middle; padding: 6px; }
 #pv-edit-table thead th:first-child,
 #pv-edit-table tbody td:first-child { width: 56px !important; min-width: 56px; max-width: 56px; padding: 6px 4px !important; }
 #pv-edit-table .pv-col-select { width: 48px; padding: 6px 4px; margin: 0; }

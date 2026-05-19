@@ -107,17 +107,6 @@
         <label class="pv-opt-label">Number of cards</label>
         <input id="pv-count" type="number" min="1" max="200" value="30">
       </div>
-      <div class="pv-opt-group" id="pv-assign-group">
-        <label class="pv-opt-label">Pre-assign by class</label>
-        <div class="settings-row pv-assign-row">
-          <input type="checkbox" id="pv-assign-toggle">
-          <label for="pv-assign-toggle" class="pv-toggle-label">Print one card per student</label>
-        </div>
-        <select id="pv-assign-class" class="pv-input-full" hidden>
-          <option value="">Select a class…</option>
-        </select>
-        <p id="pv-assign-msg" class="file-info pv-assign-msg" hidden></p>
-      </div>
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
         <div id="pv-style-picker">
@@ -234,10 +223,6 @@
               <label for="pv-show-numbers" class="pv-toggle-label">Show card number at bottom</label>
               <input type="checkbox" id="pv-show-numbers" checked>
             </div>
-          </div>
-          <div>
-            <label class="pv-adv-sublabel">Font</label>
-            <select id="pv-font-select" class="pv-input pv-input-full"></select>
           </div>
           <div>
             <label class="pv-adv-sublabel">Work area style</label>

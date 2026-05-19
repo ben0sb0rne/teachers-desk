@@ -1,7 +1,6 @@
 'use strict';
 
 import * as sharedStorage from '../shared/storage.js';
-import * as rosterBridge from '../shared/roster-bridge.js';
 import { registerToolSettings, openSettings, closeSettings } from '../shared/settings.js';
 
 /* ============================================================
@@ -529,6 +528,10 @@ function loadSettings() {
     }
   }
 
+  // Always boot in the default font, even if a stale value somehow made
+  // it into storage. The font setting is meant to be transient.
+  merged.font = 'default';
+
   return merged;
 }
 
@@ -653,9 +656,12 @@ function saveSettings() {
     }
   }
 
-  // Bingo-specific settings (everything not in SUITE_PREF_KEYS).
+  // Bingo-specific settings (everything not in SUITE_PREF_KEYS). The
+  // `font` choice is deliberately transient — never persisted, see
+  // showView() — so we strip it from the saved payload.
   const toolSpecific = {};
   for (const [k, v] of Object.entries(s)) {
+    if (k === 'font') continue;
     if (!SUITE_PREF_KEYS.includes(k)) toolSpecific[k] = v;
   }
 
@@ -853,9 +859,6 @@ const state = {
   gameOver: false,
   currentView: 'home',
   settings: loadSettings(),
-  // Pre-assign cards to a class roster (Phase D)
-  assignByClass: false,
-  assignClassId: null,
 };
 
 /** Apply the paper-grain texture class to <body> based on state.settings.
@@ -977,6 +980,15 @@ function resetGame() {
    ============================================================ */
 function showView(view) {
   if (view !== 'caller') stopTimer();
+  // Font is a transient, caller-only thing: any non-default pick made via
+  // settings → Display sticks while the teacher is in the caller view and
+  // resets the moment they leave. Combined with the body.view-caller scope
+  // in style.css, this guarantees the homepage and print view never appear
+  // in a "funky" font the teacher picked for a single game.
+  if (view !== 'caller' && state.settings.font !== 'default') {
+    state.settings.font = 'default';
+    applyFont();
+  }
   state.currentView = view;
   document.getElementById('homepage-view').hidden = (view !== 'home');
   document.getElementById('print-view').hidden    = (view !== 'print');
@@ -1487,68 +1499,6 @@ function renderPrintView() {
   // Detect duplicate (column, answer) pairs in loaded data so editor + gates flag them on first render.
   syncProblemsFromEditRows();
   renderPvEditTable();
-  // Refresh class options every time the editor opens so newly created
-  // classes (in Wheel of Names / Rosters / Seating Chart) show up here.
-  refreshAssignClasses();
-  updateAssignUi();
-}
-
-/* ============================================================
-   PRE-ASSIGN CARDS BY CLASS ROSTER
-   When enabled, generates one card per student in the chosen class and
-   prints the student's name in the card's bottom label slot. Reads from
-   the suite's canonical roster (shared/storage.js). Live-updates the
-   dropdown when classes are added/renamed/deleted in another tool —
-   wired via shared/roster-bridge.js below.
-   ============================================================ */
-function refreshAssignClasses() {
-  const select = document.getElementById('pv-assign-class');
-  if (!select) return;
-  const previous = select.value;
-  select.innerHTML = '';
-  select.appendChild(new Option('Select a class…', ''));
-  const classes = sharedStorage.listClasses();
-  classes.sort((a, b) => a.name.localeCompare(b.name));
-  for (const c of classes) {
-    const count = sharedStorage.getRoster(c.id).length;
-    select.appendChild(new Option(`${c.name} (${count})`, c.id));
-  }
-  // Preserve selection if still valid
-  if (previous && Array.from(select.options).some((o) => o.value === previous)) {
-    select.value = previous;
-  } else if (previous) {
-    state.assignClassId = null;
-    select.value = '';
-  }
-}
-
-function updateAssignUi() {
-  const toggle = document.getElementById('pv-assign-toggle');
-  const select = document.getElementById('pv-assign-class');
-  const msg    = document.getElementById('pv-assign-msg');
-  const count  = document.getElementById('pv-count');
-  if (!toggle || !select || !msg || !count) return;
-
-  if (toggle.checked) {
-    select.hidden = false;
-    if (state.assignClassId) {
-      const roster = sharedStorage.getRoster(state.assignClassId);
-      count.value = String(roster.length);
-      count.disabled = true;
-      msg.hidden = false;
-      msg.innerHTML = roster.length === 0
-        ? 'Selected class has <strong>no students</strong>. Pick another, or add students in Rosters.'
-        : `<strong>${roster.length}</strong> card${roster.length === 1 ? '' : 's'}, one per student. Each card prints the student name.`;
-    } else {
-      count.disabled = true;
-      msg.hidden = false;
-      msg.textContent = 'Pick a class to set the card count.';
-    }
-  } else {
-    select.hidden = true;
-    msg.hidden = true;
-    count.disabled = false;
-  }
 }
 
 /* ============================================================
@@ -2510,46 +2460,39 @@ function renderProblem() {
 }
 
 /* ============================================================
-   SETTINGS PANEL RENDER
-   ============================================================ */
-/**
- * Renders bingo's tool-specific section into the shared suite settings
- * dialog. Called by shared/settings.js#registerToolSettings every time
- * the dialog opens. `host` is the div the suite reserves for this tool.
- *
- * Font and Theme aren't included here — they live in the shared
- * Appearance section. Sound enabled / volume / tick stay here for now
- * since the shared Sound section doesn't expose them yet.
- */
-function renderSettings(host) {
-  if (!host) host = document.getElementById('bingo-settings-host');
-  if (!host) return;
-  const s = state.settings;
-  const ca = state.columnAnswers;
-  const colCounts = BINGO_COLS
-    .filter(c => ca[c])
-    .map(c => `${c}: ${ca[c].length}`)
-    .join(' · ');
-  const totalProblems = state.problems.length;
+   SETTINGS PANEL RENDER (tabbed)
+   ============================================================
+   The settings dialog is rendered by shared/settings.js. We give it a
+   `{ tabs, suiteIntoTabs }` config so the WHOLE dialog organises around
+   three tabs: Display / Game / Sound & Data. Suite-level Theme /
+   Mute+Volume / Export+Import controls fold into those tabs via
+   `suiteIntoTabs`, so the user sees a single flat list per tab instead
+   of stacked global+tool sections.
 
-  host.id = 'bingo-settings-host';
+   Each tab renderer populates its own host element and wires its own
+   events. Cross-tab re-renders (e.g. board-mode change toggles the
+   visibility of the recent-count + recent-ball-scale rows) call back
+   into the relevant tab's renderer using the cached host refs. */
+
+let _displayHost = null;
+let _gameHost = null;
+let _soundHost = null;
+
+function renderDisplayTab(host) {
+  _displayHost = host;
+  const s = state.settings;
+  // Font row only appears in caller view — picking the font from
+  // anywhere else has no visible effect (CSS scopes --app-font to
+  // body.view-caller) so the picker would be misleading.
+  const showFontRow = state.currentView === 'caller';
   host.innerHTML = `
     <div class="settings-section">
-      <span class="settings-label">Auto-Advance Timer</span>
-      <div class="settings-row">
-        <label for="s-auto-on">Enable auto-advance</label>
-        <input type="checkbox" id="s-auto-on" ${s.autoAdvanceOn ? 'checked' : ''}>
-      </div>
-      <div class="settings-row">
-        <label for="s-auto-interval">Interval</label>
-        <select id="s-auto-interval">
-          ${[10,20,30,45,60].map(v => `<option value="${v}" ${s.autoAdvanceInterval===v?'selected':''}>${v} seconds</option>`).join('')}
-        </select>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <span class="settings-label">Display</span>
+      ${showFontRow ? `
+      <div class="settings-row">
+        <label for="s-font">Font</label>
+        <select id="s-font" data-font-select></select>
+      </div>` : ''}
       <div class="settings-row">
         <label for="s-show-nav">Show Next / Check Answers / Back buttons</label>
         <input type="checkbox" id="s-show-nav" ${s.showNavButtons ? 'checked' : ''}>
@@ -2563,18 +2506,41 @@ function renderSettings(host) {
         <input type="checkbox" id="s-show-recent" ${s.showRecentBalls ? 'checked' : ''}>
       </div>
     </div>
+  `;
+  if (showFontRow) {
+    const fontSel = host.querySelector('#s-font');
+    populateFontSelect(fontSel);
+    fontSel.addEventListener('change', e => setFont(e.target.value));
+  }
+  host.querySelector('#s-show-nav').onchange = e => {
+    state.settings.showNavButtons = e.target.checked;
+    saveSettings(); render();
+  };
+  host.querySelector('#s-show-progress').onchange = e => {
+    state.settings.showProgress = e.target.checked;
+    saveSettings(); render();
+  };
+  host.querySelector('#s-show-recent').onchange = e => {
+    state.settings.showRecentBalls = e.target.checked;
+    saveSettings(); render();
+  };
+}
 
+function renderGameTab(host) {
+  _gameHost = host;
+  const s = state.settings;
+  host.innerHTML = `
     <div class="settings-section">
-      <span class="settings-label">Animation &amp; Sound</span>
+      <span class="settings-label">Ball</span>
       <div class="settings-row">
-        <label>Ball style</label>
+        <label>Style</label>
         <div class="seg-group">
           <button class="seg-btn${s.ballStyle==='photoreal'?' is-active':''}" data-ball-style="photoreal">Realistic</button>
           <button class="seg-btn${(s.ballStyle||'photoreal')==='classic'?' is-active':''}" data-ball-style="classic">Simple</button>
         </div>
       </div>
       <div class="settings-row">
-        <label for="s-ball-anim">Ball entrance</label>
+        <label for="s-ball-anim">Entrance</label>
         <select id="s-ball-anim">
           ${s.ballStyle === 'photoreal'
             ? `<option value="roll-forward"${(s.ballPhotorealAnimation||'roll-forward')==='roll-forward'?' selected':''}>Roll forward</option>
@@ -2586,21 +2552,19 @@ function renderSettings(host) {
           }
         </select>
       </div>
+    </div>
+
+    <div class="settings-section">
+      <span class="settings-label">Auto-Advance Timer</span>
       <div class="settings-row">
-        <label for="s-sound-enabled">Enable sound effects</label>
-        <input type="checkbox" id="s-sound-enabled" ${s.soundEnabled ? 'checked' : ''}>
-      </div>
-      <div class="settings-row" id="s-sound-vol-row"${s.soundEnabled ? '' : ' hidden'}>
-        <label for="s-sound-volume">Volume</label>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="range" id="s-sound-volume" min="0" max="1" step="0.05"
-                 value="${s.soundVolume}" style="width:90px;accent-color:var(--primary)">
-          <span id="s-sound-volume-val" style="min-width:38px;text-align:right;font-weight:700;">${Math.round(s.soundVolume*100)}%</span>
-        </div>
+        <label for="s-auto-on">Enable auto-advance</label>
+        <input type="checkbox" id="s-auto-on" ${s.autoAdvanceOn ? 'checked' : ''}>
       </div>
       <div class="settings-row">
-        <label for="s-sound-tick">Tick sound (last 3s of auto-advance)</label>
-        <input type="checkbox" id="s-sound-tick" ${s.soundTick ? 'checked' : ''}>
+        <label for="s-auto-interval">Interval</label>
+        <select id="s-auto-interval">
+          ${[10,20,30,45,60].map(v => `<option value="${v}" ${s.autoAdvanceInterval===v?'selected':''}>${v} seconds</option>`).join('')}
+        </select>
       </div>
     </div>
 
@@ -2646,124 +2610,95 @@ function renderSettings(host) {
       <span class="settings-label">Game</span>
       <button class="btn-danger" id="settings-reset">Reset Game</button>
     </div>
-
   `;
 
-  // Wire settings panel events. Use host.querySelector throughout —
-  // when the shared dialog calls render(host), host isn't yet attached
-  // to the document, so document.getElementById would return null.
-  const sBody = host;
-  sBody.querySelector('#s-auto-on').onchange = e => {
+  // Ball
+  host.querySelectorAll('[data-ball-style]').forEach(btn => {
+    btn.onclick = () => {
+      state.settings.ballStyle = btn.dataset.ballStyle;
+      saveSettings();
+      applyBallStyleClass();
+      _lastAnimatedKey = null;
+      renderGameTab(host);
+      renderProblem();
+    };
+  });
+  host.querySelector('#s-ball-anim').onchange = e => {
+    const key = state.settings.ballStyle === 'photoreal' ? 'ballPhotorealAnimation' : 'ballAnimation';
+    state.settings[key] = e.target.value;
+    saveSettings();
+  };
+
+  // Auto-advance
+  host.querySelector('#s-auto-on').onchange = e => {
     state.settings.autoAdvanceOn = e.target.checked;
     saveSettings();
     if (!e.target.checked) stopTimer();
     else if (currentProblem()) startTimer();
     render();
   };
-  sBody.querySelector('#s-auto-interval').onchange = e => {
+  host.querySelector('#s-auto-interval').onchange = e => {
     state.settings.autoAdvanceInterval = parseInt(e.target.value, 10);
     saveSettings();
     if (state.settings.autoAdvanceOn && currentProblem()) { stopTimer(); startTimer(); }
     render();
   };
-  sBody.querySelector('#s-show-nav').onchange = e => {
-    state.settings.showNavButtons = e.target.checked;
-    saveSettings(); render();
-  };
-  sBody.querySelector('#s-show-progress').onchange = e => {
-    state.settings.showProgress = e.target.checked;
-    saveSettings(); render();
-  };
-  sBody.querySelector('#s-show-recent').onchange = e => {
-    state.settings.showRecentBalls = e.target.checked;
-    saveSettings(); render();
-  };
-  sBody.querySelector('#s-show-board').onchange = e => {
+
+  // Called Numbers Board
+  host.querySelector('#s-show-board').onchange = e => {
     state.settings.showBoard = e.target.checked;
     saveSettings(); render();
   };
-  sBody.querySelectorAll('[data-board-mode]').forEach(btn => {
+  host.querySelectorAll('[data-board-mode]').forEach(btn => {
     btn.onclick = () => {
       state.settings.boardMode = btn.dataset.boardMode;
-      _prevTopKey = null; // suppress entry animation on the next strip render
-      saveSettings(); renderSettings(); render();
-    };
-  });
-  sBody.querySelectorAll('[data-ball-style]').forEach(btn => {
-    btn.onclick = () => {
-      state.settings.ballStyle = btn.dataset.ballStyle;
+      _prevTopKey = null;
       saveSettings();
-      applyBallStyleClass();
-      // Reset the animation key so the new style's next render animates
-      // (otherwise switching mid-problem would leave it static until Next).
-      _lastAnimatedKey = null;
-      renderSettings();
-      renderProblem();
+      renderGameTab(host);
+      render();
     };
   });
-  const recentDec = sBody.querySelector('#s-recent-dec');
+  const recentDec = host.querySelector('#s-recent-dec');
   if (recentDec) {
     recentDec.onclick = () => {
       if (state.settings.recentCount > 1) {
         state.settings.recentCount--;
         saveSettings();
-        sBody.querySelector('#s-recent-val').textContent = state.settings.recentCount;
+        host.querySelector('#s-recent-val').textContent = state.settings.recentCount;
         render();
       }
     };
-    sBody.querySelector('#s-recent-inc').onclick = () => {
+    host.querySelector('#s-recent-inc').onclick = () => {
       if (state.settings.recentCount < 10) {
         state.settings.recentCount++;
         saveSettings();
-        sBody.querySelector('#s-recent-val').textContent = state.settings.recentCount;
+        host.querySelector('#s-recent-val').textContent = state.settings.recentCount;
         render();
       }
     };
   }
-  sBody.querySelectorAll('[data-board-content]').forEach(btn => {
-    btn.onclick = () => {
-      state.settings.boardContent = btn.dataset.boardContent;
-      saveSettings(); renderSettings(); render();
-    };
-  });
-  const rbsSlider = sBody.querySelector('#s-rbs-slider');
+  const rbsSlider = host.querySelector('#s-rbs-slider');
   if (rbsSlider) {
     rbsSlider.oninput = () => {
       state.settings.recentBallScale = parseFloat(rbsSlider.value);
-      sBody.querySelector('#s-rbs-val').textContent = Math.round(state.settings.recentBallScale * 100) + '%';
+      host.querySelector('#s-rbs-val').textContent = Math.round(state.settings.recentBallScale * 100) + '%';
       applySettings();
       saveSettings();
     };
   }
-
-  // Animation & Sound handlers
-  sBody.querySelector('#s-ball-anim').onchange = e => {
-    const key = state.settings.ballStyle === 'photoreal' ? 'ballPhotorealAnimation' : 'ballAnimation';
-    state.settings[key] = e.target.value;
-    saveSettings();
-  };
-  sBody.querySelector('#s-sound-enabled').onchange = e => {
-    state.settings.soundEnabled = e.target.checked;
-    saveSettings();
-    // Show/hide dependent rows
-    const volRow = sBody.querySelector('#s-sound-vol-row');
-    if (volRow) volRow.hidden = !state.settings.soundEnabled;
-  };
-  const volSlider = sBody.querySelector('#s-sound-volume');
-  if (volSlider) {
-    volSlider.oninput = () => {
-      state.settings.soundVolume = parseFloat(volSlider.value);
-      sBody.querySelector('#s-sound-volume-val').textContent =
-        Math.round(state.settings.soundVolume * 100) + '%';
-      audio.setVolume();
+  host.querySelectorAll('[data-board-content]').forEach(btn => {
+    btn.onclick = () => {
+      state.settings.boardContent = btn.dataset.boardContent;
       saveSettings();
+      host.querySelectorAll('[data-board-content]').forEach(b =>
+        b.classList.toggle('is-active', b.dataset.boardContent === state.settings.boardContent),
+      );
+      render();
     };
-  }
-  sBody.querySelector('#s-sound-tick').onchange = e => {
-    state.settings.soundTick = e.target.checked;
-    saveSettings();
-  };
-  sBody.querySelector('#settings-reset').onclick = () => {
+  });
+
+  // Reset Game
+  host.querySelector('#settings-reset').onclick = () => {
     closeSettings();
     showConfirm({
       title: 'Reset Game?',
@@ -2775,6 +2710,69 @@ function renderSettings(host) {
     });
   };
 }
+
+function renderSoundDataTab(host) {
+  _soundHost = host;
+  const s = state.settings;
+  host.innerHTML = `
+    <div class="settings-section">
+      <span class="settings-label">Sound Effects</span>
+      <div class="settings-row">
+        <label for="s-sound-enabled">Enable sound effects</label>
+        <input type="checkbox" id="s-sound-enabled" ${s.soundEnabled ? 'checked' : ''}>
+      </div>
+      <div class="settings-row" id="s-sound-vol-row"${s.soundEnabled ? '' : ' hidden'}>
+        <label for="s-sound-volume">SFX volume</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="range" id="s-sound-volume" min="0" max="1" step="0.05"
+                 value="${s.soundVolume}" style="width:120px;accent-color:var(--primary)">
+          <span id="s-sound-volume-val" style="min-width:38px;text-align:right;font-weight:700;">${Math.round(s.soundVolume*100)}%</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label for="s-sound-tick">Tick sound (last 3s of auto-advance)</label>
+        <input type="checkbox" id="s-sound-tick" ${s.soundTick ? 'checked' : ''}>
+      </div>
+    </div>
+  `;
+
+  host.querySelector('#s-sound-enabled').onchange = e => {
+    state.settings.soundEnabled = e.target.checked;
+    saveSettings();
+    const volRow = host.querySelector('#s-sound-vol-row');
+    if (volRow) volRow.hidden = !state.settings.soundEnabled;
+  };
+  const volSlider = host.querySelector('#s-sound-volume');
+  if (volSlider) {
+    volSlider.oninput = () => {
+      state.settings.soundVolume = parseFloat(volSlider.value);
+      host.querySelector('#s-sound-volume-val').textContent =
+        Math.round(state.settings.soundVolume * 100) + '%';
+      audio.setVolume();
+      saveSettings();
+    };
+  }
+  host.querySelector('#s-sound-tick').onchange = e => {
+    state.settings.soundTick = e.target.checked;
+    saveSettings();
+  };
+}
+
+// Tabbed config consumed by shared/settings.js. The strings in
+// `suiteIntoTabs` are the suite section ids (appearance / sound /
+// data) and map them into the tool tab they should render inside.
+const BINGO_SETTINGS_TABS = {
+  tabs: [
+    { id: 'display', label: 'Display',       render: renderDisplayTab },
+    { id: 'game',    label: 'Game',          render: renderGameTab    },
+    { id: 'sound',   label: 'Sound & Data',  render: renderSoundDataTab },
+  ],
+  suiteIntoTabs: {
+    appearance: 'display', // Theme
+    sound: 'sound',        // Master mute + master volume
+    data: 'sound',         // Export Classroom / Import
+  },
+};
 
 /* ============================================================
    BINGO CARD GENERATION
@@ -2807,18 +2805,7 @@ async function pvDownloadCards() {
   const errEl    = document.getElementById('pv-dl-error');
   errEl.hidden   = true;
 
-  // Per-class assignment: override count to roster size, label each card
-  // with the student's name. Reads from canonical roster.
-  let cardLabels = null;
-  if (state.assignByClass && state.assignClassId) {
-    const roster = sharedStorage.getRoster(state.assignClassId);
-    if (roster.length === 0) {
-      errEl.textContent = 'Selected class has no students. Add students before generating cards.';
-      errEl.hidden = false; return;
-    }
-    n = roster.length;
-    cardLabels = roster.slice();
-  }
+  const cardLabels = null;
 
   if (isNaN(n) || n < 1) {
     errEl.textContent = 'Enter a valid card count (1\u2013200).'; errEl.hidden = false; return;
@@ -3812,37 +3799,6 @@ function wireEvents() {
     });
   }
 
-  // Pre-assign by class
-  const assignToggle = document.getElementById('pv-assign-toggle');
-  const assignSelect = document.getElementById('pv-assign-class');
-  if (assignToggle && assignSelect) {
-    assignToggle.addEventListener('change', () => {
-      state.assignByClass = !!assignToggle.checked;
-      if (state.assignByClass) refreshAssignClasses();
-      updateAssignUi();
-    });
-    assignSelect.addEventListener('change', () => {
-      state.assignClassId = assignSelect.value || null;
-      updateAssignUi();
-    });
-    // Auto-refresh the dropdown when the canonical class list changes
-    // anywhere — Wheel / Rosters / Seating Chart create/rename/delete.
-    rosterBridge.onClassesChange(() => {
-      if (!state.assignByClass) return;
-      refreshAssignClasses();
-      updateAssignUi();
-    });
-    // Also refresh when the active class's roster size changes (the option
-    // labels include "(N)" student counts).
-    rosterBridge.onRosterChange(null, ({ classId }) => {
-      if (!state.assignByClass) return;
-      // Only refresh if the change concerns a class that's in the dropdown
-      // (i.e. any canonical/seating-chart class — listClasses includes both).
-      if (classId) refreshAssignClasses();
-      updateAssignUi();
-    });
-  }
-
   // Style card picker
   document.getElementById('pv-style-picker').addEventListener('click', e => {
     const card = e.target.closest('.pv-style-card');
@@ -3858,11 +3814,6 @@ function wireEvents() {
     document.querySelectorAll('[data-pv-color]').forEach(b => b.classList.remove('is-active'));
     btn.classList.add('is-active');
   });
-
-  // Font picker
-  const fontSel = document.getElementById('pv-font-select');
-  populateFontSelect(fontSel);
-  fontSel.addEventListener('change', e => setFont(e.target.value));
 
   // Work area style picker
   document.getElementById('pv-work-picker').addEventListener('click', e => {
@@ -3957,7 +3908,7 @@ function init() {
   // Register bingo's settings section into the shared suite dialog.
   // The render function takes a host element provided by the dialog
   // and populates it with bingo-specific controls.
-  registerToolSettings('bingo', 'Math Bingo', renderSettings);
+  registerToolSettings('bingo', 'Math Bingo', BINGO_SETTINGS_TABS);
   renderHomepage();
   // Anchor the dirty-tracking baseline AFTER state hydration so a fresh
   // page load on a previously-edited set doesn't show "Save changes?"
