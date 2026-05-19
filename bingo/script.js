@@ -433,13 +433,12 @@ function loadProblems(csvText, filename) {
     if (!prob)                  rowErrors.push('Problem is empty');
     // Answer can be numeric OR a LaTeX expression. Only require non-empty.
     if (ansRaw === '')          rowErrors.push('Answer is required');
-    const ansNum = parseFloat(ansRaw);
 
     const editRow = { id: newRowId(), column: col || '', problem: prob, answer: ansRaw, errors: rowErrors };
     allRows.push(editRow);
 
     if (rowErrors.length === 0) {
-      problems.push({ column: col, problem: prob, answer: ansNum });
+      problems.push({ column: col, problem: prob, answer: ansRaw });
     }
   }
 
@@ -880,7 +879,11 @@ function buildColumnAnswers(problems) {
   }
   const result = {};
   for (const [col, vals] of Object.entries(map)) {
-    result[col] = [...vals].sort((a,b) => a - b);
+    result[col] = [...vals].sort((a, b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return String(a).localeCompare(String(b));
+    });
   }
   return result;
 }
@@ -1556,7 +1559,7 @@ function syncProblemsFromEditRows() {
   const answerKeys = {};
   state.editRows.forEach(r => {
     if (r.errors.length > 0) return;
-    const key = r.column.toUpperCase() + ':' + parseFloat(r.answer);
+    const key = r.column.toUpperCase() + ':' + r.answer.trim();
     (answerKeys[key] = answerKeys[key] || []).push(r.id);
   });
   Object.values(answerKeys).forEach(ids => {
@@ -1577,7 +1580,7 @@ function syncProblemsFromEditRows() {
   // 4. Derive valid problems
   state.problems = state.editRows
     .filter(r => r.errors.length === 0)
-    .map(r => ({ column: r.column.toUpperCase(), problem: r.problem.trim(), answer: parseFloat(r.answer) }));
+    .map(r => ({ column: r.column.toUpperCase(), problem: r.problem.trim(), answer: r.answer.trim() }));
   state.columnAnswers = buildColumnAnswers(state.problems);
   updatePvPreviewCount();
   // The set is now potentially dirty — refresh the beforeunload guard
@@ -1603,7 +1606,7 @@ function updatePvPreviewCount() {
     const c = r.column.toUpperCase();
     if (c in colRowCount) {
       colRowCount[c]++;
-      colAnswers[c].add(parseFloat(r.answer));
+      colAnswers[c].add(r.answer.trim());
     }
   });
 
@@ -2753,6 +2756,7 @@ function generateBingoCards(n) {
 async function pvDownloadCards() {
   // Re-entry guard — async work should never overlap with itself.
   if (pvDownloadCards._busy) return;
+  clearLatexPngCache();
   let   n        = parseInt(document.getElementById('pv-count').value, 10);
   const style    = document.querySelector('.pv-style-card.is-active')?.dataset.pvStyle || 'full';
   const color    = document.querySelector('[data-pv-color].is-active')?.dataset.pvColor !== 'bw';
@@ -2967,7 +2971,7 @@ function renderCaFullSheet() {
   container.innerHTML = cols.map(col => {
     const rows = called[col];
     const body = rows.length
-      ? rows.map(p => `<div class="ca-row"><span class="ca-problem">${escHtml(p.problem)}</span><span class="ca-answer">${escHtml(String(p.answer))}</span></div>`).join('')
+      ? rows.map(p => `<div class="ca-row"><span class="ca-problem">${renderMathHtml(p.problem)}</span><span class="ca-answer">${renderMathHtml(p.answer)}</span></div>`).join('')
       : `<div class="ca-empty">None called yet</div>`;
     return `
       <div class="ca-col">
@@ -3061,8 +3065,17 @@ function drawBingoCard(doc, { x, y, cardW, card, cardIdx, headerH, showCardNumbe
         doc.setFontSize(freeFont);
         doc.text('FREE', cx + cellW / 2, cy + cellH / 2, { align: 'center', baseline: 'middle' });
       } else {
-        doc.setFontSize(String(val).length > 3 ? dataFontSmall : dataFont);
-        doc.text(String(val), cx + cellW / 2, cy + cellH / 2, { align: 'center', baseline: 'middle' });
+        const latex = latexPngCache.get(String(val).trim());
+        if (latex) {
+          const padFrac = 0.12;
+          const maxW = cellW * (1 - 2 * padFrac);
+          const maxH = cellH * (1 - 2 * padFrac);
+          const { w, h } = fitToCell(latex.wPx, latex.hPx, maxW, maxH);
+          doc.addImage(latex.dataUrl, 'PNG', cx + (cellW - w) / 2, cy + (cellH - h) / 2, w, h, latex.alias, 'FAST');
+        } else {
+          doc.setFontSize(String(val).length > 3 ? dataFontSmall : dataFont);
+          doc.text(String(val), cx + cellW / 2, cy + cellH / 2, { align: 'center', baseline: 'middle' });
+        }
       }
     }
   }
@@ -3178,9 +3191,21 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
       doc.setDrawColor(180, 180, 180);
       doc.setLineWidth(0.3);
       doc.circle(x + 3, ry + rowH / 2, 1.2);
-      doc.text(String(p.problem), x + 6, ry + rowH / 2, { baseline: 'middle' });
-      doc.setFont(pdfFont,'bold');
-      doc.text(String(p.answer), x + colW - 2, ry + rowH / 2, { align: 'right', baseline: 'middle' });
+      const placeValue = (val, anchorX, align, bold) => {
+        const latex = latexPngCache.get(String(val).trim());
+        if (latex) {
+          const maxH = rowH * 0.8;
+          const maxW = colW * 0.45;
+          const { w, h } = fitToCell(latex.wPx, latex.hPx, maxW, maxH);
+          const ix = align === 'right' ? anchorX - w : anchorX;
+          doc.addImage(latex.dataUrl, 'PNG', ix, ry + rowH / 2 - h / 2, w, h, latex.alias, 'FAST');
+        } else {
+          doc.setFont(pdfFont, bold ? 'bold' : 'normal');
+          doc.text(String(val), anchorX, ry + rowH / 2, { align, baseline: 'middle' });
+        }
+      };
+      placeValue(p.problem, x + 6, 'left', false);
+      placeValue(p.answer, x + colW - 2, 'right', true);
     });
 
     // Border around column
@@ -3195,6 +3220,11 @@ async function generateCardsPDF(cards, opts) {
   const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null } = opts;
   const labelFor = (i) => (cardLabels && cardLabels[i]) ? cardLabels[i] : null;
   const { jsPDF } = jspdf;
+
+  const allLatex = [];
+  cards.forEach(card => card.forEach(col => col.forEach(v => { if (v) allLatex.push(String(v)); })));
+  if (callerSheet) state.problems.forEach(p => { allLatex.push(String(p.problem)); allLatex.push(String(p.answer)); });
+  await preWarmLatexCache(allLatex);
 
   if (style === 'full') {
     const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -3263,6 +3293,72 @@ function renderMath(el, text) {
     } catch(e) {}
   }
   el.textContent = text;
+}
+
+function renderMathHtml(text) {
+  const s = String(text ?? '');
+  if (s.includes('\\') && typeof katex !== 'undefined') {
+    try { return katex.renderToString(s, { throwOnError: false, displayMode: false }); }
+    catch(e) {}
+  }
+  return escHtml(s);
+}
+
+const latexPngCache = new Map();
+let latexRenderHost = null;
+
+function clearLatexPngCache() { latexPngCache.clear(); }
+
+function getLatexHost() {
+  if (latexRenderHost && latexRenderHost.isConnected) return latexRenderHost;
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:visible;font-size:96px;line-height:1;color:#000;background:transparent;';
+  document.body.appendChild(host);
+  latexRenderHost = host;
+  return host;
+}
+
+async function renderLatexToPng(text) {
+  const s = String(text ?? '').trim();
+  if (!s.includes('\\')) return null;
+  if (latexPngCache.has(s)) return latexPngCache.get(s);
+  if (typeof katex === 'undefined' || typeof html2canvas === 'undefined') return null;
+
+  const host = getLatexHost();
+  const span = document.createElement('span');
+  span.style.cssText = 'display:inline-block;padding:8px;';
+  span.innerHTML = katex.renderToString(s, { throwOnError: false, displayMode: false });
+  host.appendChild(span);
+
+  try {
+    await document.fonts.ready;
+    const canvas = await html2canvas(span, { scale: 2, backgroundColor: null, logging: false });
+    const entry = {
+      dataUrl: canvas.toDataURL('image/png'),
+      wPx: canvas.width,
+      hPx: canvas.height,
+      alias: 'tex:' + s,
+    };
+    latexPngCache.set(s, entry);
+    return entry;
+  } catch (e) {
+    return null;
+  } finally {
+    host.removeChild(span);
+  }
+}
+
+async function preWarmLatexCache(strings) {
+  const unique = [...new Set(strings.filter(v => v && String(v).includes('\\')))];
+  await Promise.all(unique.map(s => renderLatexToPng(s)));
+}
+
+function fitToCell(wPx, hPx, maxWmm, maxHmm) {
+  const aspect = wPx / hPx;
+  let w = maxWmm, h = maxWmm / aspect;
+  if (h > maxHmm) { h = maxHmm; w = h * aspect; }
+  return { w, h };
 }
 
 /* ============================================================
