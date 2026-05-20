@@ -2842,10 +2842,18 @@ async function pvDownloadCards() {
   const origLabel = btn ? btn.innerHTML : '';
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Generating PDF…';
+    btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Preparing…';
   }
+  // Live progress: pre-warm phase reports one tick per LaTeX expression.
+  // The remaining jspdf draw pass is fast (<1s) so we don't bother
+  // ticking through that — just flip to "Drawing PDF…" before save.
+  const onProgress = (done, total) => {
+    if (!btn || total === 0) return;
+    btn.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Rendering math ${done}/${total}…`;
+  };
   try {
-    await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font, cardLabels });
+    await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font, cardLabels, onProgress });
+    if (btn) btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Drawing PDF…';
   } catch (e) {
     errEl.textContent = `Could not generate PDF: ${e.message || e}`;
     errEl.hidden = false;
@@ -3246,14 +3254,14 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
 }
 
 async function generateCardsPDF(cards, opts) {
-  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null } = opts;
+  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null, onProgress = null } = opts;
   const labelFor = (i) => (cardLabels && cardLabels[i]) ? cardLabels[i] : null;
   const { jsPDF } = jspdf;
 
   const allLatex = [];
   cards.forEach(card => card.forEach(col => col.forEach(v => { if (v) allLatex.push(String(v)); })));
   if (callerSheet) state.problems.forEach(p => { allLatex.push(String(p.problem)); allLatex.push(String(p.answer)); });
-  await preWarmLatexCache(allLatex);
+  await preWarmLatexCache(allLatex, onProgress);
 
   if (style === 'full') {
     const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -3342,18 +3350,23 @@ async function renderLatexToPng(text) {
   if (latexPngCache.has(s)) return latexPngCache.get(s);
   if (typeof katex === 'undefined' || typeof html2canvas === 'undefined') return null;
 
-  // Fresh isolated host per call. The previous shared-host + Promise.all
-  // approach raced badly: ~75 spans accumulated in one container while
-  // 75 concurrent html2canvas calls reflowed it, freezing the tab on
-  // most machines. Per-call host means each render has a clean DOM.
+  // Bulletproof off-screen render: a fixed-position WRAPPER pinned at
+  // 0,0 with width:0/height:0/overflow:hidden contains the visible
+  // host. The host itself can be any size — overflow:hidden on the
+  // wrapper clips everything, so KaTeX is free to lay out at full
+  // size for html2canvas to capture, but nothing ever bleeds into the
+  // viewport even if 75 hosts existed simultaneously.
+  const wrap = document.createElement('div');
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;pointer-events:none;contain:strict;';
   const host = document.createElement('div');
-  host.setAttribute('aria-hidden', 'true');
-  host.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:visible;font-size:96px;line-height:1;color:#000;background:transparent;';
+  host.style.cssText = 'position:absolute;left:0;top:0;font-size:96px;line-height:1;color:#000;background:transparent;width:max-content;';
   const span = document.createElement('span');
   span.style.cssText = 'display:inline-block;padding:8px;';
   span.innerHTML = katex.renderToString(s, { throwOnError: false, displayMode: false });
   host.appendChild(span);
-  document.body.appendChild(host);
+  wrap.appendChild(host);
+  document.body.appendChild(wrap);
 
   try {
     const canvas = await html2canvas(span, { scale: 2, backgroundColor: null, logging: false });
@@ -3368,21 +3381,27 @@ async function renderLatexToPng(text) {
   } catch (e) {
     return null;
   } finally {
-    if (host.parentNode) host.parentNode.removeChild(host);
+    if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
   }
 }
 
-async function preWarmLatexCache(strings) {
+async function preWarmLatexCache(strings, onProgress) {
   const unique = [...new Set(strings.filter(v => v && String(v).includes('\\')))];
   // Wait once for webfonts before the loop so we don't pay the latency
-  // per render. After that, serialise the renders — html2canvas plus
-  // KaTeX layout are heavy; running 75 in parallel freezes the tab.
+  // per render. After that, serialise — html2canvas plus KaTeX layout
+  // are heavy enough that running 75 in parallel freezes Safari.
   try { await document.fonts.ready; } catch (e) { /* ignore */ }
+  let done = 0;
+  const total = unique.length;
+  if (onProgress) onProgress(done, total);
   for (const s of unique) {
-    try { await renderLatexToPng(s); } catch (e) { /* ignore — fall back to text in caller */ }
-    // Yield to the event loop so the browser can paint progress UI and
-    // stay responsive between renders.
-    await new Promise(r => setTimeout(r, 0));
+    try { await renderLatexToPng(s); } catch (e) { /* fall back to text */ }
+    done++;
+    if (onProgress) onProgress(done, total);
+    // requestAnimationFrame yields to the browser long enough for a
+    // paint pass between renders so the progress UI actually updates
+    // and Safari doesn't think the tab has hung.
+    await new Promise(r => requestAnimationFrame(() => r()));
   }
 }
 
