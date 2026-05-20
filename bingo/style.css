@@ -508,8 +508,13 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   font-weight: 900;
   color: rgb(var(--bingo-paper));
   letter-spacing: -0.02em;
-  /* Slab opt-in — decorative ball numeral, paired with text-box trim. */
-  font-family: var(--font-slab);
+  /* Sans here, not slab: Safari has a bug where `text-box: trim-both
+     cap alphabetic` trims the layout box but doesn't move the painted
+     glyph, so a slab letter still rendered top-anchored in Safari.
+     Sans has near-symmetric vertical metrics and centres without
+     needing any text-box hack. The ball's character lives in the
+     colored square + shadow, not in the serifs. */
+  font-family: var(--font-sans);
   flex-shrink: 0;
   /* Scaled-down version of the hero ball's drop-shadow recipe so the
      small tiles read as floating with the same physical lighting. */
@@ -696,8 +701,8 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   height: 1.3em;
   line-height: 1;
   font-weight: 900;
-  /* Slab opt-in — decorative chip letter, paired with text-box trim. */
-  font-family: var(--font-slab);
+  /* Sans — see .recent-ball-circle for the rationale. */
+  font-family: var(--font-sans);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -860,12 +865,12 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-letter {
   color: rgb(var(--paper-edge));
   line-height: 1;
   text-shadow: 1px 1px 0 rgb(var(--paper-edge) / 0.15);
-  /* Slab opt-in — decorative letter on the photoreal bingo ball.
-     text-box trim centres the cap-height letter inside the cream
-     label disc; otherwise the slab's descender slack pushes the I
-     toward the top of the disc. */
-  font-family: var(--font-slab);
-  text-box: trim-both cap alphabetic;
+  /* Sans — see .recent-ball-circle for the rationale. Safari's
+     `text-box: trim-both` only moves the layout box, not the painted
+     glyph, so slab here renders top-anchored on the cream disc on
+     Safari. Sans's near-symmetric metrics centre cleanly without any
+     trim trick. */
+  font-family: var(--font-sans);
 }
 
 /* Specular gloss — the layer that DOESN'T rotate. Anchored to the

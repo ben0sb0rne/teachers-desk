@@ -3388,19 +3388,23 @@ async function renderLatexToPng(text) {
 async function preWarmLatexCache(strings, onProgress) {
   const unique = [...new Set(strings.filter(v => v && String(v).includes('\\')))];
   // Wait once for webfonts before the loop so we don't pay the latency
-  // per render. After that, serialise — html2canvas plus KaTeX layout
-  // are heavy enough that running 75 in parallel freezes Safari.
+  // per render. After that, render in small parallel batches so we get
+  // a meaningful speedup without re-introducing the parallel-Promise.all
+  // freeze (each renderLatexToPng now uses its own isolated wrapper, so
+  // a small batch can safely run concurrently — the freeze before was
+  // 75 renders sharing one DOM host, not the parallelism itself).
   try { await document.fonts.ready; } catch (e) { /* ignore */ }
-  let done = 0;
   const total = unique.length;
+  const BATCH = 4;
+  let done = 0;
   if (onProgress) onProgress(done, total);
-  for (const s of unique) {
-    try { await renderLatexToPng(s); } catch (e) { /* fall back to text */ }
-    done++;
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const slice = unique.slice(i, i + BATCH);
+    await Promise.all(slice.map(s => renderLatexToPng(s).catch(() => null)));
+    done += slice.length;
     if (onProgress) onProgress(done, total);
-    // requestAnimationFrame yields to the browser long enough for a
-    // paint pass between renders so the progress UI actually updates
-    // and Safari doesn't think the tab has hung.
+    // Yield between batches so the browser can paint the progress UI
+    // and stay responsive.
     await new Promise(r => requestAnimationFrame(() => r()));
   }
 }
