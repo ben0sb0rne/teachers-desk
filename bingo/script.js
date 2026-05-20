@@ -2847,31 +2847,53 @@ async function pvDownloadCards() {
   // Modal progress dialog. The main thread is mostly busy during
   // html2canvas + jspdf draws so click-anything-else is misleading;
   // the dimmed backdrop + centred dialog makes "we're working" obvious.
+  // A Cancel button inside the dialog flips a flag the pre-warm loop
+  // checks between batches so the user can bail out of a long render.
   const detailEl = document.getElementById('pdf-progress-detail');
   const fillEl   = document.getElementById('pdf-progress-fill');
   const barEl    = fillEl ? fillEl.parentElement : null;
+  const cancelBtn = document.getElementById('pdf-progress-cancel');
   if (detailEl) detailEl.textContent = 'Preparing…';
   if (fillEl)   fillEl.style.width = '0%';
   if (barEl)    barEl.classList.add('is-indeterminate');
+  let cancelled = false;
+  const onCancelClick = () => {
+    cancelled = true;
+    if (detailEl) detailEl.textContent = 'Cancelling…';
+    if (cancelBtn) cancelBtn.disabled = true;
+  };
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+    cancelBtn.addEventListener('click', onCancelClick);
+  }
   openOverlay('pdf-progress-overlay');
 
   const onProgress = (done, total) => {
     if (!total) return;
     if (barEl) barEl.classList.remove('is-indeterminate');
     if (fillEl) fillEl.style.width = Math.round((done / total) * 100) + '%';
-    if (detailEl) detailEl.textContent = `Rendering math ${done}/${total}`;
+    if (detailEl && !cancelled) detailEl.textContent = `Rendering math ${done}/${total}`;
   };
 
   try {
-    await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font, cardLabels, onProgress });
-    // Pre-warm done; brief "drawing" beat before doc.save lands.
-    if (detailEl) detailEl.textContent = 'Drawing PDF…';
-    if (fillEl) fillEl.style.width = '100%';
+    const result = await generateCardsPDF(cards, {
+      style, color, showCardNumbers: showNums, workType, callerSheet,
+      lineSpacing, fontKey: state.settings.font, cardLabels,
+      onProgress,
+      shouldCancel: () => cancelled,
+    });
+    if (result && result.cancelled) {
+      // Bail out — leave no PDF behind; close the overlay quietly.
+    } else {
+      if (detailEl) detailEl.textContent = 'Drawing PDF…';
+      if (fillEl) fillEl.style.width = '100%';
+    }
   } catch (e) {
     errEl.textContent = `Could not generate PDF: ${e.message || e}`;
     errEl.hidden = false;
   } finally {
     pvDownloadCards._busy = false;
+    if (cancelBtn) cancelBtn.removeEventListener('click', onCancelClick);
     closeOverlay('pdf-progress-overlay');
     if (btn) {
       btn.disabled = false;
@@ -3268,14 +3290,16 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
 }
 
 async function generateCardsPDF(cards, opts) {
-  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null, onProgress = null } = opts;
+  const { style = 'full', color = true, showCardNumbers = true, workType = 'lined', callerSheet = true, lineSpacing = 7, fontKey = 'default', cardLabels = null, onProgress = null, shouldCancel = null } = opts;
   const labelFor = (i) => (cardLabels && cardLabels[i]) ? cardLabels[i] : null;
   const { jsPDF } = jspdf;
 
   const allLatex = [];
   cards.forEach(card => card.forEach(col => col.forEach(v => { if (v) allLatex.push(String(v)); })));
   if (callerSheet) state.problems.forEach(p => { allLatex.push(String(p.problem)); allLatex.push(String(p.answer)); });
-  await preWarmLatexCache(allLatex, onProgress);
+  const warmResult = await preWarmLatexCache(allLatex, onProgress, shouldCancel);
+  if (warmResult && warmResult.cancelled) return { cancelled: true };
+  if (shouldCancel && shouldCancel()) return { cancelled: true };
 
   if (style === 'full') {
     const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -3399,7 +3423,7 @@ async function renderLatexToPng(text) {
   }
 }
 
-async function preWarmLatexCache(strings, onProgress) {
+async function preWarmLatexCache(strings, onProgress, shouldCancel) {
   const unique = [...new Set(strings.filter(v => v && String(v).includes('\\')))];
   // Wait once for webfonts before the loop so we don't pay the latency
   // per render. After that, render in small parallel batches so we get
@@ -3413,6 +3437,7 @@ async function preWarmLatexCache(strings, onProgress) {
   let done = 0;
   if (onProgress) onProgress(done, total);
   for (let i = 0; i < unique.length; i += BATCH) {
+    if (shouldCancel && shouldCancel()) return { cancelled: true };
     const slice = unique.slice(i, i + BATCH);
     await Promise.all(slice.map(s => renderLatexToPng(s).catch(() => null)));
     done += slice.length;
@@ -3421,6 +3446,7 @@ async function preWarmLatexCache(strings, onProgress) {
     // and stay responsive.
     await new Promise(r => requestAnimationFrame(() => r()));
   }
+  return { cancelled: false };
 }
 
 function fitToCell(wPx, hPx, maxWmm, maxHmm) {

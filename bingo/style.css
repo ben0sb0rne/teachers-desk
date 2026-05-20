@@ -1279,12 +1279,12 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   0%   { transform: translateX(-60%); }
   100% { transform: translateX(260%); }
 }
-.pdf-progress-note {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  text-align: center;
+.pdf-progress-actions {
+  display: flex;
+  justify-content: center;
   margin: 0;
 }
+.pdf-progress-actions .hp-btn { min-width: 120px; }
 @media (prefers-reduced-motion: reduce) {
   .pdf-progress-fill { transition: none; }
   .pdf-progress-bar.is-indeterminate .pdf-progress-fill { animation: none; width: 100%; }
