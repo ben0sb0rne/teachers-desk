@@ -35,8 +35,15 @@
   --ink-muted:        rgb(var(--paper-edge) / 0.65);
   --paper-edge-soft:  rgb(var(--paper-edge) / 0.12);
 
-  /* -- Typography -- */
+  /* -- Typography --
+     The brief calls for "slab serif headings, sans body". Slab carries
+     the museum / 1970s character on headlines and decorative single-
+     glyph surfaces (column letters, ball numerals). Sans handles body
+     copy and form controls — its line box is tight and symmetric across
+     browsers, so single-line text reads visually centred without any
+     `text-box` polyfill (Firefox doesn't support that property yet). */
   --font-slab: 'Rockwell', 'Roboto Slab', Georgia, serif;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   --type-11: 11px;
   --type-13: 13px;
   --type-17: 17px;
@@ -103,7 +110,12 @@ html {
 
 body {
   margin: 0;
-  font-family: var(--font-slab);
+  /* Body content uses sans per the brief ("slab serif headings, sans
+     body"). Tighter, more symmetric line box than slab — single-line
+     text inside form controls visually centres in every browser
+     (no `text-box` dependency). Slab is an explicit opt-in on
+     headings and decorative single-glyph surfaces. */
+  font-family: var(--font-sans);
   font-size: var(--type-17);
   font-weight: 400;
   line-height: 1.45;
@@ -563,6 +575,7 @@ a.suite-tool-name:focus-visible {
 }
 .suite-settings-section:last-child { margin-bottom: 0; }
 .suite-settings-section h3 {
+  font-family: var(--font-slab);
   font-size: var(--type-11);
   font-weight: 700;
   text-transform: uppercase;
@@ -599,7 +612,9 @@ a.suite-tool-name:focus-visible {
   margin-bottom: var(--space-2);
 }
 .suite-tab-btn {
-  font-family: var(--font-slab);
+  /* Tab strip is navigation chrome — body-content semantics. Sans gives
+     the single-line label a tight, symmetric line box. */
+  font-family: var(--font-sans);
   font-size: var(--type-13);
   font-weight: 700;
   background: transparent;
@@ -628,7 +643,12 @@ a.suite-tool-name:focus-visible {
   flex-shrink: 0;
 }
 .suite-seg button {
-  font-family: var(--font-slab);
+  /* Segmented controls (Auto/Light/Dark, Realistic/Simple, etc.) carry
+     body-content semantics — they're inline choices, not headings.
+     Sans gives the single-line UPPERCASE text a tight, symmetric line
+     box that visually centres inside the button across every browser
+     (slab's descender slack pushes glyphs upward without `text-box`). */
+  font-family: var(--font-sans);
   font-size: var(--type-11);
   font-weight: 700;
   text-transform: uppercase;

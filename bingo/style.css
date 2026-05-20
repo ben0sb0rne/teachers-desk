@@ -74,8 +74,14 @@
   --bottomnav-h:  clamp(64px, 4.2vmin, 112px);
   --rbs:          1.5;
 
-  /* App-level font — points at the suite's slab stack */
-  --app-font:     var(--font-slab);
+  /* App-level font. The brief calls for "slab serif headings, sans
+     body"; --app-font drives body + form controls so we default to
+     sans (tighter, more symmetric line box — single-line text reads
+     visually centred in every browser without a `text-box` polyfill).
+     Slab is opt-in via explicit font-family on decorative + heading
+     classes further down. The caller-view font picker overrides
+     --app-font for in-game fun fonts. */
+  --app-font:     var(--font-sans);
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -502,6 +508,8 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   font-weight: 900;
   color: rgb(var(--bingo-paper));
   letter-spacing: -0.02em;
+  /* Slab opt-in — decorative ball numeral, paired with text-box trim. */
+  font-family: var(--font-slab);
   flex-shrink: 0;
   /* Scaled-down version of the hero ball's drop-shadow recipe so the
      small tiles read as floating with the same physical lighting. */
@@ -688,6 +696,8 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   height: 1.3em;
   line-height: 1;
   font-weight: 900;
+  /* Slab opt-in — decorative chip letter, paired with text-box trim. */
+  font-family: var(--font-slab);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -850,6 +860,8 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-letter {
   color: rgb(var(--paper-edge));
   line-height: 1;
   text-shadow: 1px 1px 0 rgb(var(--paper-edge) / 0.15);
+  /* Slab opt-in — decorative letter on the photoreal bingo ball. */
+  font-family: var(--font-slab);
 }
 
 /* Specular gloss — the layer that DOESN'T rotate. Anchored to the
@@ -1228,6 +1240,9 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
+  /* Slab opt-in — heading style; descender slack doesn't hurt a label
+     that isn't visually centred against a sibling control. */
+  font-family: var(--font-slab);
   color: var(--text-muted);
   margin-bottom: 6px;
 }
@@ -1750,6 +1765,7 @@ kbd {
   display: block;
   font-size: .75rem;
   font-weight: 600;
+  font-family: var(--font-slab);
   color: var(--text-muted);
   margin-bottom: 6px;
 }
@@ -1819,12 +1835,13 @@ kbd {
   display: block; font-size: .85rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
   color: rgb(var(--bingo-ink-muted) / 0.65); margin-bottom: 10px;
+  /* Slab opt-in — section label, heading-like. */
+  font-family: var(--font-slab);
 }
 #pv-count {
   width: 80px; padding: 7px 10px; font-size: .95rem; font-weight: 600;
   border-radius: 8px; border: 1px solid var(--border);
   background: var(--surface2); color: var(--text); text-align: center;
-  text-box: trim-both cap alphabetic;
 }
 #pv-style-picker { display: flex; flex-direction: column; gap: 8px; }
 .pv-style-card {
@@ -1946,6 +1963,7 @@ kbd {
   text-align: left; padding: 10px 12px;
   background: rgb(var(--bingo-paper-edge));
   color: rgb(var(--bingo-paper));
+  font-family: var(--font-slab);
   font-size: .82rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
   position: sticky; top: 0; z-index: 1;
@@ -1976,11 +1994,6 @@ kbd {
   color: rgb(var(--bingo-paper-edge));
   font-size: 1rem; font-weight: 700; text-align: center; cursor: pointer;
   transition: background .15s, color .15s, border-color .15s;
-  /* Trim the slab-serif line box to actual glyph bounds so the letter
-     visually centres in the button (Rockwell / Roboto Slab carry a lot
-     of descender space below the baseline; without trimming, a single
-     uppercase glyph appears anchored to the top). */
-  text-box: trim-both cap alphabetic;
 }
 .pv-col-select:hover {
   border-color: rgb(var(--bingo-paper-edge) / 0.5);
@@ -1995,12 +2008,9 @@ kbd {
   background: rgb(var(--bingo-paper));
   color: rgb(var(--bingo-paper-edge));
   font-size: 1rem;
-  font-family: var(--font-slab);
+  /* Inherits --app-font (sans) from body. Slab here would push the
+     LaTeX problem text upward in its line box on Firefox. */
   transition: border-color .15s;
-  /* See .pv-col-select for the rationale — text-box trim removes the
-     line-box descender space so the editor text reads as vertically
-     centred inside its input box. */
-  text-box: trim-both cap alphabetic;
 }
 .pv-prob-input:focus, .pv-ans-input:focus {
   outline: none;
