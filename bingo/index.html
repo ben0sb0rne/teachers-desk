@@ -101,8 +101,12 @@
 <div id="print-view" hidden>
   <div id="pv-host-error" hidden aria-live="polite" aria-atomic="true"></div>
   <div id="pv-body">
-    <!-- Left: options + download -->
+    <!-- Left: options + download. Two regions: a scrollable body for
+         all the configurator groups, and a pinned footer holding the
+         Download Cards button + error slot so the CTA never scrolls
+         off the bottom of the viewport on a short window. -->
     <div id="pv-options">
+      <div id="pv-options-scroll">
       <div class="pv-opt-group">
         <label class="pv-opt-label">Number of cards</label>
         <input id="pv-count" type="number" min="1" max="200" value="30">
@@ -258,8 +262,11 @@
           </div>
         </div>
       </details>
-      <button class="hp-btn primary" id="pv-download-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Download Cards</button>
-      <div id="pv-dl-error" hidden aria-live="polite" aria-atomic="true"></div>
+      </div><!-- /#pv-options-scroll -->
+      <div id="pv-options-footer">
+        <button class="hp-btn primary" id="pv-download-btn"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Download Cards</button>
+        <div id="pv-dl-error" hidden aria-live="polite" aria-atomic="true"></div>
+      </div>
     </div>
     <!-- Right: problem/answer preview (always-editable) -->
     <div id="pv-preview">
@@ -407,6 +414,23 @@
         <tr><td><kbd>F</kbd></td><td>Toggle fullscreen</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Close panel / exit fullscreen</td></tr>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- PDF generation progress dialog. Modal, non-dismissible — main thread
+     is busy with html2canvas + jspdf, so the user can't usefully click
+     anything else anyway. data-no-dismiss prevents the global
+     backdrop-click and Esc handlers from closing it. -->
+<div class="overlay" id="pdf-progress-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pdf-progress-title" aria-live="polite" data-no-dismiss>
+  <div class="panel pdf-progress-panel">
+    <div class="panel-header"><h2 id="pdf-progress-title">Generating your PDF…</h2></div>
+    <div class="panel-body">
+      <p id="pdf-progress-detail" class="pdf-progress-detail">Preparing…</p>
+      <div class="pdf-progress-bar" aria-hidden="true">
+        <div class="pdf-progress-fill" id="pdf-progress-fill"></div>
+      </div>
+      <p class="pdf-progress-note">This may take a few seconds. Please don't navigate away.</p>
     </div>
   </div>
 </div>

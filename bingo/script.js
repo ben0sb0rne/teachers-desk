@@ -2842,23 +2842,37 @@ async function pvDownloadCards() {
   const origLabel = btn ? btn.innerHTML : '';
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Preparing…';
+    btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Generating PDF…';
   }
-  // Live progress: pre-warm phase reports one tick per LaTeX expression.
-  // The remaining jspdf draw pass is fast (<1s) so we don't bother
-  // ticking through that — just flip to "Drawing PDF…" before save.
+  // Modal progress dialog. The main thread is mostly busy during
+  // html2canvas + jspdf draws so click-anything-else is misleading;
+  // the dimmed backdrop + centred dialog makes "we're working" obvious.
+  const detailEl = document.getElementById('pdf-progress-detail');
+  const fillEl   = document.getElementById('pdf-progress-fill');
+  const barEl    = fillEl ? fillEl.parentElement : null;
+  if (detailEl) detailEl.textContent = 'Preparing…';
+  if (fillEl)   fillEl.style.width = '0%';
+  if (barEl)    barEl.classList.add('is-indeterminate');
+  openOverlay('pdf-progress-overlay');
+
   const onProgress = (done, total) => {
-    if (!btn || total === 0) return;
-    btn.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Rendering math ${done}/${total}…`;
+    if (!total) return;
+    if (barEl) barEl.classList.remove('is-indeterminate');
+    if (fillEl) fillEl.style.width = Math.round((done / total) * 100) + '%';
+    if (detailEl) detailEl.textContent = `Rendering math ${done}/${total}`;
   };
+
   try {
     await generateCardsPDF(cards, { style, color, showCardNumbers: showNums, workType, callerSheet, lineSpacing, fontKey: state.settings.font, cardLabels, onProgress });
-    if (btn) btn.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> Drawing PDF…';
+    // Pre-warm done; brief "drawing" beat before doc.save lands.
+    if (detailEl) detailEl.textContent = 'Drawing PDF…';
+    if (fillEl) fillEl.style.width = '100%';
   } catch (e) {
     errEl.textContent = `Could not generate PDF: ${e.message || e}`;
     errEl.hidden = false;
   } finally {
     pvDownloadCards._busy = false;
+    closeOverlay('pdf-progress-overlay');
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = origLabel;
@@ -3728,10 +3742,15 @@ function wireEvents() {
   document.getElementById('btn-bingo').addEventListener('click', triggerBingo);
   document.getElementById('btn-help').onclick = () => openOverlay('help-overlay');
   document.getElementById('btn-close-help').onclick = () => closeOverlay('help-overlay');
-  // Click outside panel to close overlay
+  // Click outside panel to close overlay. Overlays marked with
+  // data-no-dismiss (e.g. the PDF progress dialog) are immune — the
+  // user shouldn't be able to dismiss them by clicking the dim and
+  // think the main thread will magically become responsive.
   document.querySelectorAll('.overlay').forEach(overlay => {
     overlay.addEventListener('click', e => {
-      if (e.target === overlay) closeOverlay(overlay.id);
+      if (e.target !== overlay) return;
+      if (overlay.hasAttribute('data-no-dismiss')) return;
+      closeOverlay(overlay.id);
     });
   });
 

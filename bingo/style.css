@@ -1240,6 +1240,56 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   flex: 1;
 }
 
+/* PDF generation progress dialog — a non-dismissible modal that the
+   user sees while html2canvas + jspdf chew through a download. The
+   backdrop dimming comes from .overlay; everything below is the
+   panel's own chrome. */
+.pdf-progress-panel { max-width: 400px; }
+.pdf-progress-detail {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 14px;
+  text-align: center;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pdf-progress-bar {
+  height: 10px;
+  background: var(--surface2);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.pdf-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 120ms linear;
+}
+/* Indeterminate state: animated stripe while we don't yet know totals
+   (e.g. the "Preparing…" phase before pre-warm kicks off). Toggled by
+   adding .is-indeterminate on the bar. */
+.pdf-progress-bar.is-indeterminate .pdf-progress-fill {
+  width: 40%;
+  animation: pdf-progress-slide 1.1s ease-in-out infinite;
+}
+@keyframes pdf-progress-slide {
+  0%   { transform: translateX(-60%); }
+  100% { transform: translateX(260%); }
+}
+.pdf-progress-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pdf-progress-fill { transition: none; }
+  .pdf-progress-bar.is-indeterminate .pdf-progress-fill { animation: none; width: 100%; }
+}
+
 /* ── Settings panel ── */
 .settings-section { margin-bottom: 20px; }
 .settings-section:last-child { margin-bottom: 0; }
@@ -1832,14 +1882,32 @@ kbd {
 
 /* ── Options panel ──
    The configurator side is the SURROUND surface; the preview pane to
-   the right is the PAPER surface. Higher visual hierarchy than before. */
+   the right is the PAPER surface. Higher visual hierarchy than before.
+   Two regions inside: a scrollable BODY for the option groups, and a
+   pinned FOOTER for the Download Cards CTA + error slot so the button
+   never scrolls off the bottom on a short viewport. */
 #pv-options {
-  width: 280px; flex-shrink: 0; overflow-y: auto;
-  padding: 28px 24px;
+  width: 280px; flex-shrink: 0;
   border-right: 1px solid rgb(var(--bingo-paper-rule) / 0.18);
   background: rgb(var(--bingo-surround));
-  display: flex; flex-direction: column; gap: 28px;
+  display: flex; flex-direction: column;
+  min-height: 0;
 }
+#pv-options-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 28px 24px;
+  display: flex; flex-direction: column; gap: 28px;
+  min-height: 0;
+}
+#pv-options-footer {
+  flex-shrink: 0;
+  padding: 16px 24px 20px;
+  border-top: 1px solid rgb(var(--bingo-paper-rule) / 0.18);
+  background: rgb(var(--bingo-surround));
+  display: flex; flex-direction: column; gap: 10px;
+}
+#pv-options-footer #pv-download-btn { width: 100%; }
 .pv-opt-label {
   display: block; font-size: .85rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
@@ -2173,8 +2241,12 @@ kbd {
   .hp-inner { padding: 24px 16px 40px; }
 
   /* Print view: smaller options panel — 50vh of a small phone is
-     too much to give to options before the user even sees a problem. */
-  #pv-options { padding: 14px; gap: 14px; max-height: 44vh; }
+     too much to give to options before the user even sees a problem.
+     The pinned footer keeps the Download CTA visible even in this
+     compressed mode. */
+  #pv-options { max-height: 44vh; }
+  #pv-options-scroll { padding: 14px; gap: 14px; }
+  #pv-options-footer { padding: 12px 14px 14px; }
   .pv-style-card { padding: 8px 10px; }
 
   /* Caller view: tighter problem-card spacing. */
