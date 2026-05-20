@@ -516,11 +516,14 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
      colored square + shadow, not in the serifs. */
   font-family: var(--font-sans);
   flex-shrink: 0;
-  /* Scaled-down version of the hero ball's drop-shadow recipe so the
-     small tiles read as floating with the same physical lighting. */
-  filter:
-    drop-shadow(0 6px 8px rgb(0 0 0 / 0.28))
-    drop-shadow(0 1.5px 1px rgb(0 0 0 / 0.18));
+  /* box-shadow, not filter:drop-shadow — drop-shadow is a CPU blur in
+     WebKit and chains badly in Chromium, especially multiplied across
+     up to 10 visible strip balls. The chips are rounded rectangles
+     (border-radius: 4px) so box-shadow follows the silhouette and the
+     compositor can promote the layer. */
+  box-shadow:
+    0 6px 8px rgb(0 0 0 / 0.28),
+    0 1.5px 1px rgb(0 0 0 / 0.18);
   /* Trim ascender/descender padding so glyphs sit on visual center across all fonts */
   text-box: trim-both cap alphabetic;
 }
@@ -772,6 +775,13 @@ body.is-bingo.has-photoreal-balls #col-ball {
   --c:  var(--col-I);
   --hi: var(--col-I-hi);
   --sh: var(--col-I-sh);
+  /* Layout + style containment isolates layout effects from siblings
+     during the rolling animation. We intentionally OMIT `paint` here
+     because .ball-body's outer box-shadows (the floating halo + the
+     sharp contact line) need to paint outside #col-ball's content
+     box; `paint` would clip them to the ball's silhouette and the
+     shadow would disappear. */
+  contain: layout style;
 }
 body.is-bingo.has-photoreal-balls #col-ball[data-col="B"] { --c: var(--col-B); --hi: var(--col-B-hi); --sh: var(--col-B-sh); }
 body.is-bingo.has-photoreal-balls #col-ball[data-col="I"] { --c: var(--col-I); --hi: var(--col-I-hi); --sh: var(--col-I-sh); }
@@ -786,11 +796,14 @@ body.is-bingo.has-photoreal-balls #col-ball .cast-shadow {
   width: 85%;
   height: 14%;
   transform: translateX(-50%) scale(1);
+  /* Gradient's outer stops already taper to transparency — the
+     filter:blur on top of that was double-duty CPU work. Pushing the
+     fully-transparent stop further out (78% → 88%) softens the edge
+     without invoking the blur filter. */
   background: radial-gradient(ellipse,
     color-mix(in srgb, var(--c) 10%, rgb(0 0 0 / 0.6)) 0%,
-    color-mix(in srgb, var(--c) 5%, rgb(0 0 0 / 0.22)) 50%,
-    rgb(0 0 0 / 0) 78%);
-  filter: blur(6px);
+    color-mix(in srgb, var(--c) 5%, rgb(0 0 0 / 0.22)) 55%,
+    rgb(0 0 0 / 0) 88%);
   opacity: 0.5;
   pointer-events: none;
   will-change: transform, opacity;
@@ -800,11 +813,12 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  filter:
-    drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
-    drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
-    blur(0px);
-  will-change: transform, filter;
+  /* No `filter:` here — drop-shadow was the single largest per-frame
+     cost (CPU blur in WebKit, breaks compositor caching in Chromium).
+     The outer drop shadow is now baked into .ball-body's box-shadow
+     chain below, which is GPU-accelerated and follows the circular
+     silhouette via border-radius:50%. */
+  will-change: transform;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-body {
@@ -815,20 +829,26 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-body {
   background-image:
     radial-gradient(circle at 72% 78%, var(--hi) 0%, rgb(255 255 255 / 0) 35%),
     radial-gradient(circle at 50% 50%, transparent 55%, var(--sh) 92%, rgb(0 0 0 / 0.45) 100%);
+  /* Last two shadows are the outer drop shadows that used to live on
+     .ball-wrapper as filter:drop-shadow. box-shadow follows the
+     border-radius:50% silhouette so the visual is identical. */
   box-shadow:
     inset -10px -12px 28px rgb(0 0 0 / 0.32),
-    inset 8px 8px 18px rgb(255 255 255 / 0.18);
+    inset 8px 8px 18px rgb(255 255 255 / 0.18),
+    0 14px 16px rgb(0 0 0 / 0.28),
+    0 3px 2px rgb(0 0 0 / 0.18);
 }
 
 /* clip-path on a non-rotating wrapper between the perspective parent
    and the rotating spin element. The label's foreshortened projection
    can extend past the sphere silhouette at mid-rotation angles; this
-   clip cuts it off cleanly — physically correct sticker-on-sphere. */
+   clip cuts it off cleanly — physically correct sticker-on-sphere.
+   No preserve-3d here: only .ball-spin's child (.ball-label) lives in
+   the 3D coordinate system, and .ball-spin keeps its own preserve-3d. */
 body.is-bingo.has-photoreal-balls #col-ball .ball-stage {
   position: absolute;
   inset: 0;
   clip-path: circle(50% at 50% 50%);
-  transform-style: preserve-3d;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-spin {
@@ -900,28 +920,18 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
    Blur ramps from 3px (fast in the distance) to 0 (crisp at landing)
    directly in the filter chain — no @property indirection needed. */
 @keyframes ball-roll-forward {
+  /* No filter ramp anymore — animating filter forces a full CPU re-
+     blur every frame and defeats the compositor's bitmap cache. The
+     translateZ + opacity together still read as "fast arrival"; the
+     subtle motion-blur cue isn't worth the per-frame cost. */
   0% {
     transform: translateZ(-1800px) translateY(-30px);
     opacity: 0;
-    filter:
-      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
-      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
-      blur(3px);
   }
   10% { opacity: 1; }
-  50% {
-    filter:
-      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
-      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
-      blur(1px);
-  }
   100% {
     transform: translateZ(0) translateY(0);
     opacity: 1;
-    filter:
-      drop-shadow(0 14px 16px rgb(0 0 0 / 0.28))
-      drop-shadow(0 3px 2px rgb(0 0 0 / 0.18))
-      blur(0px);
   }
 }
 @keyframes ball-label-roll {
