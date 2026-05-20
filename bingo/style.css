@@ -813,6 +813,13 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  /* Identity translateZ forces the compositor to promote this element
+     to its own GPU layer at first paint, NOT at first Next click. That
+     way the ~160ms layer-promotion + bitmap-rasterisation hitch happens
+     during page load (invisible) instead of being the first frame of
+     the roll-in animation (the perceived "stutter"). The animation's
+     keyframes override this transform while running. */
+  transform: translateZ(0);
   /* No `filter:` here — drop-shadow was the single largest per-frame
      cost (CPU blur in WebKit, breaks compositor caching in Chromium).
      The outer drop shadow is now baked into .ball-body's box-shadow
@@ -855,6 +862,11 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-spin {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  /* Same layer-pre-warm trick as .ball-wrapper — the ball-roll-forward
+     keyframes set rotateX values that override this identity transform
+     while running, but at page load the GPU sees an active transform
+     and promotes the layer immediately. */
+  transform: translateZ(0);
   transform-origin: 50% 50%;
   will-change: transform;
 }
