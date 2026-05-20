@@ -860,8 +860,12 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-letter {
   color: rgb(var(--paper-edge));
   line-height: 1;
   text-shadow: 1px 1px 0 rgb(var(--paper-edge) / 0.15);
-  /* Slab opt-in — decorative letter on the photoreal bingo ball. */
+  /* Slab opt-in — decorative letter on the photoreal bingo ball.
+     text-box trim centres the cap-height letter inside the cream
+     label disc; otherwise the slab's descender slack pushes the I
+     toward the top of the disc. */
   font-family: var(--font-slab);
+  text-box: trim-both cap alphabetic;
 }
 
 /* Specular gloss — the layer that DOESN'T rotate. Anchored to the
