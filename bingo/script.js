@@ -3334,19 +3334,7 @@ function renderMathHtml(text) {
 }
 
 const latexPngCache = new Map();
-let latexRenderHost = null;
-
 function clearLatexPngCache() { latexPngCache.clear(); }
-
-function getLatexHost() {
-  if (latexRenderHost && latexRenderHost.isConnected) return latexRenderHost;
-  const host = document.createElement('div');
-  host.setAttribute('aria-hidden', 'true');
-  host.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:visible;font-size:96px;line-height:1;color:#000;background:transparent;';
-  document.body.appendChild(host);
-  latexRenderHost = host;
-  return host;
-}
 
 async function renderLatexToPng(text) {
   const s = String(text ?? '').trim();
@@ -3354,14 +3342,20 @@ async function renderLatexToPng(text) {
   if (latexPngCache.has(s)) return latexPngCache.get(s);
   if (typeof katex === 'undefined' || typeof html2canvas === 'undefined') return null;
 
-  const host = getLatexHost();
+  // Fresh isolated host per call. The previous shared-host + Promise.all
+  // approach raced badly: ~75 spans accumulated in one container while
+  // 75 concurrent html2canvas calls reflowed it, freezing the tab on
+  // most machines. Per-call host means each render has a clean DOM.
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:visible;font-size:96px;line-height:1;color:#000;background:transparent;';
   const span = document.createElement('span');
   span.style.cssText = 'display:inline-block;padding:8px;';
   span.innerHTML = katex.renderToString(s, { throwOnError: false, displayMode: false });
   host.appendChild(span);
+  document.body.appendChild(host);
 
   try {
-    await document.fonts.ready;
     const canvas = await html2canvas(span, { scale: 2, backgroundColor: null, logging: false });
     const entry = {
       dataUrl: canvas.toDataURL('image/png'),
@@ -3374,13 +3368,22 @@ async function renderLatexToPng(text) {
   } catch (e) {
     return null;
   } finally {
-    host.removeChild(span);
+    if (host.parentNode) host.parentNode.removeChild(host);
   }
 }
 
 async function preWarmLatexCache(strings) {
   const unique = [...new Set(strings.filter(v => v && String(v).includes('\\')))];
-  await Promise.all(unique.map(s => renderLatexToPng(s)));
+  // Wait once for webfonts before the loop so we don't pay the latency
+  // per render. After that, serialise the renders — html2canvas plus
+  // KaTeX layout are heavy; running 75 in parallel freezes the tab.
+  try { await document.fonts.ready; } catch (e) { /* ignore */ }
+  for (const s of unique) {
+    try { await renderLatexToPng(s); } catch (e) { /* ignore — fall back to text in caller */ }
+    // Yield to the event loop so the browser can paint progress UI and
+    // stay responsive between renders.
+    await new Promise(r => setTimeout(r, 0));
+  }
 }
 
 function fitToCell(wPx, hPx, maxWmm, maxHmm) {
