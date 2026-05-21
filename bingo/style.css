@@ -654,7 +654,14 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  overflow: hidden;
+  /* `clip` + clip-margin instead of `hidden` so the photoreal-ball's
+     outer box-shadow can paint past the area's bounds (otherwise the
+     14px-y / 16px-blur drop shadow gets cut on the sides of the ball).
+     `clip` is the modern non-scrolling overflow value; clip-margin
+     extends the visible region by 40px in every direction — enough to
+     fit the ball's full shadow at any ball size we ship. */
+  overflow: clip;
+  overflow-clip-margin: 40px;
   position: relative;
   background: rgb(var(--bingo-paper));
   color: rgb(var(--bingo-paper-edge));
@@ -850,12 +857,18 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-body {
    and the rotating spin element. The label's foreshortened projection
    can extend past the sphere silhouette at mid-rotation angles; this
    clip cuts it off cleanly — physically correct sticker-on-sphere.
-   No preserve-3d here: only .ball-spin's child (.ball-label) lives in
-   the 3D coordinate system, and .ball-spin keeps its own preserve-3d. */
+   `preserve-3d` IS LOAD-BEARING: .ball-spin's rotateX is in 3D space,
+   and its rendering needs its parent (this element) to keep the 3D
+   coordinate system instead of flattening to a 2D bitmap. Flattening
+   here projects the disc onto .ball-stage's plane and the disc's
+   vertical extent comes out wrong near rotateX(0°), causing the
+   clip-path to cut the bottom of the disc on the final frame. Don't
+   remove this for "perf" — preserve-3d is a hint, not a workload. */
 body.is-bingo.has-photoreal-balls #col-ball .ball-stage {
   position: absolute;
   inset: 0;
   clip-path: circle(50% at 50% 50%);
+  transform-style: preserve-3d;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-spin {

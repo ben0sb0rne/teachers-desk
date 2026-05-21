@@ -1020,6 +1020,9 @@ function applyLoadedSet(problems, name, allRows = null) {
   state.editRows = allRows
     ? allRows
     : problems.map(p => ({ id: newRowId(), column: p.column, problem: p.problem, answer: String(p.answer), errors: [] }));
+  // Drop any KaTeX HTML cached from a previous set — different sets
+  // generally use different LaTeX strings; stale entries waste memory.
+  clearLatexHtmlCache();
   // Newly loaded set is "clean" — anchor the dirty-tracking baseline here.
   snapshotPvBaseline();
 }
@@ -1043,7 +1046,7 @@ function fetchAndLoadSet(set, label, action, errElId = 'hp-set-error') {
     }
     applyLoadedSet(problems, label, allRows);
     if (action === 'host') {
-      resetGame(); showView('caller'); computeProblemFontSize(); render();
+      resetGame(); preWarmLatexHtmlCache(); showView('caller'); computeProblemFontSize(); render();
     } else {
       showView('print'); renderPrintView();
     }
@@ -1083,6 +1086,11 @@ function loadSetAndPlay(csv, filename, errorElId = null) {
   const name = filename.replace(/\.csv$/i, '').replace(/[-_]/g, ' ');
   applyLoadedSet(problems, name, allRows);
   resetGame();
+  // Pre-warm the KaTeX HTML cache for every problem + answer in the set
+  // BEFORE showing the caller view. The ~200ms one-time cost sits inside
+  // the existing view-transition beat and means every Next click is a
+  // cache hit instead of a synchronous katex.renderToString stall.
+  preWarmLatexHtmlCache();
   showView('caller');
   computeProblemFontSize();
   render();
@@ -3360,12 +3368,29 @@ function icon(name) {
   return `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
 }
 
+/* In-memory cache of KaTeX HTML output, keyed by the raw LaTeX
+   string. Pre-warmed at host-game entry (see preWarmLatexHtmlCache)
+   and cleared on set change (see applyLoadedSet). renderMath and
+   renderMathHtml below both consult this cache so the Next-click path
+   never blocks the main thread on katex.renderToString — the work has
+   already happened during the view transition. A null value means
+   KaTeX threw on parse (the renderer falls back to textContent). */
+const latexHtmlCache = new Map();
+function clearLatexHtmlCache() { latexHtmlCache.clear(); }
+
+function _katexHtml(text) {
+  if (latexHtmlCache.has(text)) return latexHtmlCache.get(text);
+  let html = null;
+  try { html = katex.renderToString(text, { throwOnError: false, displayMode: false }); }
+  catch (e) { html = null; }
+  latexHtmlCache.set(text, html);
+  return html;
+}
+
 function renderMath(el, text) {
   if (text && text.includes('\\') && typeof katex !== 'undefined') {
-    try {
-      el.innerHTML = katex.renderToString(text, { throwOnError: false, displayMode: false });
-      return;
-    } catch(e) {}
+    const html = _katexHtml(text);
+    if (html) { el.innerHTML = html; return; }
   }
   el.textContent = text;
 }
@@ -3373,10 +3398,23 @@ function renderMath(el, text) {
 function renderMathHtml(text) {
   const s = String(text ?? '');
   if (s.includes('\\') && typeof katex !== 'undefined') {
-    try { return katex.renderToString(s, { throwOnError: false, displayMode: false }); }
-    catch(e) {}
+    const html = _katexHtml(s);
+    if (html) return html;
   }
   return escHtml(s);
+}
+
+function preWarmLatexHtmlCache() {
+  if (typeof katex === 'undefined') return;
+  const strings = new Set();
+  (state.problems || []).forEach(p => {
+    if (p.problem && p.problem.includes('\\')) strings.add(p.problem);
+    const ansStr = String(p.answer ?? '');
+    if (ansStr.includes('\\')) strings.add(ansStr);
+  });
+  for (const s of strings) {
+    if (!latexHtmlCache.has(s)) _katexHtml(s);
+  }
 }
 
 const latexPngCache = new Map();
@@ -3854,7 +3892,7 @@ function wireEvents() {
       return;
     }
 
-    resetGame(); showView('caller'); computeProblemFontSize(); render();
+    resetGame(); preWarmLatexHtmlCache(); showView('caller'); computeProblemFontSize(); render();
   }
   document.getElementById('pv-download-btn').onclick = () => pvDownloadCards();
   document.getElementById('pv-save-csv-btn').onclick = () => { pvSaveSetCsv(); snapshotPvBaseline(); };
