@@ -232,11 +232,20 @@ Brief: simple realism. Short durations, ease-out / ease-in only, opacity
 + small translateY (≤6px); no rotation or scale > 1.06 except the
 photoreal-ball staging (the one exception).
 
-- **Photoreal ball roll-in** — 1.7s. Three parallel keyframes: depth +
-  motion-blur ramp (`ball-roll-forward`), 540° label rotation
-  (`ball-label-roll`), shadow scale + Y-track (`ball-cast-grow`). Each
-  has its own cubic-bezier. Performance-tuned for Chromium; Firefox lags
-  slightly and is accepted.
+- **Photoreal ball roll-in** — 1.7s. Three parallel keyframes: depth
+  (`ball-roll-forward`), 540° label rotation (`ball-label-roll`),
+  shadow scale + Y-track (`ball-cast-grow`). Each has its own
+  cubic-bezier. **Performance-tuned for Safari and Chromium; Firefox
+  is not a primary target for this effect** — Firefox renders the
+  label disc incorrectly under the combination of `clip-path: circle()`
+  + `transform-style: preserve-3d` (long-standing Firefox quirk; the
+  disc gets cut horizontally during/after rotation). Dropping the
+  clip-path to fix Firefox would let the label briefly extend past
+  the sphere silhouette at mid-rotation in every browser, which is
+  the worse visual tradeoff. Teachers using Firefox should expect a
+  small rendering artifact on the photoreal ball, or switch the Ball
+  style setting to "Simple" for the flat-chip variant which is
+  unaffected.
 - **Simple-mode chip animations** — 450-700ms keyframes per variant.
   Duration auto-updates from each audio file's metadata so visual + sound
   end together.

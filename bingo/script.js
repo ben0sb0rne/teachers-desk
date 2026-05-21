@@ -2171,9 +2171,19 @@ async function ensurePdfFont(doc, fontKey) {
 function render() {
   applySettings();
   renderProgress();
-  renderBoard();
   renderProblem();
-  updateTimerDisplay();
+  // renderBoard rebuilds the recent-balls strip + called-grid; on
+  // rapid-fire Next clicks (faster than the 1.7s roll animation) the
+  // rebuild work piled into the same frame as the ball animation's
+  // first paint and caused visible lag in Safari. Deferring to the
+  // next animation frame gives the ball a clean compositing pass
+  // first, then the strip rebuilds — spreading the work across two
+  // frames instead of competing in one. The 16ms delay is
+  // imperceptible (the strip lags by less than one frame).
+  requestAnimationFrame(() => {
+    renderBoard();
+    updateTimerDisplay();
+  });
 }
 
 function applySettings() {
