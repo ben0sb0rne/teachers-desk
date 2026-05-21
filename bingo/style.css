@@ -636,8 +636,7 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
     animation: none;
   }
   body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper,
-  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin,
-  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
+  body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin {
     animation: none;
   }
 }
@@ -739,15 +738,9 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
      #col-ball.ball-slot           ← perspective container, sized via
                                      calc on --problem-font-size so it
                                      scales with the equation in fullscreen
-       .cast-shadow                ← 2D shadow ellipse, color-mixed with
-                                     the ball color for bounced light
-       .ball-wrapper               ← carries translateZ depth motion +
-                                     drop-shadow + animated --motion-blur
-         .ball-body                ← colored sphere, gradients fake a
-                                     3D shape; solid base color occludes
-                                     the label when it rolls behind
-         .ball-body::after         ← paper / plastic texture overlay,
-                                     multiply blend, masked at rim
+       .ball-wrapper               ← carries the translateZ depth motion
+         .ball-body                ← colored sphere; radial gradients +
+                                     inset box-shadow fake the 3D shape
          .ball-stage               ← clip-path: circle so the label
                                      clips at the sphere silhouette
                                      when it rolls past the rim
@@ -757,6 +750,9 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
                .ball-letter        ← B/I/N/G/O glyph
          .ball-highlight           ← specular gloss, never rotates
                                      (anchors the light source)
+   No floor shadow / drop shadow — the ball reads cleanly on the
+   cream paper, and outer shadows had cross-browser clipping issues
+   that weren't worth the visual payoff.
 
    The visibility toggle uses body.is-bingo[:not].has-photoreal-balls
    to swap which of #col-chip / #col-ball renders.
@@ -796,25 +792,6 @@ body.is-bingo.has-photoreal-balls #col-ball[data-col="N"] { --c: var(--col-N); -
 body.is-bingo.has-photoreal-balls #col-ball[data-col="G"] { --c: var(--col-G); --hi: var(--col-G-hi); --sh: var(--col-G-sh); }
 body.is-bingo.has-photoreal-balls #col-ball[data-col="O"] { --c: var(--col-O); --hi: var(--col-O-hi); --sh: var(--col-O-sh); }
 
-body.is-bingo.has-photoreal-balls #col-ball .cast-shadow {
-  position: absolute;
-  bottom: -8%;
-  left: 50%;
-  width: 85%;
-  height: 14%;
-  transform: translateX(-50%) scale(1);
-  /* Gradient's outer stops already taper to transparency — the
-     filter:blur on top of that was double-duty CPU work. Pushing the
-     fully-transparent stop further out (78% → 88%) softens the edge
-     without invoking the blur filter. */
-  background: radial-gradient(ellipse,
-    color-mix(in srgb, var(--c) 10%, rgb(0 0 0 / 0.6)) 0%,
-    color-mix(in srgb, var(--c) 5%, rgb(0 0 0 / 0.22)) 55%,
-    rgb(0 0 0 / 0) 88%);
-  opacity: 0.5;
-  pointer-events: none;
-}
-
 body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
   position: absolute;
   inset: 0;
@@ -839,14 +816,14 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-body {
   background-image:
     radial-gradient(circle at 72% 78%, var(--hi) 0%, rgb(255 255 255 / 0) 35%),
     radial-gradient(circle at 50% 50%, transparent 55%, var(--sh) 92%, rgb(0 0 0 / 0.45) 100%);
-  /* Last two shadows are the outer drop shadows that used to live on
-     .ball-wrapper as filter:drop-shadow. box-shadow follows the
-     border-radius:50% silhouette so the visual is identical. */
+  /* Only inset shading here — these two are what make the ball read as
+     a sphere (dark rim + soft highlight on the lit side). The outer
+     drop-shadow chain that used to live here was removed: it kept
+     getting clipped by various ancestors across browsers, and the
+     ball reads cleanly on the cream paper without it. */
   box-shadow:
     inset -10px -12px 28px rgb(0 0 0 / 0.32),
-    inset 8px 8px 18px rgb(255 255 255 / 0.18),
-    0 14px 16px rgb(0 0 0 / 0.28),
-    0 3px 2px rgb(0 0 0 / 0.18);
+    inset 8px 8px 18px rgb(255 255 255 / 0.18);
 }
 
 /* clip-path on a non-rotating wrapper between the perspective parent
@@ -922,24 +899,14 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
   pointer-events: none;
 }
 
-/* Keyframes. Three motions run in parallel for ~1.7s.
-   roll-forward: depth (translateZ -1800 → 0) + opacity + motion-blur
-                 ramp. Cubic-bezier(0.2, 0.65, 0.25, 1) leaves the
-                 distance quickly, decelerates strongly on arrival.
+/* Keyframes. Two motions run in parallel for ~1.7s.
+   roll-forward: depth (translateZ -1800 → 0) + opacity ramp.
+                 Cubic-bezier(0.2, 0.65, 0.25, 1) leaves the distance
+                 quickly, decelerates strongly on arrival.
    label-roll:  rotateX 540° → 0° (1.5 forward turns). Cubic-bezier
                 (0.08, 0.75, 0.18, 1) — hard kickstart, soft landing
-                so the letter locks dead-on facing camera.
-   cast-grow:   shadow tracks the ball via translateZ + translateY so
-                its perspective scale and vertical offset stay in sync
-                with the ball. Uses the same easing curve as the ball
-                so they progress together.
-   Blur ramps from 3px (fast in the distance) to 0 (crisp at landing)
-   directly in the filter chain — no @property indirection needed. */
+                so the letter locks dead-on facing camera. */
 @keyframes ball-roll-forward {
-  /* No filter ramp anymore — animating filter forces a full CPU re-
-     blur every frame and defeats the compositor's bitmap cache. The
-     translateZ + opacity together still read as "fast arrival"; the
-     subtle motion-blur cue isn't worth the per-frame cost. */
   0% {
     transform: translateZ(-1800px) translateY(-30px);
     opacity: 0;
@@ -954,20 +921,12 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-highlight {
   0%   { transform: rotateX(540deg); }
   100% { transform: rotateX(0deg); }
 }
-@keyframes ball-cast-grow {
-  0%   { transform: translate(-50%, -30px) translateZ(-1800px); opacity: 0; }
-  10%  { opacity: 0.5; }
-  100% { transform: translate(-50%, 0)     translateZ(0);       opacity: 0.5; }
-}
 
 body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-wrapper {
   animation: ball-roll-forward 1.7s cubic-bezier(0.2, 0.65, 0.25, 1) both;
 }
 body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin {
   animation: ball-label-roll 1.7s cubic-bezier(0.08, 0.75, 0.18, 1) both;
-}
-body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
-  animation: ball-cast-grow 1.7s cubic-bezier(0.2, 0.65, 0.25, 1) both;
 }
 
 #problem-text {
