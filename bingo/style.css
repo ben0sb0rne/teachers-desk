@@ -654,14 +654,12 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  /* `clip` + clip-margin instead of `hidden` so the photoreal-ball's
-     outer box-shadow can paint past the area's bounds (otherwise the
-     14px-y / 16px-blur drop shadow gets cut on the sides of the ball).
-     `clip` is the modern non-scrolling overflow value; clip-margin
-     extends the visible region by 40px in every direction — enough to
-     fit the ball's full shadow at any ball size we ship. */
-  overflow: clip;
-  overflow-clip-margin: 40px;
+  /* No overflow clipping — the photoreal-ball's outer box-shadow needs
+     to paint past the area's bounds, and even `overflow: clip` with a
+     40px clip-margin was visibly cutting the shadow on Safari/Firefox.
+     Default `overflow: visible` lets the shadow render in full. The
+     ball never produces real horizontal overflow at the sizes we ship,
+     so there's nothing to clip in normal use. */
   position: relative;
   background: rgb(var(--bingo-paper));
   color: rgb(var(--bingo-paper-edge));
@@ -782,13 +780,15 @@ body.is-bingo.has-photoreal-balls #col-ball {
   --c:  var(--col-I);
   --hi: var(--col-I-hi);
   --sh: var(--col-I-sh);
-  /* Layout + style containment isolates layout effects from siblings
-     during the rolling animation. We intentionally OMIT `paint` here
-     because .ball-body's outer box-shadows (the floating halo + the
-     sharp contact line) need to paint outside #col-ball's content
-     box; `paint` would clip them to the ball's silhouette and the
-     shadow would disappear. */
-  contain: layout style;
+  /* NO `contain` here. Earlier perf passes added `contain: layout
+     style` thinking it would help, but per-Next profiling showed
+     renderBoard / renderRecentBalls / renderProblem each costing 0–2ms
+     even on LaTeX-heavy sets, so the containment wasn't doing
+     anything measurable. It was, however, a plausible cause of the
+     persistent box-shadow clipping reported across all browsers
+     (Safari and Firefox have known quirks where layout/style
+     containment plus a child compositor layer can act as a paint
+     boundary). Dropped. */
 }
 body.is-bingo.has-photoreal-balls #col-ball[data-col="B"] { --c: var(--col-B); --hi: var(--col-B-hi); --sh: var(--col-B-sh); }
 body.is-bingo.has-photoreal-balls #col-ball[data-col="I"] { --c: var(--col-I); --hi: var(--col-I-hi); --sh: var(--col-I-sh); }
@@ -813,26 +813,22 @@ body.is-bingo.has-photoreal-balls #col-ball .cast-shadow {
     rgb(0 0 0 / 0) 88%);
   opacity: 0.5;
   pointer-events: none;
-  will-change: transform, opacity;
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-wrapper {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  /* Identity translateZ forces the compositor to promote this element
-     to its own GPU layer at first paint, NOT at first Next click. That
-     way the ~160ms layer-promotion + bitmap-rasterisation hitch happens
-     during page load (invisible) instead of being the first frame of
-     the roll-in animation (the perceived "stutter"). The animation's
-     keyframes override this transform while running. */
-  transform: translateZ(0);
   /* No `filter:` here — drop-shadow was the single largest per-frame
      cost (CPU blur in WebKit, breaks compositor caching in Chromium).
      The outer drop shadow is now baked into .ball-body's box-shadow
      chain below, which is GPU-accelerated and follows the circular
-     silhouette via border-radius:50%. */
-  will-change: transform;
+     silhouette via border-radius:50%. We previously had an identity
+     translateZ(0) + will-change: transform here as a "layer pre-warm"
+     trick; the profiler showed no LONG_TASK entries and per-Next
+     totals well under 16ms even on the first click, so the
+     pre-promoted layer wasn't earning its keep — and there's some
+     evidence it was contributing to the box-shadow clip on Safari. */
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-body {
@@ -875,13 +871,8 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-spin {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
-  /* Same layer-pre-warm trick as .ball-wrapper — the ball-roll-forward
-     keyframes set rotateX values that override this identity transform
-     while running, but at page load the GPU sees an active transform
-     and promotes the layer immediately. */
-  transform: translateZ(0);
   transform-origin: 50% 50%;
-  will-change: transform;
+  /* Layer-pre-warm dropped — see .ball-wrapper above. */
 }
 
 body.is-bingo.has-photoreal-balls #col-ball .ball-label {

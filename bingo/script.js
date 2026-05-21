@@ -2168,24 +2168,10 @@ async function ensurePdfFont(doc, fontKey) {
 /* ============================================================
    RENDER
    ============================================================ */
-// Self-instrumenting profiling taps. No-op fast path when not
-// profiling. To activate: `window.__bingoLog = []` in the console,
-// click Next 5×, then `console.table(window.__bingoLog)`.
-// Removed once we've collected enough data to ship the targeted
-// simplifications.
-function _tapStart() { return window.__bingoLog ? performance.now() : 0; }
-function _tapEnd(name, t0) {
-  if (window.__bingoLog && t0) {
-    window.__bingoLog.push({ name, ms: +(performance.now() - t0).toFixed(2) });
-  }
-}
-
 function render() {
-  const _t = _tapStart();
   applySettings();
   renderProgress();
   renderProblem();
-  _tapEnd('render:sync', _t);
   // renderBoard rebuilds the recent-balls strip + called-grid; on
   // rapid-fire Next clicks (faster than the 1.7s roll animation) the
   // rebuild work piled into the same frame as the ball animation's
@@ -2195,10 +2181,8 @@ function render() {
   // frames instead of competing in one. The 16ms delay is
   // imperceptible (the strip lags by less than one frame).
   requestAnimationFrame(() => {
-    const _t2 = _tapStart();
     renderBoard();
     updateTimerDisplay();
-    _tapEnd('render:rAF', _t2);
   });
 }
 
@@ -2234,13 +2218,11 @@ function renderProgress() {
 }
 
 function renderBoard() {
-  const _t = _tapStart();
   if (state.settings.boardMode === 'recent') {
     renderRecentBalls();
   } else {
     renderBoardGrid();
   }
-  _tapEnd('renderBoard', _t);
 }
 
 function createBallCardEl(p) {
@@ -2303,7 +2285,6 @@ function triggerBallAnimation(chip, textEl, variant) {
 const RBS_ANIM_MS = 320;
 function keyOf(p) { return `${p.column}:${p.answer}:${p.problem}`; }
 function renderRecentBalls() {
-  const _t = _tapStart();
   const strip = document.getElementById('recent-balls-strip');
   const n = state.settings.recentCount;
   const ci = state.currentIndex;
@@ -2368,14 +2349,12 @@ function renderRecentBalls() {
       setTimeout(() => { ghost.remove(); }, RBS_ANIM_MS + 30);
     }
   }
-  _tapEnd('renderRecentBalls', _t);
 }
 
 function renderBoardGrid() {
-  const _t = _tapStart();
   const grid = document.getElementById('board-grid');
   const cols = BINGO_COLS.filter(c => state.columnAnswers[c]);
-  if (cols.length === 0) { grid.innerHTML = ''; _tapEnd('renderBoardGrid', _t); return; }
+  if (cols.length === 0) { grid.innerHTML = ''; return; }
 
   const showProblems = state.settings.boardContent === 'problems';
 
@@ -2407,11 +2386,9 @@ function renderBoardGrid() {
       ${cells}
     </div>`;
   }).join('');
-  _tapEnd('renderBoardGrid', _t);
 }
 
 function renderProblem() {
-  const _t = _tapStart();
   const p = currentProblem();
   const startPrompt = document.getElementById('start-prompt');
   const card = document.getElementById('problem-card');
@@ -2421,7 +2398,6 @@ function renderProblem() {
     card.hidden = true;
     document.getElementById('btn-prev').disabled = true;
     document.getElementById('btn-next').disabled = false;
-    _tapEnd('renderProblem', _t);
     return;
   }
 
@@ -2499,7 +2475,6 @@ function renderProblem() {
   // Nav buttons
   document.getElementById('btn-prev').disabled = state.currentIndex <= 0;
   document.getElementById('btn-next').disabled = !canGoNext();
-  _tapEnd('renderProblem', _t);
 }
 
 /* ============================================================
