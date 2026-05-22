@@ -3072,20 +3072,43 @@ function renderCaFullSheet() {
   }).join('');
 }
 
+// Canonical form for the Check Answers comparison. Maps both stored
+// LaTeX answers (e.g. `\frac{1}{2}`) and user-typed shorthand (e.g.
+// `1/2`, `1 1/2`) onto the same string so they compare equal — without
+// actually evaluating the math. We deliberately don't reduce fractions
+// or convert decimals: `0.5` won't match `\frac{1}{2}` because in our
+// sets those would be different problems with different called values.
+function normalizeAnswerForCheck(s) {
+  if (s == null) return '';
+  let t = String(s).trim();
+  if (t === '') return '';
+  // Strip outer `$` delimiters if present (some LaTeX styles wrap math).
+  t = t.replace(/^\$+|\$+$/g, '').trim();
+  // `\dfrac` / `\tfrac` behave the same as `\frac` for matching purposes.
+  t = t.replace(/\\[dt]frac\b/g, '\\frac');
+  // Mixed numbers: insert a space between an integer and a following
+  // `\frac` so "1\frac{1}{2}" → "1 \frac{1}{2}" and the integer doesn't
+  // fuse to the numerator after the next replacement.
+  t = t.replace(/(\d)\\frac/g, '$1 \\frac');
+  // `\frac{a}{b}` → `a/b`. Single-level braces only — sufficient for
+  // K-12 fraction sets; nested fractions are not in scope.
+  t = t.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '$1/$2');
+  // Drop `\left` / `\right` decorations if they ever appear.
+  t = t.replace(/\\left|\\right/g, '');
+  // Collapse whitespace touching the slash so "1 / 2" === "1/2".
+  t = t.replace(/\s*\/\s*/g, '/');
+  // Collapse internal whitespace runs (e.g. mixed "1   1/2" → "1 1/2").
+  t = t.replace(/\s+/g, ' ').trim();
+  return t;
+}
+
 function updateCaStatus() {
   const input   = document.getElementById('ca-answer-input');
   const statusEl = document.getElementById('ca-status');
   if (!input || !statusEl) return;
 
-  const raw = input.value.trim();
-  if (raw === '') {
-    statusEl.textContent = '';
-    statusEl.className   = '';
-    return;
-  }
-
-  const num = parseFloat(raw);
-  if (isNaN(num)) {
+  const needle = normalizeAnswerForCheck(input.value);
+  if (!needle) {
     statusEl.textContent = '';
     statusEl.className   = '';
     return;
@@ -3093,7 +3116,10 @@ function updateCaStatus() {
 
   const col = document.querySelector('.ca-col-btn.is-active')?.dataset.col || 'B';
   const calledSet = state.calledAnswers[col] || new Set();
-  const isCalled  = calledSet.has(num);
+  let isCalled = false;
+  for (const a of calledSet) {
+    if (normalizeAnswerForCheck(a) === needle) { isCalled = true; break; }
+  }
 
   statusEl.textContent = isCalled ? '✓ Called' : '✗ Not called';
   statusEl.className   = isCalled ? 'ca-called' : 'ca-not-called';

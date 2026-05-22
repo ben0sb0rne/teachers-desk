@@ -1055,10 +1055,7 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .ball-spin {
   border: 2px solid var(--border); border-radius: 8px;
   background: var(--surface); color: var(--text);
   outline: none; transition: border-color .15s;
-  -moz-appearance: textfield;
 }
-#ca-answer-input::-webkit-outer-spin-button,
-#ca-answer-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 #ca-answer-input:focus { border-color: var(--primary); }
 
 /* Status feedback spans all 5 columns, below the input */
