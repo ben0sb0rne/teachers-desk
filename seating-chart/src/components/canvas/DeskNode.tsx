@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Shape, Text } from "react-konva";
 import type Konva from "konva";
-import type { Desk, SeatId, Student, StudentId, ClassId } from "@/types";
+import type { Desk, SeatId, Student, StudentId, RoomId } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
@@ -26,7 +26,7 @@ interface Props {
   onDragStart: (deskId: string) => void;
   onDragMove: (deskId: string, x: number, y: number) => { x: number; y: number };
   onDragEnd: () => void;
-  classId: ClassId;
+  roomId: RoomId;
   draggable: boolean;
   registerNode: (id: string, node: Konva.Group | null) => void;
   /** Render seated student names. Default true; ExportDialog flips off for
@@ -146,7 +146,7 @@ export default function DeskNode({
   onDragStart,
   onDragMove,
   onDragEnd,
-  classId,
+  roomId,
   draggable,
   registerNode,
   showNames = true,
@@ -260,7 +260,11 @@ export default function DeskNode({
       onContextMenu={(e) => {
         e.evt.preventDefault();
         e.cancelBubble = true;
-        setDeskFrontRow(classId, desk.id, !allFront);
+        // Front-row is a layout property of the (shared) room. When the layout
+        // is locked — e.g. a class's seating view — don't let a right-click
+        // change it for every class using the room.
+        if (!draggable) return;
+        setDeskFrontRow(roomId, desk.id, !allFront);
       }}
       onDragStart={() => onDragStart(desk.id)}
       onDragMove={(e) => {
@@ -270,7 +274,7 @@ export default function DeskNode({
         node.y(snapped.y);
       }}
       onDragEnd={(e) => {
-        updateDesk(classId, desk.id, { x: e.target.x(), y: e.target.y() });
+        updateDesk(roomId, desk.id, { x: e.target.x(), y: e.target.y() });
         onDragEnd();
       }}
       onTransform={() => {
@@ -310,7 +314,7 @@ export default function DeskNode({
           seatGroup.scaleX(1);
           seatGroup.scaleY(1);
         }
-        updateDesk(classId, desk.id, {
+        updateDesk(roomId, desk.id, {
           x: node.x(),
           y: node.y(),
           rotation: node.rotation(),
@@ -350,7 +354,8 @@ export default function DeskNode({
             onContextMenu={(e) => {
               e.evt.preventDefault();
               e.cancelBubble = true;
-              setSeatFrontRow(classId, desk.id, seat.id, !seat.isFrontRow);
+              if (!draggable) return;
+              setSeatFrontRow(roomId, desk.id, seat.id, !seat.isFrontRow);
             }}
           >
             {!student ? (

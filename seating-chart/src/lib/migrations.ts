@@ -1,4 +1,4 @@
-import type { AppState, Arrangement, ClassRoom, Desk, Seat, Student } from "@/types";
+import type { AppState, Arrangement, ClassRoom, Desk, Room, Seat, Student } from "@/types";
 import { SCHEMA_VERSION } from "@/types";
 import * as sharedStorage from "@shared/storage.js";
 
@@ -17,7 +17,60 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 5) s = migrateV4toV5(s);
   if (fromVersion < 6) s = migrateV5toV6(s);
   if (fromVersion < 7) s = migrateV6toV7(s);
+  if (fromVersion < 8) s = migrateV7toV8(s);
   return s as AppState;
+}
+
+/** v7 → v8: promote each class's embedded `room` into a shared, top-level
+ *  `rooms[]` collection and replace `class.room` with `class.roomId`. Desk,
+ *  seat, and furniture ids are preserved exactly, so existing
+ *  `currentAssignments` / `arrangements` (keyed by seat id) keep resolving.
+ *  Each class gets its own room — no dedup of identical layouts; the user
+ *  consolidates later by pointing classes at one room and deleting extras. */
+export function migrateV7toV8(persisted: unknown): AppState {
+  const obj = persisted as Record<string, unknown>;
+  const classes = (obj.classes ?? []) as Array<Record<string, unknown>>;
+
+  const rooms: Room[] = [];
+  const usedNames = new Set<string>();
+  const uniqueRoomName = (base: string): string => {
+    let candidate = base;
+    let n = 2;
+    while (usedNames.has(candidate.toLowerCase())) candidate = `${base} (${n++})`;
+    usedNames.add(candidate.toLowerCase());
+    return candidate;
+  };
+
+  const migratedClasses = classes.map((klass) => {
+    const className = (klass.name as string) ?? "Untitled class";
+    const embedded = (klass.room ?? {
+      width: 1000,
+      height: 700,
+      frontWall: "top",
+      desks: [],
+      furniture: [],
+    }) as Record<string, unknown>;
+    const roomId = uid();
+    rooms.push({
+      ...(embedded as object),
+      id: roomId,
+      name: uniqueRoomName(`${className} — room`),
+      desks: (embedded.desks as unknown[]) ?? [],
+      furniture: (embedded.furniture as unknown[]) ?? [],
+    } as unknown as Room);
+
+    // Drop the now-redundant embedded `room`; link by id instead.
+    const rest: Record<string, unknown> = { ...klass };
+    delete rest.room;
+    return { ...rest, roomId } as unknown as ClassRoom;
+  });
+
+  return {
+    rooms,
+    classes: migratedClasses,
+    activeClassId: (obj.activeClassId as string | null) ?? null,
+    schemaVersion: SCHEMA_VERSION,
+  };
 }
 
 /** v6 → v7: write each class's roster + name into the suite's canonical
@@ -58,6 +111,7 @@ export function migrateV6toV7(persisted: unknown): AppState {
   }
 
   return {
+    rooms: [], // populated by migrateV7toV8 (runs next in the chain)
     classes: classes as unknown as ClassRoom[],
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,
@@ -76,6 +130,9 @@ export function migrateV5toV6(persisted: unknown): AppState {
       }) as unknown as ClassRoom,
   );
   return {
+    // rooms[] is populated by migrateV7toV8 (the last step in the chain),
+    // which lifts each class's still-embedded `room` into the shared list.
+    rooms: [],
     classes: migratedClasses,
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,
@@ -106,6 +163,9 @@ export function migrateV4toV5(persisted: unknown): AppState {
     } as unknown as ClassRoom;
   });
   return {
+    // rooms[] is populated by migrateV7toV8 (the last step in the chain),
+    // which lifts each class's still-embedded `room` into the shared list.
+    rooms: [],
     classes: migratedClasses,
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,
@@ -135,6 +195,9 @@ export function migrateV3toV4(persisted: unknown): AppState {
     } as unknown as ClassRoom;
   });
   return {
+    // rooms[] is populated by migrateV7toV8 (the last step in the chain),
+    // which lifts each class's still-embedded `room` into the shared list.
+    rooms: [],
     classes: migratedClasses,
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,
@@ -155,9 +218,12 @@ export function migrateV2toV3(persisted: unknown): AppState {
         frontWall: (room.frontWall as string) ?? "top",
         desks: (room.desks as unknown[]) ?? [],
       },
-    } as ClassRoom;
+    } as unknown as ClassRoom;
   });
   return {
+    // rooms[] is populated by migrateV7toV8 (the last step in the chain),
+    // which lifts each class's still-embedded `room` into the shared list.
+    rooms: [],
     classes: migratedClasses,
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,
@@ -186,7 +252,7 @@ export function migrateV1toV2(persisted: unknown): AppState {
       room: { width: room.width, height: room.height, frontWall: "top", desks, furniture: [] },
       arrangements: (klass.arrangements as Arrangement[]) ?? [],
       currentAssignments: {},
-    };
+    } as unknown as ClassRoom;
   });
 
   if (droppedCustomShapes > 0 && typeof window !== "undefined") {
@@ -199,6 +265,9 @@ export function migrateV1toV2(persisted: unknown): AppState {
   }
 
   return {
+    // rooms[] is populated by migrateV7toV8 (the last step in the chain),
+    // which lifts each class's still-embedded `room` into the shared list.
+    rooms: [],
     classes: migratedClasses,
     activeClassId: (obj.activeClassId as string | null) ?? null,
     schemaVersion: SCHEMA_VERSION,

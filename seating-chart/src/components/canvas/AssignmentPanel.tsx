@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ClassRoom, SeatId, StudentId } from "@/types";
+import type { ClassRoom, Room, SeatId, StudentId } from "@/types";
 import { roomSeats } from "@/lib/adjacency";
 import Icon from "@/components/Icon";
 
@@ -7,6 +7,8 @@ interface Props {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   klass: ClassRoom;
+  /** The room `klass` is seated in (resolved by the caller from klass.roomId). */
+  room: Room;
   assignments: Record<SeatId, StudentId>;
   onAssignSeat: (seatId: SeatId, studentId: StudentId | null) => void;
   onRandomize: () => void;
@@ -23,6 +25,7 @@ export default function AssignmentPanel({
   collapsed,
   onToggleCollapsed,
   klass,
+  room,
   assignments,
   onAssignSeat,
   onRandomize,
@@ -31,7 +34,7 @@ export default function AssignmentPanel({
   onExport,
   onSelectDesk,
 }: Props) {
-  const seats = useMemo(() => roomSeats(klass.room), [klass.room]);
+  const seats = useMemo(() => roomSeats(room), [room]);
   const seated = new Set(Object.values(assignments));
   const unseated = klass.students.filter((s) => !seated.has(s.id));
 

@@ -3,6 +3,7 @@ export type StudentId = string;
 export type DeskId = string;
 export type SeatId = string;
 export type ArrangementId = string;
+export type RoomId = string;
 
 export interface Student {
   id: StudentId;
@@ -85,6 +86,12 @@ export interface Furniture {
 }
 
 export interface Room {
+  /** Stable id — rooms are a top-level, reusable collection (AppState.rooms).
+   *  Many classes can reference one room by id; editing the room updates every
+   *  class that uses it. */
+  id: RoomId;
+  /** Human-facing name shown in the Rooms list (e.g. "Lab 2", "My Classroom"). */
+  name: string;
   width: number;
   height: number;
   /** Which wall the teacher considers the "front" of the room. Defaults to "top". */
@@ -113,15 +120,21 @@ export interface ClassRoom {
   id: ClassId;
   name: string;
   students: Student[];
-  room: Room;
+  /** Which room (in AppState.rooms) this class is taught in. null = no room
+   *  assigned yet (the roster exists but hasn't been placed in a room). The
+   *  room layout is no longer welded into the class — it's shared. */
+  roomId: RoomId | null;
   arrangements: Arrangement[];
-  /** Live working seat map. Persisted (and undoable) per class. */
+  /** Live working seat map, keyed by the referenced room's seat ids. Persisted
+   *  (and undoable) per class — two classes sharing a room seat independently. */
   currentAssignments: Record<SeatId, StudentId>;
 }
 
-export const SCHEMA_VERSION = 7 as const;
+export const SCHEMA_VERSION = 8 as const;
 
 export interface AppState {
+  /** Top-level, reusable room layouts. Referenced by ClassRoom.roomId. */
+  rooms: Room[];
   classes: ClassRoom[];
   activeClassId: ClassId | null;
   schemaVersion: typeof SCHEMA_VERSION;

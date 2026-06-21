@@ -10,7 +10,7 @@ import {
 } from "react";
 import { Stage, Layer, Rect, Line, Text, Transformer } from "react-konva";
 import type Konva from "konva";
-import type { ClassId, Room, SeatId, Student, StudentId, Wall } from "@/types";
+import type { RoomId, Room, SeatId, Student, StudentId, Wall } from "@/types";
 import DeskNode from "./DeskNode";
 import FurnitureNode from "./FurnitureNode";
 import SeatPicker from "./SeatPicker";
@@ -77,7 +77,7 @@ interface Props {
   room: Room;
   students: Student[];
   assignments: Record<SeatId, StudentId>;
-  classId: ClassId;
+  roomId: RoomId;
   /** When false the stage renders for display only — no Transformer, no
    *  marquee, no drag, no seat picker, no alignment guides. Editor-only props
    *  (selection, locked, showGrid, callbacks) are ignored in that mode. The
@@ -152,7 +152,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     room,
     students,
     assignments,
-    classId,
+    roomId,
     interactive = true,
     selectedItemIds = EMPTY_SELECTION,
     onSelectionChange = NOOP_SELECTION_CHANGE,
@@ -482,8 +482,8 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
         const finalY = node.y();
         if (finalX === initial.x && finalY === initial.y) continue;
         const isDesk = room.desks.some((d) => d.id === id);
-        if (isDesk) updateDesk(classId, id, { x: finalX, y: finalY });
-        else updateFurniture(classId, id, { x: finalX, y: finalY });
+        if (isDesk) updateDesk(roomId, id, { x: finalX, y: finalY });
+        else updateFurniture(roomId, id, { x: finalX, y: finalY });
       }
     }
     dragSession.current = null;
@@ -578,7 +578,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               onDragMove={(id, x, y) => snapItemDrag(id, x, y)}
               onDragEnd={handleItemDragEnd}
               onRequestRename={interactive ? onRequestFurnitureRename : undefined}
-              classId={classId}
+              roomId={roomId}
             />
           ))}
 
@@ -600,7 +600,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               onDragStart={(id) => handleItemDragStart(id)}
               onDragMove={(id, x, y) => snapItemDrag(id, x, y)}
               onDragEnd={handleItemDragEnd}
-              classId={classId}
+              roomId={roomId}
               showNames={showNames}
               showFrontRowMarker={showFrontRowMarkers}
               showEmptySeatDots={showEmptySeatDots}
