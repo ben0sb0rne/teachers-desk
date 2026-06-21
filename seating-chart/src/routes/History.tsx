@@ -19,6 +19,10 @@ export default function History() {
   const { id } = useParams();
   const navigate = useNavigate();
   const klass = useAppStore((s) => (id ? s.classes.find((c) => c.id === id) : undefined));
+  const room = useAppStore((s) => {
+    const c = id ? s.classes.find((cc) => cc.id === id) : undefined;
+    return c?.roomId ? s.rooms.find((r) => r.id === c.roomId) : undefined;
+  });
   const deleteArrangement = useAppStore((s) => s.deleteArrangement);
   const restoreArrangement = useAppStore((s) => s.restoreArrangement);
   const renameArrangement = useAppStore((s) => s.renameArrangement);
@@ -72,17 +76,23 @@ export default function History() {
                   read-only mode. That guarantees the saved preview matches
                   what the user sees on the live canvas — no SVG drift. */}
               <div className="aspect-[4/3] bg-slate-50">
-                <RoomStage
-                  interactive={false}
-                  room={klass.room}
-                  students={klass.students}
-                  assignments={arr.assignments}
-                  classId={klass.id}
-                  showFrontWallLabel={false}
-                  showFrontRowMarkers={false}
-                  showEmptySeatDots={false}
-                  fitContents
-                />
+                {room ? (
+                  <RoomStage
+                    interactive={false}
+                    room={room}
+                    students={klass.students}
+                    assignments={arr.assignments}
+                    roomId={room.id}
+                    showFrontWallLabel={false}
+                    showFrontRowMarkers={false}
+                    showEmptySeatDots={false}
+                    fitContents
+                  />
+                ) : (
+                  <div className="grid h-full place-items-center text-xs text-ink-muted">
+                    No room assigned
+                  </div>
+                )}
               </div>
               <div className="p-3">
                 <div className="mb-2">
@@ -100,7 +110,8 @@ export default function History() {
                   <button
                     className="btn-secondary"
                     onClick={() => setExporting(arr)}
-                    title="View + export this arrangement"
+                    title={room ? "View + export this arrangement" : "Assign this class a room to view"}
+                    disabled={!room}
                   >
                     <Icon name="eye" size={14} />
                     View
@@ -133,12 +144,15 @@ export default function History() {
         </ul>
       )}
 
-      <ExportDialog
-        open={exporting != null}
-        onOpenChange={(open) => { if (!open) setExporting(null); }}
-        klass={klass}
-        arrangement={exporting}
-      />
+      {room && (
+        <ExportDialog
+          open={exporting != null}
+          onOpenChange={(open) => { if (!open) setExporting(null); }}
+          klass={klass}
+          room={room}
+          arrangement={exporting}
+        />
+      )}
 
       <TextInputDialog
         open={renaming != null}

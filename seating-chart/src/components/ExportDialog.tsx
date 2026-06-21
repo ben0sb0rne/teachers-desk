@@ -4,7 +4,7 @@ import type Konva from "konva";
 import RoomStage from "@/components/canvas/RoomStage";
 import { exportStageAsPng, renderStageToPngDataUrl } from "@/lib/exportPng";
 import { rotatedItemAABB, unionAABB } from "@/lib/geometry";
-import type { Arrangement, ClassRoom } from "@/types";
+import type { Arrangement, ClassRoom, Room } from "@/types";
 import Icon from "@/components/Icon";
 
 /**
@@ -23,12 +23,14 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   klass: ClassRoom;
+  /** The room `klass` is taught in (resolved by the caller from klass.roomId). */
+  room: Room;
   arrangement: Arrangement | null;
 }
 
 const DEFAULT_CLASS_LABEL_SIZE = 24;
 
-export default function ExportDialog({ open, onOpenChange, klass, arrangement }: Props) {
+export default function ExportDialog({ open, onOpenChange, klass, room, arrangement }: Props) {
   const [showFloor, setShowFloor] = useState(true);
   const [showBackground, setShowBackground] = useState(false);
   const [blackAndWhite, setBlackAndWhite] = useState(false);
@@ -59,7 +61,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
 
   const assignments = arrangement?.assignments ?? klass.currentAssignments ?? {};
   const roomBackgroundFill = showFloor
-    ? klass.room.background
+    ? room.background
     : "rgba(0,0,0,0)";
   const backgroundFill = showBackground ? "#ffffff" : undefined;
 
@@ -96,7 +98,7 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
     // shape (room + items, including outward door arcs). Landscape if it's
     // wider than tall, portrait otherwise. Keeping margin: 0 strips the
     // browser's default URL/date/page-number headers + footers.
-    const fit = computeFitBounds(klass);
+    const fit = computeFitBounds(room);
     const orientation = fit.width >= fit.height ? "landscape" : "portrait";
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) {
@@ -248,10 +250,10 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
               <RoomStage
                 ref={stageRef}
                 interactive={false}
-                room={klass.room}
+                room={room}
                 students={klass.students}
                 assignments={assignments}
-                classId={klass.id}
+                roomId={room.id}
                 showFrontWallLabel={showFrontWallLabel}
                 showNames={showNames}
                 showFrontRowMarkers={showFrontRowMarkers}
@@ -292,10 +294,10 @@ export default function ExportDialog({ open, onOpenChange, klass, arrangement }:
 
 /** Compute the room+items camera frame that the preview uses, so the print
  *  page orientation can be picked from the same shape the user sees. */
-function computeFitBounds(klass: ClassRoom): { width: number; height: number } {
-  let union = { x: 0, y: 0, width: klass.room.width, height: klass.room.height };
-  for (const d of klass.room.desks) union = unionAABB(union, rotatedItemAABB(d));
-  for (const f of klass.room.furniture ?? []) union = unionAABB(union, rotatedItemAABB(f));
+function computeFitBounds(room: Room): { width: number; height: number } {
+  let union = { x: 0, y: 0, width: room.width, height: room.height };
+  for (const d of room.desks) union = unionAABB(union, rotatedItemAABB(d));
+  for (const f of room.furniture ?? []) union = unionAABB(union, rotatedItemAABB(f));
   return { width: union.width, height: union.height };
 }
 

@@ -35,7 +35,7 @@ function student(name: string, opts?: Partial<Student>): Student {
 }
 
 function room(desks: Desk[]): Room {
-  return { width: 1000, height: 700, frontWall: "top", desks, furniture: [] };
+  return { id: "r-test", name: "Test Room", width: 1000, height: 700, frontWall: "top", desks, furniture: [] };
 }
 
 // Phase 4: assign() now always returns { assignments, warnings }. The hard

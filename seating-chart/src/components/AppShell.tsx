@@ -10,8 +10,10 @@ import Icon from "@/components/Icon";
 export default function AppShell() {
   const { id } = useParams();
   const isClassRoute = useMatch("/classes/:id/*");
+  const isRoomRoute = useMatch("/rooms/:id");
   const isIndexRoute = useMatch({ path: "/", end: true });
   const klass = useAppStore((s) => (id ? s.classes.find((c) => c.id === id) : undefined));
+  const room = useAppStore((s) => (isRoomRoute && id ? s.rooms.find((r) => r.id === id) : undefined));
   const [helpOpen, setHelpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -56,14 +58,15 @@ export default function AppShell() {
   // Toggle body.app-view on class-editor routes so the topstrip switches
   // from transparent (homepage) to paper-cream (app-view) per the suite
   // convention in shared/desk.css.
+  const isAppView = !!isClassRoute || !!isRoomRoute;
   useEffect(() => {
-    document.body.classList.toggle("app-view", !!isClassRoute);
-    document.body.classList.toggle("view-home", !isClassRoute);
+    document.body.classList.toggle("app-view", isAppView);
+    document.body.classList.toggle("view-home", !isAppView);
     document.body.classList.toggle("view-class", !!isClassRoute);
     return () => {
       document.body.classList.remove("app-view", "view-home", "view-class");
     };
-  }, [isClassRoute]);
+  }, [isAppView, isClassRoute]);
 
   return (
     <div className="flex h-full flex-col">
@@ -78,8 +81,8 @@ export default function AppShell() {
             <span>The Teacher's Desk</span>
           </a>
           {!isIndexRoute && (
-            <Link to="/" title="Back to all classes">
-              All Classes
+            <Link to="/" title="Back to the seating chart home">
+              {isRoomRoute ? "Rooms" : "All Classes"}
             </Link>
           )}
           {isClassRoute && klass && (
@@ -87,11 +90,12 @@ export default function AppShell() {
               <ClassSwitcher currentClassId={klass.id} currentClassName={klass.name} />
             </span>
           )}
+          {isRoomRoute && room && <span className="is-current">{room.name}</span>}
         </nav>
         {isClassRoute && klass && (
           <nav className="seating-tabs" aria-label="Class views">
             <TabLink to={`/classes/${klass.id}/roster`}>Roster</TabLink>
-            <TabLink to={`/classes/${klass.id}/room`}>Room</TabLink>
+            <TabLink to={`/classes/${klass.id}/room`}>Seating</TabLink>
             <TabLink to={`/classes/${klass.id}/history`}>History</TabLink>
           </nav>
         )}

@@ -14,6 +14,7 @@ import type {
   Furniture,
   FurnitureId,
   Room,
+  RoomId,
   SeatId,
   Student,
   StudentId,
@@ -23,7 +24,9 @@ import { runMigrations } from "@/lib/migrations";
 
 const uid = () => crypto.randomUUID();
 
-const DEFAULT_ROOM = (): Room => ({
+const DEFAULT_ROOM = (name: string): Room => ({
+  id: uid(),
+  name,
   width: 1000,
   height: 700,
   frontWall: "top",
@@ -32,41 +35,58 @@ const DEFAULT_ROOM = (): Room => ({
 });
 
 interface AppActions {
-  createClass: (name: string) => ClassId | null;
+  // ── Classes (rosters) ──
+  createClass: (name: string, roomId?: RoomId | null) => ClassId | null;
   renameClass: (id: ClassId, name: string) => boolean;
   deleteClass: (id: ClassId) => void;
-  /** Clone the source class's room layout into a fresh class with the given
-   *  name. The new class has no students, no arrangements, and no current
-   *  assignments. Returns the new class id, or null if the name collides. */
-  duplicateRoom: (id: ClassId, newName: string) => ClassId | null;
+  /** Point a class at a different room (or null to detach). Switching rooms
+   *  clears the class's current seating — seat ids differ between rooms.
+   *  Saved arrangements are kept as-is (they reference the old room's seats and
+   *  won't map to the new room, but we don't destroy them). */
+  setClassRoom: (classId: ClassId, roomId: RoomId | null) => void;
+
+  // ── Rooms (shared, reusable layouts) ──
+  createRoom: (name: string) => RoomId | null;
+  renameRoom: (roomId: RoomId, name: string) => boolean;
+  /** Clone a room's layout (fresh desk / seat / furniture ids) into a new
+   *  room. Touches no class. Returns the new room id, or null on name clash. */
+  duplicateRoom: (roomId: RoomId, newName: string) => RoomId | null;
+  /** Delete a room. Refused (ok:false) while any class still references it;
+   *  the blocking class names come back so the UI can explain why. */
+  deleteRoom: (roomId: RoomId) => { ok: boolean; blockedBy: string[] };
 
   addStudents: (classId: ClassId, names: string[]) => void;
   updateStudent: (classId: ClassId, studentId: StudentId, patch: Partial<Student>) => void;
   removeStudent: (classId: ClassId, studentId: StudentId) => void;
   toggleKeepApart: (classId: ClassId, a: StudentId, b: StudentId) => void;
 
-  addDesk: (classId: ClassId, desk: Desk) => void;
-  updateDesk: (classId: ClassId, deskId: DeskId, patch: Partial<Desk>) => void;
+  // ── Room layout (keyed by roomId — shared across every class using it) ──
+  addDesk: (roomId: RoomId, desk: Desk) => void;
+  updateDesk: (roomId: RoomId, deskId: DeskId, patch: Partial<Desk>) => void;
   /** Apply many desk + furniture patches as a SINGLE store mutation. Used by
    *  multi-item handlers (align / distribute / flip / color) so the temporal
    *  middleware records one undo step per user action instead of N. */
   updateRoomItems: (
-    classId: ClassId,
+    roomId: RoomId,
     deskPatches: Record<DeskId, Partial<Desk>>,
     furniturePatches: Record<FurnitureId, Partial<Furniture>>,
   ) => void;
   /** Add many desks + furniture in a SINGLE store mutation. Used by paste +
    *  duplicate so a mixed-content paste is one undo step, not two. */
-  addRoomItems: (classId: ClassId, desks: Desk[], furniture: Furniture[]) => void;
-  removeDesks: (classId: ClassId, deskIds: DeskId[]) => void;
-  updateRoom: (classId: ClassId, patch: Partial<Room>) => void;
-  setSeatFrontRow: (classId: ClassId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
-  setDeskFrontRow: (classId: ClassId, deskId: DeskId, value: boolean) => void;
+  addRoomItems: (roomId: RoomId, desks: Desk[], furniture: Furniture[]) => void;
+  /** Remove desks from a room. Because rooms are shared, this also strips the
+   *  removed seats from the current + saved seatings of EVERY class that uses
+   *  this room — not just one. */
+  removeDesks: (roomId: RoomId, deskIds: DeskId[]) => void;
+  updateRoom: (roomId: RoomId, patch: Partial<Room>) => void;
+  setSeatFrontRow: (roomId: RoomId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
+  setDeskFrontRow: (roomId: RoomId, deskId: DeskId, value: boolean) => void;
 
-  addFurniture: (classId: ClassId, item: Furniture) => void;
-  updateFurniture: (classId: ClassId, furnitureId: FurnitureId, patch: Partial<Furniture>) => void;
-  removeFurniture: (classId: ClassId, furnitureIds: FurnitureId[]) => void;
+  addFurniture: (roomId: RoomId, item: Furniture) => void;
+  updateFurniture: (roomId: RoomId, furnitureId: FurnitureId, patch: Partial<Furniture>) => void;
+  removeFurniture: (roomId: RoomId, furnitureIds: FurnitureId[]) => void;
 
+  // ── Seating (keyed by classId — each class seats independently) ──
   /** Update or clear a single seat assignment (and free that student from any other seat). */
   assignSeat: (classId: ClassId, seatId: SeatId, studentId: StudentId | null) => void;
   /** Replace the entire current arrangement (used by Randomize). */
@@ -89,8 +109,16 @@ function findClass(state: AppState, id: ClassId): ClassRoom | undefined {
   return state.classes.find((c) => c.id === id);
 }
 
+function findRoom(state: AppState, id: RoomId | null | undefined): Room | undefined {
+  return id ? state.rooms.find((r) => r.id === id) : undefined;
+}
+
 function withClass(state: AppState, id: ClassId, mutate: (c: ClassRoom) => ClassRoom): AppState {
   return { ...state, classes: state.classes.map((c) => (c.id === id ? mutate(c) : c)) };
+}
+
+function withRoom(state: AppState, id: RoomId, mutate: (r: Room) => Room): AppState {
+  return { ...state, rooms: state.rooms.map((r) => (r.id === id ? mutate(r) : r)) };
 }
 
 function nameExists(state: AppState, name: string, excludeId?: ClassId): boolean {
@@ -100,37 +128,42 @@ function nameExists(state: AppState, name: string, excludeId?: ClassId): boolean
   );
 }
 
+function roomNameExists(state: AppState, name: string, excludeId?: RoomId): boolean {
+  const target = name.trim().toLowerCase();
+  return state.rooms.some(
+    (r) => r.id !== excludeId && r.name.trim().toLowerCase() === target,
+  );
+}
+
+/** Pick a non-colliding room name: `base`, bumping to `base (2)`, `base (3)`, …
+ *  Used when auto-naming the blank room created alongside a new class. */
+function uniqueRoomName(state: AppState, base: string): string {
+  let candidate = base;
+  let n = 2;
+  while (roomNameExists(state, candidate)) candidate = `${base} (${n++})`;
+  return candidate;
+}
+
 /**
- * Build a new ClassRoom that reuses the source class's *room layout* (desks,
- * furniture, dimensions, front wall, background, advanced-alignment toggle)
- * with fresh ids — and pairs it with an empty roster, no arrangements, and
- * no assignments. This is what the user wants when they say "I have one
- * physical classroom and 5 different periods": same desk layout, separate
- * lists of students and seating histories per period.
- *
- * A previous full-deep-clone variant existed (cloned the roster + history
- * too) but it wasn't useful in practice — duplicating with the same names
- * led to confusion and the seating history rarely transferred meaningfully.
+ * Clone a room's *layout* (desks, furniture, dimensions, front wall,
+ * background, advanced-alignment toggle) into a brand-new Room with fresh ids
+ * for the room itself and for every desk / seat / furniture item. This is the
+ * "I want another copy of this layout to tweak separately" operation. The
+ * clone is detached — no class references it until one is pointed at it.
  */
-function cloneRoomOnly(src: ClassRoom, newName: string): ClassRoom {
+function cloneRoomLayout(src: Room, newName: string): Room {
   return {
+    // Spread first so any Room field we add later automatically gets copied
+    // without needing a code change here.
+    ...src,
     id: uid(),
     name: newName,
-    students: [],
-    room: {
-      // Spread first so any Room field we add later (Phase 3 background,
-      // Phase 4 advancedAlignment, …) automatically gets copied without
-      // needing a code change here.
-      ...src.room,
-      desks: src.room.desks.map((d) => ({
-        ...d,
-        id: uid(),
-        seats: d.seats.map((s) => ({ ...s, id: uid() })),
-      })),
-      furniture: (src.room.furniture ?? []).map((f) => ({ ...f, id: uid() })),
-    },
-    arrangements: [],
-    currentAssignments: {},
+    desks: src.desks.map((d) => ({
+      ...d,
+      id: uid(),
+      seats: d.seats.map((s) => ({ ...s, id: uid() })),
+    })),
+    furniture: (src.furniture ?? []).map((f) => ({ ...f, id: uid() })),
   };
 }
 
@@ -138,24 +171,42 @@ export const useAppStore = create<AppStore>()(
   persist(
     temporal(
       (set, get) => ({
+        rooms: [],
         classes: [],
         activeClassId: null,
         schemaVersion: SCHEMA_VERSION,
 
-        createClass: (name) => {
+        createClass: (name, roomId) => {
           const trimmed = name.trim();
           if (!trimmed) return null;
           if (nameExists(get(), trimmed)) return null;
           const id = uid();
+          // Link an existing room when given a valid id; otherwise spin up a
+          // fresh blank room named after the class, so the class always has
+          // somewhere to seat students.
+          const existing = roomId ? findRoom(get(), roomId) : undefined;
+          let linkedRoomId: RoomId;
+          let newRoom: Room | null = null;
+          if (existing) {
+            linkedRoomId = existing.id;
+          } else {
+            newRoom = DEFAULT_ROOM(uniqueRoomName(get(), `${trimmed} — room`));
+            linkedRoomId = newRoom.id;
+          }
           const klass: ClassRoom = {
             id,
             name: trimmed,
             students: [],
-            room: DEFAULT_ROOM(),
+            roomId: linkedRoomId,
             arrangements: [],
             currentAssignments: {},
           };
-          set((s) => ({ ...s, classes: [...s.classes, klass], activeClassId: s.activeClassId ?? id }));
+          set((s) => ({
+            ...s,
+            rooms: newRoom ? [...s.rooms, newRoom] : s.rooms,
+            classes: [...s.classes, klass],
+            activeClassId: s.activeClassId ?? id,
+          }));
           return id;
         },
 
@@ -174,15 +225,51 @@ export const useAppStore = create<AppStore>()(
             activeClassId: s.activeClassId === id ? null : s.activeClassId,
           })),
 
-        duplicateRoom: (id, newName) => {
+        setClassRoom: (classId, roomId) =>
+          set((s) =>
+            withClass(s, classId, (c) => {
+              if (c.roomId === roomId) return c;
+              // A different room means different seat ids — the current seating
+              // no longer maps, so clear it. Arrangements are kept untouched.
+              return { ...c, roomId, currentAssignments: {} };
+            }),
+          ),
+
+        createRoom: (name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return null;
+          if (roomNameExists(get(), trimmed)) return null;
+          const room = DEFAULT_ROOM(trimmed);
+          set((s) => ({ ...s, rooms: [...s.rooms, room] }));
+          return room.id;
+        },
+
+        renameRoom: (roomId, name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return false;
+          if (roomNameExists(get(), trimmed, roomId)) return false;
+          set((s) => withRoom(s, roomId, (r) => ({ ...r, name: trimmed })));
+          return true;
+        },
+
+        duplicateRoom: (roomId, newName) => {
           const trimmed = newName.trim();
           if (!trimmed) return null;
-          const src = findClass(get(), id);
+          const src = findRoom(get(), roomId);
           if (!src) return null;
-          if (nameExists(get(), trimmed)) return null;
-          const cloned = cloneRoomOnly(src, trimmed);
-          set((s) => ({ ...s, classes: [...s.classes, cloned] }));
+          if (roomNameExists(get(), trimmed)) return null;
+          const cloned = cloneRoomLayout(src, trimmed);
+          set((s) => ({ ...s, rooms: [...s.rooms, cloned] }));
           return cloned.id;
+        },
+
+        deleteRoom: (roomId) => {
+          const blockedBy = get()
+            .classes.filter((c) => c.roomId === roomId)
+            .map((c) => c.name);
+          if (blockedBy.length > 0) return { ok: false, blockedBy };
+          set((s) => ({ ...s, rooms: s.rooms.filter((r) => r.id !== roomId) }));
+          return { ok: true, blockedBy: [] };
         },
 
         addStudents: (classId, names) =>
@@ -246,145 +333,130 @@ export const useAppStore = create<AppStore>()(
             })),
           ),
 
-        addDesk: (classId, desk) =>
-          set((s) => withClass(s, classId, (c) => ({ ...c, room: { ...c.room, desks: [...c.room.desks, desk] } }))),
+        addDesk: (roomId, desk) =>
+          set((s) => withRoom(s, roomId, (r) => ({ ...r, desks: [...r.desks, desk] }))),
 
-        updateRoom: (classId, patch) =>
-          set((s) => withClass(s, classId, (c) => ({ ...c, room: { ...c.room, ...patch } }))),
+        updateRoom: (roomId, patch) =>
+          set((s) => withRoom(s, roomId, (r) => ({ ...r, ...patch }))),
 
-        updateDesk: (classId, deskId, patch) =>
+        updateDesk: (roomId, deskId, patch) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: { ...c.room, desks: c.room.desks.map((d) => (d.id === deskId ? { ...d, ...patch } : d)) },
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              desks: r.desks.map((d) => (d.id === deskId ? { ...d, ...patch } : d)),
             })),
           ),
 
-        updateRoomItems: (classId, deskPatches, furniturePatches) =>
+        updateRoomItems: (roomId, deskPatches, furniturePatches) =>
           set((s) =>
-            withClass(s, classId, (c) => {
+            withRoom(s, roomId, (r) => {
               const hasDeskPatches = Object.keys(deskPatches).length > 0;
               const hasFurniturePatches = Object.keys(furniturePatches).length > 0;
-              if (!hasDeskPatches && !hasFurniturePatches) return c;
+              if (!hasDeskPatches && !hasFurniturePatches) return r;
               return {
-                ...c,
-                room: {
-                  ...c.room,
-                  desks: hasDeskPatches
-                    ? c.room.desks.map((d) =>
-                        deskPatches[d.id] ? { ...d, ...deskPatches[d.id] } : d,
-                      )
-                    : c.room.desks,
-                  furniture: hasFurniturePatches
-                    ? (c.room.furniture ?? []).map((f) =>
-                        furniturePatches[f.id] ? { ...f, ...furniturePatches[f.id] } : f,
-                      )
-                    : c.room.furniture,
-                },
+                ...r,
+                desks: hasDeskPatches
+                  ? r.desks.map((d) => (deskPatches[d.id] ? { ...d, ...deskPatches[d.id] } : d))
+                  : r.desks,
+                furniture: hasFurniturePatches
+                  ? (r.furniture ?? []).map((f) =>
+                      furniturePatches[f.id] ? { ...f, ...furniturePatches[f.id] } : f,
+                    )
+                  : r.furniture,
               };
             }),
           ),
 
-        addRoomItems: (classId, desks, furniture) =>
+        addRoomItems: (roomId, desks, furniture) =>
           set((s) =>
-            withClass(s, classId, (c) => {
-              if (desks.length === 0 && furniture.length === 0) return c;
+            withRoom(s, roomId, (r) => {
+              if (desks.length === 0 && furniture.length === 0) return r;
               return {
-                ...c,
-                room: {
-                  ...c.room,
-                  desks: desks.length ? [...c.room.desks, ...desks] : c.room.desks,
-                  furniture: furniture.length
-                    ? [...(c.room.furniture ?? []), ...furniture]
-                    : c.room.furniture,
-                },
+                ...r,
+                desks: desks.length ? [...r.desks, ...desks] : r.desks,
+                furniture: furniture.length ? [...(r.furniture ?? []), ...furniture] : r.furniture,
               };
             }),
           ),
 
-        removeDesks: (classId, deskIds) =>
-          set((s) =>
-            withClass(s, classId, (c) => {
-              const remaining = c.room.desks.filter((d) => !deskIds.includes(d.id));
-              const removedSeatIds = new Set(
-                c.room.desks.filter((d) => deskIds.includes(d.id)).flatMap((d) => d.seats.map((seat) => seat.id)),
-              );
-              const cleanedCurrent: Record<SeatId, StudentId> = {};
-              for (const [seat, sid] of Object.entries(c.currentAssignments ?? {})) {
-                if (!removedSeatIds.has(seat)) cleanedCurrent[seat] = sid;
+        removeDesks: (roomId, deskIds) =>
+          set((s) => {
+            const room = findRoom(s, roomId);
+            if (!room) return s;
+            const removedSeatIds = new Set(
+              room.desks
+                .filter((d) => deskIds.includes(d.id))
+                .flatMap((d) => d.seats.map((seat) => seat.id)),
+            );
+            const nextRooms = s.rooms.map((r) =>
+              r.id === roomId ? { ...r, desks: r.desks.filter((d) => !deskIds.includes(d.id)) } : r,
+            );
+            if (removedSeatIds.size === 0) return { ...s, rooms: nextRooms };
+
+            // Shared room: strip the removed seats from every class that uses it.
+            const stripSeats = (m: Record<SeatId, StudentId>): Record<SeatId, StudentId> => {
+              const out: Record<SeatId, StudentId> = {};
+              for (const [seat, sid] of Object.entries(m)) {
+                if (!removedSeatIds.has(seat)) out[seat] = sid;
               }
+              return out;
+            };
+            const nextClasses = s.classes.map((c) => {
+              if (c.roomId !== roomId) return c;
               return {
                 ...c,
-                room: { ...c.room, desks: remaining },
-                arrangements: c.arrangements.map((a) => {
-                  const next: Record<SeatId, StudentId> = {};
-                  for (const [seat, sid] of Object.entries(a.assignments)) {
-                    if (!removedSeatIds.has(seat)) next[seat] = sid;
-                  }
-                  return { ...a, assignments: next };
-                }),
-                currentAssignments: cleanedCurrent,
+                currentAssignments: stripSeats(c.currentAssignments ?? {}),
+                arrangements: c.arrangements.map((a) => ({
+                  ...a,
+                  assignments: stripSeats(a.assignments),
+                })),
               };
-            }),
-          ),
+            });
+            return { ...s, rooms: nextRooms, classes: nextClasses };
+          }),
 
-        setSeatFrontRow: (classId, deskId, seatId, value) =>
+        setSeatFrontRow: (roomId, deskId, seatId, value) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: {
-                ...c.room,
-                desks: c.room.desks.map((d) =>
-                  d.id === deskId
-                    ? { ...d, seats: d.seats.map((seat) => (seat.id === seatId ? { ...seat, isFrontRow: value } : seat)) }
-                    : d,
-                ),
-              },
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              desks: r.desks.map((d) =>
+                d.id === deskId
+                  ? { ...d, seats: d.seats.map((seat) => (seat.id === seatId ? { ...seat, isFrontRow: value } : seat)) }
+                  : d,
+              ),
             })),
           ),
 
-        setDeskFrontRow: (classId, deskId, value) =>
+        setDeskFrontRow: (roomId, deskId, value) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: {
-                ...c.room,
-                desks: c.room.desks.map((d) =>
-                  d.id === deskId ? { ...d, seats: d.seats.map((seat) => ({ ...seat, isFrontRow: value })) } : d,
-                ),
-              },
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              desks: r.desks.map((d) =>
+                d.id === deskId ? { ...d, seats: d.seats.map((seat) => ({ ...seat, isFrontRow: value })) } : d,
+              ),
             })),
           ),
 
-        addFurniture: (classId, item) =>
+        addFurniture: (roomId, item) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: { ...c.room, furniture: [...(c.room.furniture ?? []), item] },
+            withRoom(s, roomId, (r) => ({ ...r, furniture: [...(r.furniture ?? []), item] })),
+          ),
+
+        updateFurniture: (roomId, furnitureId, patch) =>
+          set((s) =>
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              furniture: (r.furniture ?? []).map((f) =>
+                f.id === furnitureId ? { ...f, ...patch } : f,
+              ),
             })),
           ),
 
-        updateFurniture: (classId, furnitureId, patch) =>
+        removeFurniture: (roomId, furnitureIds) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: {
-                ...c.room,
-                furniture: (c.room.furniture ?? []).map((f) =>
-                  f.id === furnitureId ? { ...f, ...patch } : f,
-                ),
-              },
-            })),
-          ),
-
-        removeFurniture: (classId, furnitureIds) =>
-          set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              room: {
-                ...c.room,
-                furniture: (c.room.furniture ?? []).filter((f) => !furnitureIds.includes(f.id)),
-              },
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              furniture: (r.furniture ?? []).filter((f) => !furnitureIds.includes(f.id)),
             })),
           ),
 
@@ -461,7 +533,7 @@ export const useAppStore = create<AppStore>()(
       }),
       {
         limit: 100,
-        partialize: (state) => ({ classes: state.classes }),
+        partialize: (state) => ({ rooms: state.rooms, classes: state.classes }),
       },
     ),
     {
@@ -502,6 +574,10 @@ export const useAppStore = create<AppStore>()(
 // every canonical event so wheel/rosters-page edits propagate into
 // the seating chart immediately.
 //
+// Rooms are NOT part of canonical — they're seating-chart-internal — so
+// the mirror below only watches `state.classes`, and pure room-layout
+// edits never touch canonical storage.
+//
 // Loop avoidance: a `suppressMirror` flag is set whenever we are
 // updating local state IN RESPONSE to a canonical event. The mirror
 // subscriber checks the flag and skips, so canonical → local → mirror
@@ -515,11 +591,14 @@ const seatingDefaultStudent = (name: string): Student => ({
   keepApart: [],
 });
 
+// A class synced in from canonical (created in the Wheel, the rosters page,
+// an import, …) arrives with no room — the teacher assigns one in the seating
+// chart. roomId is null until then.
 const seatingDefaultClass = (id: ClassId, name: string, names: string[]): ClassRoom => ({
   id,
   name,
   students: names.map(seatingDefaultStudent),
-  room: DEFAULT_ROOM(),
+  roomId: null,
   arrangements: [],
   currentAssignments: {},
 });
@@ -678,7 +757,8 @@ rosterBridge.onClassDelete(({ classId }) => {
 
 // Mirror local-store changes (user actions in seating chart) back to canonical.
 // The whole block runs with suppressMirror true so any events dispatched by
-// shared/storage helpers don't bounce back into our own listeners.
+// shared/storage helpers don't bounce back into our own listeners. Pure room
+// edits change `state.rooms` (not `state.classes`) and so skip this entirely.
 let mirrorPrevClassIds = new Set(useAppStore.getState().classes.map((c) => c.id));
 useAppStore.subscribe((state, prev) => {
   if (suppressMirror) return;
@@ -711,3 +791,12 @@ export const selectClass = (id: ClassId | null) => (s: AppStore): ClassRoom | un
 
 export const selectActiveClass = (s: AppStore): ClassRoom | undefined =>
   s.activeClassId ? findClass(s, s.activeClassId) : undefined;
+
+export const selectRoom = (id: RoomId | null | undefined) => (s: AppStore): Room | undefined =>
+  findRoom(s, id);
+
+/** Resolve the Room a class is currently taught in (undefined if none). */
+export const selectRoomForClass = (classId: ClassId | null) => (s: AppStore): Room | undefined => {
+  const c = classId ? findClass(s, classId) : undefined;
+  return c ? findRoom(s, c.roomId) : undefined;
+};

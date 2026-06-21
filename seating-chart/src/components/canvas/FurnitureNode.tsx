@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Line, Shape, Text } from "react-konva";
 import type Konva from "konva";
-import type { ClassId, Furniture } from "@/types";
+import type { RoomId, Furniture } from "@/types";
 import { FURNITURE_DEFAULTS, furnitureLabel } from "@/lib/furniture";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
 import { useAppStore } from "@/store/appStore";
@@ -17,7 +17,7 @@ interface Props {
   /** Right-click on a box/circle prompts for a label. RoomDesigner owns the
    *  prompt UX so the canvas component stays presentational. */
   onRequestRename?: (id: string) => void;
-  classId: ClassId;
+  roomId: RoomId;
   draggable: boolean;
   registerNode: (id: string, node: Konva.Group | null) => void;
 }
@@ -38,7 +38,7 @@ export default function FurnitureNode({
   onDragMove,
   onDragEnd,
   onRequestRename,
-  classId,
+  roomId,
   draggable,
   registerNode,
 }: Props) {
@@ -134,7 +134,7 @@ export default function FurnitureNode({
         node.y(snapped.y);
       }}
       onDragEnd={(e) => {
-        updateFurniture(classId, furniture.id, { x: e.target.x(), y: e.target.y() });
+        updateFurniture(roomId, furniture.id, { x: e.target.x(), y: e.target.y() });
         onDragEnd();
       }}
       onTransformEnd={() => {
@@ -146,7 +146,7 @@ export default function FurnitureNode({
         const newHeight = Math.max(MIN_DIM, furniture.height * sy);
         node.scaleX(1);
         node.scaleY(1);
-        updateFurniture(classId, furniture.id, {
+        updateFurniture(roomId, furniture.id, {
           x: node.x(),
           y: node.y(),
           rotation: node.rotation(),
