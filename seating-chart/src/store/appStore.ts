@@ -13,6 +13,7 @@ import type {
   DeskId,
   Furniture,
   FurnitureId,
+  NameDisplayMode,
   Room,
   RoomId,
   RoomSeating,
@@ -24,6 +25,16 @@ import { SCHEMA_VERSION } from "@/types";
 import { runMigrations } from "@/lib/migrations";
 
 const uid = () => crypto.randomUUID();
+
+/** Split a display name into first/last on the first space (matches the v10
+ *  migration). `${firstName} ${lastName}`.trim() reconstructs the input. */
+function splitName(full: string): { firstName: string; lastName: string } {
+  const f = full.trim();
+  const sp = f.indexOf(" ");
+  return sp === -1
+    ? { firstName: f, lastName: "" }
+    : { firstName: f.slice(0, sp), lastName: f.slice(sp + 1).trim() };
+}
 
 const DEFAULT_ROOM = (name: string): Room => ({
   id: uid(),
@@ -59,8 +70,13 @@ interface AppActions {
    *  the blocking class names come back so the UI can explain why. */
   deleteRoom: (roomId: RoomId) => { ok: boolean; blockedBy: string[] };
 
-  addStudents: (classId: ClassId, names: string[]) => void;
+  addStudents: (
+    classId: ClassId,
+    entries: Array<{ firstName: string; lastName: string; studentNumber?: string }>,
+  ) => void;
   updateStudent: (classId: ClassId, studentId: StudentId, patch: Partial<Student>) => void;
+  /** Per-class chart name display mode. */
+  setNameDisplay: (classId: ClassId, mode: NameDisplayMode) => void;
   removeStudent: (classId: ClassId, studentId: StudentId) => void;
   toggleKeepApart: (classId: ClassId, a: StudentId, b: StudentId) => void;
 
@@ -84,6 +100,8 @@ interface AppActions {
   updateRoom: (roomId: RoomId, patch: Partial<Room>) => void;
   setSeatFrontRow: (roomId: RoomId, deskId: DeskId, seatId: SeatId, value: boolean) => void;
   setDeskFrontRow: (roomId: RoomId, deskId: DeskId, value: boolean) => void;
+  /** Toggle a desk's "don't seat here" flag (excluded from auto-seating). */
+  setDeskExcluded: (roomId: RoomId, deskId: DeskId, value: boolean) => void;
 
   addFurniture: (roomId: RoomId, item: Furniture) => void;
   updateFurniture: (roomId: RoomId, furnitureId: FurnitureId, patch: Partial<Furniture>) => void;
@@ -256,13 +274,25 @@ export const useAppStore = create<AppStore>()(
           return { ok: true, blockedBy: [] };
         },
 
-        addStudents: (classId, names) =>
+        addStudents: (classId, entries) =>
           set((s) =>
             withClass(s, classId, (c) => {
-              const fresh: Student[] = names
-                .map((n) => n.trim())
-                .filter(Boolean)
-                .map((name) => ({ id: uid(), name, needsFrontRow: false, keepApart: [] }));
+              const fresh: Student[] = entries
+                .map((e) => ({
+                  firstName: (e.firstName ?? "").trim(),
+                  lastName: (e.lastName ?? "").trim(),
+                  studentNumber: e.studentNumber?.trim() || undefined,
+                }))
+                .filter((e) => e.firstName || e.lastName)
+                .map((e) => ({
+                  id: uid(),
+                  name: `${e.firstName} ${e.lastName}`.trim(),
+                  firstName: e.firstName || undefined,
+                  lastName: e.lastName || undefined,
+                  studentNumber: e.studentNumber,
+                  needsFrontRow: false,
+                  keepApart: [],
+                }));
               return { ...c, students: [...c.students, ...fresh] };
             }),
           ),
@@ -271,9 +301,22 @@ export const useAppStore = create<AppStore>()(
           set((s) =>
             withClass(s, classId, (c) => ({
               ...c,
-              students: c.students.map((st) => (st.id === studentId ? { ...st, ...patch } : st)),
+              students: c.students.map((st) => {
+                if (st.id !== studentId) return st;
+                const next: Student = { ...st, ...patch };
+                // Keep the canonical `name` in sync when first/last change so
+                // the Wheel/Bingo rosters track the structured edit.
+                if ("firstName" in patch || "lastName" in patch) {
+                  const derived = `${next.firstName ?? ""} ${next.lastName ?? ""}`.trim();
+                  if (derived) next.name = derived;
+                }
+                return next;
+              }),
             })),
           ),
+
+        setNameDisplay: (classId, mode) =>
+          set((s) => withClass(s, classId, (c) => ({ ...c, nameDisplay: mode }))),
 
         removeStudent: (classId, studentId) =>
           set((s) =>
@@ -422,6 +465,14 @@ export const useAppStore = create<AppStore>()(
               desks: r.desks.map((d) =>
                 d.id === deskId ? { ...d, seats: d.seats.map((seat) => ({ ...seat, isFrontRow: value })) } : d,
               ),
+            })),
+          ),
+
+        setDeskExcluded: (roomId, deskId, value) =>
+          set((s) =>
+            withRoom(s, roomId, (r) => ({
+              ...r,
+              desks: r.desks.map((d) => (d.id === deskId ? { ...d, excluded: value } : d)),
             })),
           ),
 
@@ -587,6 +638,7 @@ export const useAppStore = create<AppStore>()(
 const seatingDefaultStudent = (name: string): Student => ({
   id: uid(),
   name,
+  ...splitName(name),
   needsFrontRow: false,
   keepApart: [],
 });
