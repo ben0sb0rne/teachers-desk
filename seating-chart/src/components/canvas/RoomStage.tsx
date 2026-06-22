@@ -128,6 +128,9 @@ interface Props {
   classNameLabel?: string;
   /** Font size in room-coord units for `classNameLabel`. Default 24. */
   classNameLabelSize?: number;
+  /** Screen-px margin reserved around the fitted content. Default 40; pass a
+   *  small value for compact thumbnails so the layout fills the frame. */
+  framePadding?: number;
 }
 
 interface Marquee {
@@ -169,6 +172,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     fitContents = false,
     classNameLabel,
     classNameLabelSize = 24,
+    framePadding = 40,
   },
   ref,
 ) {
@@ -315,7 +319,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     return () => ro.disconnect();
   }, []);
 
-  const padding = 40;
+  const padding = framePadding;
   // Reserve a band above the room/items for the class-name label when one
   // is provided, so the label sits in the page corner rather than against
   // the room's wall. Sized off the chosen font size with a floor so very

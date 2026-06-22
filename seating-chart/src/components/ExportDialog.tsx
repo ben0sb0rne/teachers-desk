@@ -4,7 +4,7 @@ import type Konva from "konva";
 import RoomStage from "@/components/canvas/RoomStage";
 import { exportStageAsPng, renderStageToPngDataUrl } from "@/lib/exportPng";
 import { rotatedItemAABB, unionAABB } from "@/lib/geometry";
-import type { Arrangement, ClassRoom, Room } from "@/types";
+import type { Arrangement, ClassRoom, Room, SeatId, StudentId } from "@/types";
 import Icon from "@/components/Icon";
 
 /**
@@ -23,14 +23,17 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   klass: ClassRoom;
-  /** The room `klass` is taught in (resolved by the caller from klass.roomId). */
+  /** The room being exported. */
   room: Room;
+  /** The room's live current seating for this class. Used when `arrangement`
+   *  is null; a passed arrangement overrides it. */
+  assignments: Record<SeatId, StudentId>;
   arrangement: Arrangement | null;
 }
 
 const DEFAULT_CLASS_LABEL_SIZE = 24;
 
-export default function ExportDialog({ open, onOpenChange, klass, room, arrangement }: Props) {
+export default function ExportDialog({ open, onOpenChange, klass, room, assignments, arrangement }: Props) {
   const [showFloor, setShowFloor] = useState(true);
   const [showBackground, setShowBackground] = useState(false);
   const [blackAndWhite, setBlackAndWhite] = useState(false);
@@ -59,7 +62,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, arrangem
     }
   }, [open]);
 
-  const assignments = arrangement?.assignments ?? klass.currentAssignments ?? {};
+  const shown = arrangement?.assignments ?? assignments;
   const roomBackgroundFill = showFloor
     ? room.background
     : "rgba(0,0,0,0)";
@@ -252,7 +255,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, arrangem
                 interactive={false}
                 room={room}
                 students={klass.students}
-                assignments={assignments}
+                assignments={shown}
                 roomId={room.id}
                 showFrontWallLabel={showFrontWallLabel}
                 showNames={showNames}

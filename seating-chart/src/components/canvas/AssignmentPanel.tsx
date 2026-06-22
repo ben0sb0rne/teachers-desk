@@ -7,7 +7,7 @@ interface Props {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   klass: ClassRoom;
-  /** The room `klass` is seated in (resolved by the caller from klass.roomId). */
+  /** The room being seated (the active room when the class uses several). */
   room: Room;
   assignments: Record<SeatId, StudentId>;
   onAssignSeat: (seatId: SeatId, studentId: StudentId | null) => void;
@@ -19,6 +19,12 @@ interface Props {
   /** Select the given desk on the canvas. Called when the user clicks a seat
    *  or a seated student row in this panel. */
   onSelectDesk?: (deskId: string) => void;
+  /** The class's rooms — shows a switcher dropdown when there's more than one. */
+  classRooms?: Room[];
+  activeRoomId?: string;
+  onChangeRoom?: (roomId: string) => void;
+  /** Open the room layout editor for the active room. */
+  onEditRoom?: () => void;
 }
 
 export default function AssignmentPanel({
@@ -33,6 +39,10 @@ export default function AssignmentPanel({
   onSave,
   onExport,
   onSelectDesk,
+  classRooms = [],
+  activeRoomId,
+  onChangeRoom,
+  onEditRoom,
 }: Props) {
   const seats = useMemo(() => roomSeats(room), [room]);
   const seated = new Set(Object.values(assignments));
@@ -40,20 +50,20 @@ export default function AssignmentPanel({
 
   if (collapsed) {
     return (
-      <aside className="flex w-10 shrink-0 flex-col items-center border-l border-slate-200 bg-white py-2">
+      <aside className="flex w-10 shrink-0 flex-col items-center border-r border-slate-200 bg-white py-2">
         <button
           className="rounded p-1.5 text-ink-muted hover:bg-slate-100"
           onClick={onToggleCollapsed}
           title="Expand assignments panel"
         >
-          <Icon name="chevrons-left" size={16} />
+          <Icon name="chevrons-right" size={16} />
         </button>
       </aside>
     );
   }
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-slate-200 bg-white">
+    <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Assignments
@@ -63,8 +73,31 @@ export default function AssignmentPanel({
           onClick={onToggleCollapsed}
           title="Collapse panel"
         >
-          <Icon name="chevrons-right" size={14} />
+          <Icon name="chevrons-left" size={14} />
         </button>
+      </div>
+
+      {/* Room switcher (only when the class uses more than one room) + the
+          prominent "Edit <room>" jump to the layout editor. */}
+      <div className="space-y-2 border-b border-slate-200 p-3">
+        {classRooms.length > 1 && onChangeRoom && (
+          <label className="block">
+            <span className="label mb-1 block">Room</span>
+            <select className="input" value={activeRoomId ?? ""} onChange={(e) => onChangeRoom(e.target.value)}>
+              {classRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {onEditRoom && (
+          <button className="btn-secondary w-full" onClick={onEditRoom} title="Edit this room's desk layout">
+            <Icon name="edit" size={14} />
+            Edit {room.name}
+          </button>
+        )}
       </div>
 
       <div className="space-y-2 border-b border-slate-200 p-3">

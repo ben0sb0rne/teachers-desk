@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type Konva from "konva";
 import { useAppStore } from "@/store/appStore";
 import RoomStage from "@/components/canvas/RoomStage";
@@ -14,7 +14,7 @@ import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
 import { pageToRoom } from "@/lib/canvasCoords";
 import Icon from "@/components/Icon";
-import type { ClassRoom, Desk, DeskId, DeskKind, Furniture, FurnitureId, FurnitureKind, SeatId, StudentId } from "@/types";
+import type { ClassRoom, Desk, DeskId, DeskKind, Furniture, FurnitureId, FurnitureKind, Room, SeatId, StudentId } from "@/types";
 
 const PASTE_OFFSET = 20;
 /** Mouse must move this many pixels after mousedown before a palette drag begins. */
@@ -36,25 +36,43 @@ interface PaletteDragSession {
  * The canvas screen, in two modes:
  *
  *  - `layout`  — the dedicated Room editor. URL `/rooms/:id`. Edits a shared
- *    Room's desks + furniture; no students, no seating. Changes here apply to
- *    every class that uses the room.
- *  - `seating` — a class's seating view. URL `/classes/:id/room`. The room
- *    layout is shown but LOCKED (you assign students, you don't move desks);
- *    "Edit layout" links over to the room editor.
+ *    Room's desks + furniture; no students, no seating.
+ *  - `seating` — a class's seating view. URL `/classes/:id/room`. The layout is
+ *    shown but LOCKED; you assign students. A class can hold several rooms, so
+ *    the panel has a room switcher and an "Edit <room>" button.
  *
  * Both modes render the same Konva canvas — only the data source and which
- * side panels show differ.
+ * side panel shows differ.
  */
 export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   const seating = mode === "seating";
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   // In seating mode `id` is a class id; in layout mode it's a room id.
   const klass = useAppStore((s) => (seating && id ? s.classes.find((c) => c.id === id) : undefined));
-  const room = useAppStore((s) => {
-    if (!seating) return id ? s.rooms.find((r) => r.id === id) : undefined;
-    const c = id ? s.classes.find((cc) => cc.id === id) : undefined;
-    return c?.roomId ? s.rooms.find((r) => r.id === c.roomId) : undefined;
-  });
+  const rooms = useAppStore((s) => s.rooms);
+
+  // Active room (seating): the room whose seating we're editing — from the room
+  // switcher (activeRoomId), else a ?room= deep-link, else the class's first
+  // room. Layout mode: the route id IS the room id.
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const seatingRoomIds = klass ? klass.seatings.map((se) => se.roomId) : [];
+  const paramRoom = searchParams.get("room");
+  const effectiveRoomId = seating
+    ? activeRoomId && seatingRoomIds.includes(activeRoomId)
+      ? activeRoomId
+      : paramRoom && seatingRoomIds.includes(paramRoom)
+        ? paramRoom
+        : seatingRoomIds[0] ?? null
+    : id ?? null;
+  const room = rooms.find((r) => r.id === effectiveRoomId);
+  const seatingEntry =
+    seating && klass && effectiveRoomId ? klass.seatings.find((se) => se.roomId === effectiveRoomId) : undefined;
+  const classRooms: Room[] = klass
+    ? klass.seatings.map((se) => rooms.find((r) => r.id === se.roomId)).filter((r): r is Room => !!r)
+    : [];
 
   const addDesk = useAppStore((s) => s.addDesk);
   const removeDesks = useAppStore((s) => s.removeDesks);
@@ -106,8 +124,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   const [exportOpen, setExportOpen] = useState(false);
   // Default-collapse both side panels on phone-sized viewports so the
   // canvas gets the full screen on first paint. Computed once at mount;
-  // user toggles override after. Resizing browser between desktop/mobile
-  // doesn't auto-flip — that would override an explicit user choice.
+  // user toggles override after.
   const [paletteCollapsed, setPaletteCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
@@ -116,26 +133,29 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   );
   const [paletteDrag, setPaletteDrag] = useState<PaletteDragSession | null>(null);
 
-  const assignments = seating ? klass?.currentAssignments ?? {} : {};
+  const assignments = seating ? seatingEntry?.currentAssignments ?? {} : {};
+  const arrangements = seatingEntry?.arrangements ?? [];
   const students = seating ? klass?.students ?? [] : [];
 
   useEffect(() => {
     setSelectedItemIds([]);
     setWarning(null);
-    if (!klass) return;
-    const restoreId = sessionStorage.getItem(`restore:${klass.id}`);
+    if (!klass || !effectiveRoomId) return;
+    // History "Restore" stashes an arrangement id under restore:<class>:<room>.
+    const key = `restore:${klass.id}:${effectiveRoomId}`;
+    const restoreId = sessionStorage.getItem(key);
     if (restoreId) {
-      sessionStorage.removeItem(`restore:${klass.id}`);
-      const arr = klass.arrangements.find((a) => a.id === restoreId);
-      if (arr) restoreArrangement(klass.id, arr.id);
+      sessionStorage.removeItem(key);
+      const se = klass.seatings.find((x) => x.roomId === effectiveRoomId);
+      if (se?.arrangements.some((a) => a.id === restoreId)) {
+        restoreArrangement(klass.id, effectiveRoomId, restoreId);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, effectiveRoomId]);
 
-  // Window-level listeners for palette drag. Use Pointer Events so a single
-  // code path covers mouse + touch + pen — touch users on iPad/phone can drag
-  // a desk from the palette onto the canvas with the same flow as a mouse.
-  // (Palette only renders in layout mode, so this never fires in seating.)
+  // Window-level listeners for palette drag (layout mode only — palette is
+  // hidden in seating, so paletteDrag never gets set there).
   useEffect(() => {
     if (!paletteDrag) return;
     function onMove(e: PointerEvent) {
@@ -150,24 +170,18 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     function onUp(e: PointerEvent) {
       const session = paletteDrag;
       setPaletteDrag(null);
-      // If the drag never activated, this was a plain tap — let the
-      // button's own onClick handle it (no-op here).
       if (!session || !session.active) return;
       const roomPt = pageToRoom(stageRef.current, e.clientX, e.clientY);
       if (!roomPt || !room) return;
       if (session.type === "single-desk") {
         placeDeskAtPoint(session.kind as DeskKind, undefined, roomPt.x, roomPt.y);
       } else if (session.type === "furniture") {
-        // Windows are configurable: route through the params dialog with the
-        // drop point so the user can pick pane count before placement.
         if (session.kind === "window") {
           setParamsDialog({ open: true, kind: "window", dropPoint: roomPt });
         } else {
           placeFurnitureAtPoint(session.kind as FurnitureKind, roomPt.x, roomPt.y);
         }
       } else if (session.type === "multi-desk") {
-        // Multi-desk needs params first — open the dialog with the drop point;
-        // confirm will place there.
         setParamsDialog({ open: true, kind: session.kind as DeskKind, dropPoint: roomPt });
       }
     }
@@ -232,22 +246,14 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [
-    selectedItemIds,
-    seating,
-    room,
-    removeDesks,
-    removeFurniture,
-    addRoomItems,
-    clipboard,
-    locked,
-  ]);
+  }, [selectedItemIds, seating, room, removeDesks, removeFurniture, addRoomItems, clipboard, locked]);
 
   // ── Guards ────────────────────────────────────────────────
   // After this block: `room` is defined; in seating mode `klass` is too.
   if (seating) {
     if (!klass) return <div className="p-6 text-ink-muted">Class not found.</div>;
-    if (!room) return <AssignRoomPrompt klass={klass} />;
+    if (klass.seatings.length === 0) return <AssignRoomPrompt klass={klass} />;
+    if (!room) return <div className="p-6 text-ink-muted">Room not found.</div>;
   } else if (!room) {
     return <div className="p-6 text-ink-muted">Room not found.</div>;
   }
@@ -291,7 +297,6 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     dropPoint: { x: number; y: number } | null,
   ) {
     if (payload.kind === "window") {
-      // Window flow: configure pane count → makeFurniture with that count.
       placeWindow(payload.paneCount, dropPoint);
       return;
     }
@@ -317,8 +322,6 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
 
   function handlePlaceFurniture(kind: FurnitureKind) {
     if (!room) return;
-    // Windows route through the params dialog so the user can pick pane count
-    // before placement, mirroring the multi-desk dialog flow.
     if (kind === "window") {
       setParamsDialog({ open: true, kind: "window", dropPoint: null });
       return;
@@ -337,20 +340,12 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     clientX: number,
     clientY: number,
   ) {
-    setPaletteDrag({
-      kind,
-      type,
-      startX: clientX,
-      startY: clientY,
-      x: clientX,
-      y: clientY,
-      active: false,
-    });
+    setPaletteDrag({ kind, type, startX: clientX, startY: clientY, x: clientX, y: clientY, active: false });
   }
 
-  /** Build per-item patch maps from a list of SelectedItems and pipe them
-   *  into the bulk store action so the temporal middleware records ONE
-   *  history entry per user action (not N entries for N items). */
+  /** Build per-item patch maps from a list of SelectedItems and pipe them into
+   *  the bulk store action so the temporal middleware records ONE history entry
+   *  per user action (not N entries for N items). */
   function applyItemPatches(
     items: SelectedItem[],
     patchFor: (it: SelectedItem) => Partial<Desk> | Partial<Furniture> | null,
@@ -361,29 +356,16 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     for (const it of items) {
       const patch = patchFor(it);
       if (!patch) continue;
-      // The cast is safe: the caller's patchFor returns shapes matching
-      // it.kind, and the union type only loses the discriminator across
-      // the function boundary. We assign by kind, so the runtime types
-      // are always correct.
       if (it.kind === "desk") deskPatches[it.entity.id] = patch as Partial<Desk>;
       else furniturePatches[it.entity.id] = patch as Partial<Furniture>;
     }
     updateRoomItems(room.id, deskPatches, furniturePatches);
   }
 
-  /**
-   * Align V / Align H now also work on a single selected item — they snap it
-   * to the room's vertical / horizontal center axis. With 2+ items the
-   * behavior is the original "make their centers share an axis" but using
-   * the rotated bounding box centers, so a rotated desk's visible center
-   * (not its model origin) is what gets aligned.
-   */
   function handleAlignVertical() {
     if (!room || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
-    const targetCenterX = items.length === 1
-      ? room.width / 2
-      : centerOfBBoxes(items.map(rotatedAABB)).x;
+    const targetCenterX = items.length === 1 ? room.width / 2 : centerOfBBoxes(items.map(rotatedAABB)).x;
     applyItemPatches(items, (it) => {
       const aabb = rotatedAABB(it);
       const delta = targetCenterX - aabb.centerX;
@@ -395,9 +377,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   function handleAlignHorizontal() {
     if (!room || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
-    const targetCenterY = items.length === 1
-      ? room.height / 2
-      : centerOfBBoxes(items.map(rotatedAABB)).y;
+    const targetCenterY = items.length === 1 ? room.height / 2 : centerOfBBoxes(items.map(rotatedAABB)).y;
     applyItemPatches(items, (it) => {
       const aabb = rotatedAABB(it);
       const delta = targetCenterY - aabb.centerY;
@@ -438,15 +418,6 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     });
   }
 
-  // Mirror selected items across the selection's vertical center axis.
-  //
-  // A true horizontal flip is `scaleX = -1` about the center. Since the
-  // model doesn't store scale, we apply the equivalent decomposition:
-  //   1. reflect each item's position about the bbox centerX
-  //   2. negate rotation (rotation → -rotation, normalized to [0, 360))
-  //   3. mirror seat offsets within each desk (offsetX → desk.width - offsetX)
-  // Together these make a triangle desk face the opposite direction after
-  // the flip while preserving its seat-on-apex relationship.
   function handleFlipHorizontal() {
     if (!room || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
@@ -466,8 +437,6 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     });
   }
 
-  // Vertical flip = horizontal flip composed with a 180° rotation, so:
-  //   rotation → 180 - rotation (normalized).
   function handleFlipVertical() {
     if (!room || selectedItemIds.length < 1) return;
     const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
@@ -492,41 +461,32 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   }
 
   function handleClear() {
-    if (!klass) return;
-    const occupied = Object.keys(klass.currentAssignments ?? {}).length;
-    if (occupied === 0) return;
-    setConfirmState({ kind: "clear", occupied });
+    if (Object.keys(assignments).length === 0) return;
+    setConfirmState({ kind: "clear", occupied: Object.keys(assignments).length });
   }
 
   function performClear() {
-    if (!klass) return;
-    setAssignmentsStore(klass.id, {});
+    if (!klass || !effectiveRoomId) return;
+    setAssignmentsStore(klass.id, effectiveRoomId, {});
     setWarning(null);
     setInfo(null);
   }
 
   function handleRandomize() {
-    if (!klass) return;
-    const occupied = Object.keys(klass.currentAssignments ?? {}).length;
-    if (occupied > 0) {
-      setConfirmState({ kind: "randomize", occupied });
+    if (Object.keys(assignments).length > 0) {
+      setConfirmState({ kind: "randomize", occupied: Object.keys(assignments).length });
       return;
     }
     performRandomize();
   }
 
   function performRandomize() {
-    if (!klass || !room) return;
+    if (!klass || !room || !effectiveRoomId) return;
     setWarning(null);
     setInfo(null);
-    // assign() now always returns assignments + a (possibly empty) warnings
-    // list — Randomize never blocks on infeasible Keep Apart. Surface the
-    // warnings instead of refusing the placement.
-    const result = assign({ room, students: klass.students, history: klass.arrangements });
-    setAssignmentsStore(klass.id, result.assignments);
-    if (result.warnings.length > 0) {
-      setWarning(result.warnings.join(" "));
-    }
+    const result = assign({ room, students: klass.students, history: arrangements });
+    setAssignmentsStore(klass.id, effectiveRoomId, result.assignments);
+    if (result.warnings.length > 0) setWarning(result.warnings.join(" "));
     const totalSeats = room.desks.reduce((n, d) => n + d.seats.length, 0);
     const emptySeats = totalSeats - Object.keys(result.assignments).length;
     if (emptySeats > 0 && klass.students.length <= totalSeats) {
@@ -541,9 +501,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   }
 
   function handleSaveArrangement() {
-    if (!klass) return;
-    const occupied = Object.keys(klass.currentAssignments ?? {}).length;
-    if (occupied === 0) {
+    if (Object.keys(assignments).length === 0) {
       setWarning("Nothing to save — assign students first (try Randomize).");
       return;
     }
@@ -551,15 +509,12 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   }
 
   function handleAssignSeat(seatId: SeatId, studentId: StudentId | null) {
-    if (!klass) return;
-    assignSeatStore(klass.id, seatId, studentId);
+    if (!klass || !effectiveRoomId) return;
+    assignSeatStore(klass.id, effectiveRoomId, seatId, studentId);
   }
 
-  /**
-   * Apply a fill color (or clear it back to the kind default when fill is
-   * undefined) to every selected desk + furniture item. Stroke + text-color
-   * for the affected items derive automatically inside DeskNode/FurnitureNode.
-   */
+  /** Apply a fill color (or clear it back to the kind default when fill is
+   *  undefined) to every selected desk + furniture item. */
   function applyColorToSelection(fill: string | undefined) {
     if (!room || selectedItemIds.length === 0) return;
     const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
@@ -569,12 +524,6 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   function handleSetColor(fill: string) { applyColorToSelection(fill); }
   function handleResetColor() { applyColorToSelection(undefined); }
 
-  /**
-   * Box / circle furniture have a user-typed label drawn inside the shape.
-   * Right-click / double-click routes here, which opens the shared
-   * TextInputDialog. The actual store mutation happens in the dialog's
-   * onSubmit handler at the bottom of this component.
-   */
   function handleRequestFurnitureRename(furnitureId: string) {
     if (!room) return;
     const item = room.furniture?.find((f) => f.id === furnitureId);
@@ -582,17 +531,13 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     setTextInput({ kind: "furniture-label", furnitureId, initial: item.label ?? "" });
   }
 
-  /**
-   * Dispatcher for the TextInputDialog's onSubmit. Routes by `textInput.kind`
-   * to whatever store action that flow needs. Adding a new prompt-style flow
-   * means adding a `kind` to TextInputState above and a case here.
-   */
+  /** Dispatcher for the TextInputDialog's onSubmit. */
   function handleTextInputSubmit(value: string) {
     if (!textInput) return;
     switch (textInput.kind) {
       case "arrangement-label": {
-        if (!klass) return;
-        saveArrangement(klass.id, value.length > 0 ? value : undefined);
+        if (!klass || !effectiveRoomId) return;
+        saveArrangement(klass.id, effectiveRoomId, value.length > 0 ? value : undefined);
         setWarning(null);
         return;
       }
@@ -608,42 +553,54 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
 
   return (
     <div className="flex h-full min-h-0">
-      {!seating && (
-        <DeskPalette
-          collapsed={paletteCollapsed}
-          onToggleCollapsed={() => setPaletteCollapsed((c) => !c)}
-          onPlaceSingle={handlePlaceSingle}
-          onOpenMulti={handleOpenMulti}
-          onPlaceFurniture={handlePlaceFurniture}
-          onPaletteDragStart={handlePaletteDragStart}
-          room={room}
-          onUpdateRoom={(patch) => updateRoom(room.id, patch)}
-          selectionSize={selectedItemIds.length}
-          onAlignVertical={handleAlignVertical}
-          onAlignHorizontal={handleAlignHorizontal}
-          onDistributeVertical={handleDistributeVertical}
-          onDistributeHorizontal={handleDistributeHorizontal}
-          onFlipHorizontal={handleFlipHorizontal}
-          onFlipVertical={handleFlipVertical}
-          onSetColor={handleSetColor}
-          onResetColor={handleResetColor}
-          locked={userLocked}
-          onToggleLocked={() => setUserLocked((l) => !l)}
-          showGrid={showGrid}
-          onToggleGrid={() => setShowGrid((g) => !g)}
-        />
-      )}
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        {seating && (
-          <div className="flex items-center justify-between gap-2 border-b border-paper-edge/15 bg-paper px-3 py-1.5 text-xs text-ink-muted">
-            <span>
-              Room: <span className="font-medium text-ink">{room.name}</span>
-            </span>
-            <Link to={`/rooms/${room.id}`} className="font-medium text-ink underline-offset-2 hover:underline">
-              Edit layout →
-            </Link>
-          </div>
+      {/* Left rail: the layout tools (room editor) or the assignments panel
+          (seating). Both live on the left for consistency. */}
+      {seating
+        ? klass && (
+            <AssignmentPanel
+              collapsed={panelCollapsed}
+              onToggleCollapsed={() => setPanelCollapsed((c) => !c)}
+              klass={klass}
+              room={room}
+              assignments={assignments}
+              onAssignSeat={handleAssignSeat}
+              onRandomize={handleRandomize}
+              onClear={handleClear}
+              onSave={handleSaveArrangement}
+              onExport={() => setExportOpen(true)}
+              onSelectDesk={(deskId) => setSelectedItemIds([deskId])}
+              classRooms={classRooms}
+              activeRoomId={effectiveRoomId ?? undefined}
+              onChangeRoom={(rid) => setActiveRoomId(rid)}
+              onEditRoom={() => navigate(`/rooms/${room.id}`)}
+            />
+          )
+        : (
+          <DeskPalette
+            collapsed={paletteCollapsed}
+            onToggleCollapsed={() => setPaletteCollapsed((c) => !c)}
+            onPlaceSingle={handlePlaceSingle}
+            onOpenMulti={handleOpenMulti}
+            onPlaceFurniture={handlePlaceFurniture}
+            onPaletteDragStart={handlePaletteDragStart}
+            room={room}
+            onUpdateRoom={(patch) => updateRoom(room.id, patch)}
+            selectionSize={selectedItemIds.length}
+            onAlignVertical={handleAlignVertical}
+            onAlignHorizontal={handleAlignHorizontal}
+            onDistributeVertical={handleDistributeVertical}
+            onDistributeHorizontal={handleDistributeHorizontal}
+            onFlipHorizontal={handleFlipHorizontal}
+            onFlipVertical={handleFlipVertical}
+            onSetColor={handleSetColor}
+            onResetColor={handleResetColor}
+            locked={userLocked}
+            onToggleLocked={() => setUserLocked((l) => !l)}
+            showGrid={showGrid}
+            onToggleGrid={() => setShowGrid((g) => !g)}
+          />
         )}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <RoomStage
           ref={stageRef}
           room={room}
@@ -677,26 +634,12 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
         )}
       </div>
       {klass && (
-        <AssignmentPanel
-          collapsed={panelCollapsed}
-          onToggleCollapsed={() => setPanelCollapsed((c) => !c)}
-          klass={klass}
-          room={room}
-          assignments={assignments}
-          onAssignSeat={handleAssignSeat}
-          onRandomize={handleRandomize}
-          onClear={handleClear}
-          onSave={handleSaveArrangement}
-          onExport={() => setExportOpen(true)}
-          onSelectDesk={(deskId) => setSelectedItemIds([deskId])}
-        />
-      )}
-      {klass && (
         <ExportDialog
           open={exportOpen}
           onOpenChange={setExportOpen}
           klass={klass}
           room={room}
+          assignments={assignments}
           arrangement={null}
         />
       )}
@@ -712,21 +655,13 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
       <TextInputDialog
         open={textInput != null}
         onOpenChange={(open) => { if (!open) setTextInput(null); }}
-        title={
-          textInput?.kind === "arrangement-label"
-            ? "Save arrangement"
-            : "Rename"
-        }
+        title={textInput?.kind === "arrangement-label" ? "Save arrangement" : "Rename"}
         description={
           textInput?.kind === "arrangement-label"
             ? "Give this seating arrangement a label so you can find it in History later."
             : "Label drawn inside the shape. Leave blank to clear."
         }
-        placeholder={
-          textInput?.kind === "arrangement-label"
-            ? "e.g. October seating chart"
-            : ""
-        }
+        placeholder={textInput?.kind === "arrangement-label" ? "e.g. October seating chart" : ""}
         initialValue={textInput?.kind === "furniture-label" ? textInput.initial : ""}
         submitLabel={textInput?.kind === "arrangement-label" ? "Save" : "Update"}
         allowEmpty={textInput?.kind !== "arrangement-label"}
@@ -765,14 +700,13 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   );
 }
 
-/** Shown in seating mode when a class has no room yet (e.g. it was created in
- *  the Wheel or rosters page). Lets the teacher attach an existing room or
- *  spin up a fresh one and jump straight into the layout editor. */
+/** Shown in seating mode when a class has no rooms yet. Lets the teacher attach
+ *  an existing room or spin up a fresh one and jump into the layout editor. */
 function AssignRoomPrompt({ klass }: { klass: ClassRoom }) {
   const navigate = useNavigate();
   const rooms = useAppStore((s) => s.rooms);
   const createRoom = useAppStore((s) => s.createRoom);
-  const setClassRoom = useAppStore((s) => s.setClassRoom);
+  const addClassRoom = useAppStore((s) => s.addClassRoom);
   const [picked, setPicked] = useState<string>("");
 
   function uniqueName(base: string): string {
@@ -787,13 +721,13 @@ function AssignRoomPrompt({ klass }: { klass: ClassRoom }) {
 
   function handleUseExisting() {
     if (!picked) return;
-    setClassRoom(klass.id, picked);
+    addClassRoom(klass.id, picked);
   }
 
   function handleCreate() {
     const newId = createRoom(uniqueName(`${klass.name} — room`));
     if (newId) {
-      setClassRoom(klass.id, newId);
+      addClassRoom(klass.id, newId);
       navigate(`/rooms/${newId}`);
     }
   }
@@ -803,17 +737,13 @@ function AssignRoomPrompt({ klass }: { klass: ClassRoom }) {
       <div className="card p-5">
         <h2 className="mb-1 text-lg font-semibold">No room yet</h2>
         <p className="mb-4 text-sm text-ink-muted">
-          “{klass.name}” isn’t in a room yet. Pick an existing room layout to reuse,
+          “{klass.name}” isn’t in a room yet. Attach an existing room layout to reuse,
           or create a new one to lay out desks.
         </p>
 
         {rooms.length > 0 && (
           <div className="mb-4 flex gap-2">
-            <select
-              className="input flex-1"
-              value={picked}
-              onChange={(e) => setPicked(e.target.value)}
-            >
+            <select className="input flex-1" value={picked} onChange={(e) => setPicked(e.target.value)}>
               <option value="">Choose a room…</option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -822,7 +752,7 @@ function AssignRoomPrompt({ klass }: { klass: ClassRoom }) {
               ))}
             </select>
             <button className="btn-secondary whitespace-nowrap" onClick={handleUseExisting} disabled={!picked}>
-              Use room
+              Add room
             </button>
           </div>
         )}
@@ -859,9 +789,7 @@ interface RotatedAABB {
   centerY: number;
 }
 
-/** Visible (rotated) bounding box of an item in room coords. Mirrors the
- *  getClientRect override on DeskNode/FurnitureNode so Align math operates
- *  on the rotated visual center, not the model origin. */
+/** Visible (rotated) bounding box of an item in room coords. */
 function rotatedAABB(it: SelectedItem): RotatedAABB {
   const { x, y, width: w, height: h, rotation } = it.entity;
   const rad = (rotation * Math.PI) / 180;

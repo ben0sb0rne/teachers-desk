@@ -18,7 +18,41 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 6) s = migrateV5toV6(s);
   if (fromVersion < 7) s = migrateV6toV7(s);
   if (fromVersion < 8) s = migrateV7toV8(s);
+  if (fromVersion < 9) s = migrateV8toV9(s);
   return s as AppState;
+}
+
+/** v8 → v9: a class can now be taught in multiple rooms. Replace the single
+ *  `roomId` + top-level `currentAssignments`/`arrangements` with a `seatings[]`
+ *  list (one entry per room, each carrying its own seating). Existing
+ *  single-room classes become a one-entry list, preserving their seating;
+ *  room-less classes become an empty list. */
+export function migrateV8toV9(persisted: unknown): AppState {
+  const obj = persisted as Record<string, unknown>;
+  const classes = (obj.classes ?? []) as Array<Record<string, unknown>>;
+  const migratedClasses = classes.map((klass) => {
+    const roomId = (klass.roomId as string | null | undefined) ?? null;
+    const seatings = roomId
+      ? [
+          {
+            roomId,
+            currentAssignments: (klass.currentAssignments as Record<string, string>) ?? {},
+            arrangements: (klass.arrangements as unknown[]) ?? [],
+          },
+        ]
+      : [];
+    const rest: Record<string, unknown> = { ...klass };
+    delete rest.roomId;
+    delete rest.currentAssignments;
+    delete rest.arrangements;
+    return { ...rest, seatings } as unknown as ClassRoom;
+  });
+  return {
+    rooms: (obj.rooms as Room[]) ?? [],
+    classes: migratedClasses,
+    activeClassId: (obj.activeClassId as string | null) ?? null,
+    schemaVersion: SCHEMA_VERSION,
+  } as AppState;
 }
 
 /** v7 → v8: promote each class's embedded `room` into a shared, top-level
