@@ -116,24 +116,29 @@ export interface Arrangement {
   assignments: Record<SeatId, StudentId>;
 }
 
+/** A class's seating in one room. A class can be taught in several rooms (e.g.
+ *  Room 104 some days, the Library others); each room keeps its own independent
+ *  seating. `currentAssignments` is the live working map; `arrangements` are the
+ *  saved snapshots. Both are keyed by that room's seat ids. */
+export interface RoomSeating {
+  roomId: RoomId;
+  currentAssignments: Record<SeatId, StudentId>;
+  arrangements: Arrangement[];
+}
+
 export interface ClassRoom {
   id: ClassId;
   name: string;
   students: Student[];
-  /** Which room (in AppState.rooms) this class is taught in. null = no room
-   *  assigned yet (the roster exists but hasn't been placed in a room). The
-   *  room layout is no longer welded into the class — it's shared. */
-  roomId: RoomId | null;
-  arrangements: Arrangement[];
-  /** Live working seat map, keyed by the referenced room's seat ids. Persisted
-   *  (and undoable) per class — two classes sharing a room seat independently. */
-  currentAssignments: Record<SeatId, StudentId>;
+  /** The rooms this class is taught in, each with its own seating. Empty = no
+   *  room assigned yet. Order is display order; the first is the default. */
+  seatings: RoomSeating[];
 }
 
-export const SCHEMA_VERSION = 8 as const;
+export const SCHEMA_VERSION = 9 as const;
 
 export interface AppState {
-  /** Top-level, reusable room layouts. Referenced by ClassRoom.roomId. */
+  /** Top-level, reusable room layouts. Referenced by ClassRoom.seatings[].roomId. */
   rooms: Room[];
   classes: ClassRoom[];
   activeClassId: ClassId | null;
