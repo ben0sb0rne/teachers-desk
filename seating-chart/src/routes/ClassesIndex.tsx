@@ -3,11 +3,19 @@ import { Link, useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "@/store/appStore";
+import RoomStage from "@/components/canvas/RoomStage";
 import Icon from "@/components/Icon";
 import { cn } from "@/lib/cn";
 import TextInputDialog from "@/components/TextInputDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { Room, RoomId } from "@/types";
+
+/** A blocking class for a delete: enough to open ChangeRoomDialog for it. */
+interface BlockingClass {
+  id: string;
+  name: string;
+  hasSeating: boolean;
+}
 
 export default function ClassesIndex() {
   const navigate = useNavigate();
@@ -22,46 +30,40 @@ export default function ClassesIndex() {
   const duplicateRoom = useAppStore((s) => s.duplicateRoom);
   const deleteRoom = useAppStore((s) => s.deleteRoom);
 
-  // ── Create inputs ──
-  const [newRoomName, setNewRoomName] = useState("");
-  const [newRoomError, setNewRoomError] = useState<string | null>(null);
+  // ── Add-a-class row ──
   const [newClassName, setNewClassName] = useState("");
   const [newClassRoomId, setNewClassRoomId] = useState<string>(""); // "" = a fresh blank room
   const [newClassError, setNewClassError] = useState<string | null>(null);
 
   // ── Dialog targets ──
+  const [addRoomOpen, setAddRoomOpen] = useState(false);
   const [renameRoomTarget, setRenameRoomTarget] = useState<{ id: string; name: string } | null>(null);
   const [duplicateRoomTarget, setDuplicateRoomTarget] = useState<{ id: string; name: string } | null>(null);
-  const [deleteRoomTarget, setDeleteRoomTarget] = useState<{ id: string; name: string; blockedBy: string[] } | null>(null);
+  const [deleteRoomTarget, setDeleteRoomTarget] = useState<{ id: string; name: string; blockedBy: BlockingClass[] } | null>(null);
   const [renameClassTarget, setRenameClassTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteClassTarget, setDeleteClassTarget] = useState<{ id: string; name: string } | null>(null);
   const [changeRoomTarget, setChangeRoomTarget] = useState<
     { id: string; name: string; roomId: RoomId | null; hasSeating: boolean } | null
   >(null);
 
-  const usageByRoom = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of classes) if (c.roomId) m.set(c.roomId, (m.get(c.roomId) ?? 0) + 1);
+  /** room id → names of the classes taught in it. */
+  const classNamesByRoom = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const c of classes) {
+      if (!c.roomId) continue;
+      const list = m.get(c.roomId) ?? [];
+      list.push(c.name);
+      m.set(c.roomId, list);
+    }
     return m;
   }, [classes]);
 
   const roomNameFor = (roomId: RoomId | null): string | null =>
     roomId ? rooms.find((r) => r.id === roomId)?.name ?? null : null;
 
-  function handleCreateRoom() {
-    const name = newRoomName.trim();
-    if (!name) {
-      setNewRoomError("Please enter a room name.");
-      return;
-    }
+  function handleCreateRoom(name: string) {
     const id = createRoom(name);
-    if (id === null) {
-      setNewRoomError(`A room named "${name}" already exists.`);
-      return;
-    }
-    setNewRoomName("");
-    setNewRoomError(null);
-    navigate(`/rooms/${id}`);
+    if (id) navigate(`/rooms/${id}`);
   }
 
   function handleCreateClass() {
@@ -94,126 +96,94 @@ export default function ClassesIndex() {
     return first;
   }
 
+  function openDeleteRoom(room: Room) {
+    const blockedBy: BlockingClass[] = classes
+      .filter((c) => c.roomId === room.id)
+      .map((c) => ({ id: c.id, name: c.name, hasSeating: Object.keys(c.currentAssignments ?? {}).length > 0 }));
+    setDeleteRoomTarget({ id: room.id, name: room.name, blockedBy });
+  }
+
+  function openChangeRoom(c: { id: string; name: string; roomId: RoomId | null; currentAssignments?: Record<string, string> }) {
+    setChangeRoomTarget({
+      id: c.id,
+      name: c.name,
+      roomId: c.roomId,
+      hasSeating: Object.keys(c.currentAssignments ?? {}).length > 0,
+    });
+  }
+
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto max-w-5xl p-6">
       {/* ───────────── Rooms ───────────── */}
-      <h1 className="mb-1 text-2xl font-bold tracking-tight text-paper-on-wood">Rooms</h1>
-      <p className="mb-4 text-sm text-paper-on-wood/70">
+      <h1 className="mb-1 text-2xl font-bold tracking-tight text-ink">Rooms</h1>
+      <p className="mb-4 text-sm text-ink-muted">
         Reusable desk layouts. Point several classes at one room — editing it updates them all.
       </p>
 
-      <div className="card mb-4 p-4">
-        <label className="label mb-2">New room</label>
-        <div className="flex gap-2">
-          <input
-            className="input"
-            placeholder="e.g. Room 214"
-            value={newRoomName}
-            onChange={(e) => {
-              setNewRoomName(e.target.value);
-              if (newRoomError) setNewRoomError(null);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {rooms.map((r) => (
+          <RoomTile
+            key={r.id}
+            room={r}
+            usedBy={classNamesByRoom.get(r.id) ?? []}
+            onRename={() => setRenameRoomTarget({ id: r.id, name: r.name })}
+            onDuplicate={() => setDuplicateRoomTarget({ id: r.id, name: r.name })}
+            onDelete={() => openDeleteRoom(r)}
           />
-          <button className="btn-secondary whitespace-nowrap" onClick={handleCreateRoom}>
-            Create room
-          </button>
-        </div>
-        {newRoomError && <p className="mt-2 text-xs text-red-600">{newRoomError}</p>}
+        ))}
+        <AddTile label="New room" onClick={() => setAddRoomOpen(true)} />
       </div>
 
-      {rooms.length === 0 ? (
-        <div className="card mb-8 p-6 text-center text-ink-muted">No rooms yet — create one above.</div>
-      ) : (
-        <ul className="mb-8 space-y-2">
-          {rooms.map((r) => {
-            const used = usageByRoom.get(r.id) ?? 0;
-            return (
-              <li key={r.id} className="card flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-medium">{r.name}</div>
-                  <div className="truncate text-xs text-ink-muted">
-                    {pluralise(r.desks.length, "desk")} · used by {pluralise(used, "class", "classes")}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Link to={`/rooms/${r.id}`} className="btn-primary whitespace-nowrap">
-                    Edit layout
-                  </Link>
-                  <RoomMenu
-                    onRename={() => setRenameRoomTarget({ id: r.id, name: r.name })}
-                    onDuplicate={() => setDuplicateRoomTarget({ id: r.id, name: r.name })}
-                    onDelete={() =>
-                      setDeleteRoomTarget({
-                        id: r.id,
-                        name: r.name,
-                        blockedBy: classes.filter((c) => c.roomId === r.id).map((c) => c.name),
-                      })
-                    }
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
       {/* ───────────── Classes ───────────── */}
-      <h1 className="mb-1 text-2xl font-bold tracking-tight text-paper-on-wood">Classes</h1>
-      <p className="mb-4 text-sm text-paper-on-wood/70">
+      <h1 className="mb-1 mt-10 text-2xl font-bold tracking-tight text-ink">Classes</h1>
+      <p className="mb-3 text-sm text-ink-muted">
         Each class has its own roster and seating. Give it a room to seat students in.
       </p>
 
-      <div className="card mb-4 p-4">
-        <label className="label mb-2">Add a class</label>
-        <div className="flex flex-wrap gap-2">
-          <input
-            className="input min-w-[12rem] flex-1"
-            placeholder="e.g. Period 3 Math"
-            value={newClassName}
-            onChange={(e) => {
-              setNewClassName(e.target.value);
-              if (newClassError) setNewClassError(null);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateClass()}
-          />
-          <select
-            className="input w-auto"
-            value={newClassRoomId}
-            onChange={(e) => setNewClassRoomId(e.target.value)}
-            title="Which room is this class in?"
-          >
-            <option value="">New blank room</option>
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
-          <button className="btn-secondary whitespace-nowrap" onClick={handleCreateClass}>
-            Create
-          </button>
-        </div>
-        {newClassError && <p className="mt-2 text-xs text-red-600">{newClassError}</p>}
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <input
+          className="input min-w-[12rem] flex-1"
+          placeholder="Add a class — e.g. Period 3 Math"
+          value={newClassName}
+          onChange={(e) => {
+            setNewClassName(e.target.value);
+            if (newClassError) setNewClassError(null);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && handleCreateClass()}
+        />
+        <select
+          className="input w-auto"
+          value={newClassRoomId}
+          onChange={(e) => setNewClassRoomId(e.target.value)}
+          title="Which room is this class in?"
+        >
+          <option value="">New blank room</option>
+          {rooms.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+        <button className="btn-secondary whitespace-nowrap" onClick={handleCreateClass}>
+          Add class
+        </button>
       </div>
+      {newClassError && <p className="mb-2 text-xs text-red-600">{newClassError}</p>}
 
       {classes.length === 0 ? (
-        <div className="card p-6 text-center text-ink-muted">No classes yet — add one above.</div>
+        <div className="card mt-3 p-6 text-center text-ink-muted">No classes yet — add one above.</div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="mt-3 space-y-2">
           {classes.map((c) => {
             const rn = roomNameFor(c.roomId);
             return (
               <li key={c.id} className="card flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-base font-medium">{c.name}</div>
-                  <div className="truncate text-xs text-ink-muted">
-                    {pluralise(c.students.length, "student")} ·{" "}
-                    {rn ? (
-                      <>Room: {rn}</>
-                    ) : (
-                      <span className="text-amber-700">No room</span>
-                    )}
+                  <div className="mt-1 flex items-center gap-2 text-xs text-ink-muted">
+                    <span>{pluralise(c.students.length, "student")}</span>
+                    <span aria-hidden>·</span>
+                    <RoomChip name={rn} onClick={() => openChangeRoom(c)} />
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -225,14 +195,7 @@ export default function ClassesIndex() {
                   </Link>
                   <ClassMenu
                     onRename={() => setRenameClassTarget({ id: c.id, name: c.name })}
-                    onChangeRoom={() =>
-                      setChangeRoomTarget({
-                        id: c.id,
-                        name: c.name,
-                        roomId: c.roomId,
-                        hasSeating: Object.keys(c.currentAssignments ?? {}).length > 0,
-                      })
-                    }
+                    onChangeRoom={() => openChangeRoom(c)}
                     onDelete={() => setDeleteClassTarget({ id: c.id, name: c.name })}
                   />
                 </div>
@@ -243,6 +206,21 @@ export default function ClassesIndex() {
       )}
 
       {/* ───────────── Dialogs ───────────── */}
+      <TextInputDialog
+        open={addRoomOpen}
+        onOpenChange={setAddRoomOpen}
+        title="New room"
+        description="Name this room layout (e.g. your room number). You'll lay out desks next."
+        placeholder="e.g. Room 214"
+        submitLabel="Create room"
+        validate={(v) =>
+          rooms.some((r) => r.name.trim().toLowerCase() === v.toLowerCase())
+            ? "A room with that name already exists."
+            : null
+        }
+        onSubmit={handleCreateRoom}
+      />
+
       <TextInputDialog
         open={renameRoomTarget != null}
         onOpenChange={(o) => { if (!o) setRenameRoomTarget(null); }}
@@ -280,27 +258,14 @@ export default function ClassesIndex() {
         }}
       />
 
-      <ConfirmDialog
-        open={deleteRoomTarget != null}
-        onOpenChange={(o) => { if (!o) setDeleteRoomTarget(null); }}
-        title={
-          deleteRoomTarget
-            ? deleteRoomTarget.blockedBy.length > 0
-              ? `Can't delete "${deleteRoomTarget.name}"`
-              : `Delete "${deleteRoomTarget.name}"?`
-            : ""
-        }
-        description={
-          deleteRoomTarget
-            ? deleteRoomTarget.blockedBy.length > 0
-              ? `It's still used by ${deleteRoomTarget.blockedBy.join(", ")}. Point those classes at a different room first (Change room), then delete it.`
-              : "This deletes the room layout. Classes aren't affected. This cannot be undone."
-            : undefined
-        }
-        confirmLabel={deleteRoomTarget && deleteRoomTarget.blockedBy.length > 0 ? "OK" : "Delete room"}
-        danger={!!deleteRoomTarget && deleteRoomTarget.blockedBy.length === 0}
-        onConfirm={() => {
-          if (deleteRoomTarget && deleteRoomTarget.blockedBy.length === 0) deleteRoom(deleteRoomTarget.id);
+      <DeleteRoomDialog
+        target={deleteRoomTarget}
+        onClose={() => setDeleteRoomTarget(null)}
+        onConfirmDelete={() => { if (deleteRoomTarget) deleteRoom(deleteRoomTarget.id); }}
+        onChangeRoomFor={(cls) => {
+          const room = deleteRoomTarget;
+          setDeleteRoomTarget(null);
+          if (room) setChangeRoomTarget({ id: cls.id, name: cls.name, roomId: room.id, hasSeating: cls.hasSeating });
         }}
       />
 
@@ -340,6 +305,100 @@ export default function ClassesIndex() {
 
 function pluralise(n: number, word: string, plural?: string): string {
   return `${n} ${n === 1 ? word : plural ?? `${word}s`}`;
+}
+
+function usedByLabel(names: string[]): string {
+  if (names.length === 0) return "Not used by any class yet";
+  if (names.length <= 2) return `Used by ${names.join(", ")}`;
+  return `Used by ${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+}
+
+/** A room as a tile: live read-only layout thumbnail (click → editor), name,
+ *  which classes use it, and a ⋯ menu. */
+function RoomTile({
+  room,
+  usedBy,
+  onRename,
+  onDuplicate,
+  onDelete,
+}: {
+  room: Room;
+  usedBy: string[];
+  onRename: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="card flex flex-col overflow-hidden">
+      <div className="relative aspect-[4/3] bg-slate-100">
+        {room.desks.length > 0 ? (
+          <RoomStage
+            interactive={false}
+            room={room}
+            students={[]}
+            assignments={{}}
+            roomId={room.id}
+            showFrontWallLabel={false}
+            showFrontRowMarkers={false}
+            showEmptySeatDots={false}
+            fitContents
+          />
+        ) : (
+          <div className="grid h-full place-items-center px-3 text-center text-xs text-ink-muted">
+            No desks yet — click to lay them out
+          </div>
+        )}
+        {/* Click overlay → room editor. Sits above the (non-interactive) canvas. */}
+        <Link
+          to={`/rooms/${room.id}`}
+          aria-label={`Edit ${room.name} layout`}
+          className="absolute inset-0 rounded-t-md ring-inset ring-accent-blue/0 transition hover:ring-2 hover:ring-accent-blue/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+        />
+      </div>
+      <div className="flex items-start justify-between gap-2 p-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{room.name}</div>
+          <div className="truncate text-xs text-ink-muted">{usedByLabel(usedBy)}</div>
+        </div>
+        <RoomMenu onRename={onRename} onDuplicate={onDuplicate} onDelete={onDelete} />
+      </div>
+    </div>
+  );
+}
+
+/** Dashed "add" cell that matches the room tiles' height in its grid row. */
+function AddTile({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[12rem] w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-ink/20 text-ink-muted transition hover:border-ink/40 hover:bg-ink/5 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/40"
+    >
+      <Icon name="plus" size={26} />
+      <span className="text-sm font-medium">{label}</span>
+    </button>
+  );
+}
+
+/** The room a class is in, as a clickable pill that opens the room switcher. */
+function RoomChip({ name, onClick }: { name: string | null; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Change room"
+      className={cn(
+        "inline-flex max-w-[16rem] items-center gap-1 rounded border px-1.5 py-0.5 text-xs transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/40",
+        name
+          ? "border-ink/20 text-ink hover:bg-ink/5"
+          : "border-amber-300 text-amber-700 hover:bg-amber-50",
+      )}
+    >
+      <Icon name="grid" size={11} />
+      <span className="truncate">{name ?? "Assign a room"}</span>
+      <Icon name="chevron-down" size={11} />
+    </button>
+  );
 }
 
 function RoomMenu({
@@ -426,6 +485,84 @@ function MenuItem({
       <Icon name={icon} size={14} />
       <span>{label}</span>
     </DropdownMenu.Item>
+  );
+}
+
+/** Delete a room. Keeps the in-use guard: if classes still use it, the dialog
+ *  lists them with a "Change room" action (repoint, then delete) rather than a
+ *  dead end. */
+function DeleteRoomDialog({
+  target,
+  onClose,
+  onConfirmDelete,
+  onChangeRoomFor,
+}: {
+  target: { id: string; name: string; blockedBy: BlockingClass[] } | null;
+  onClose: () => void;
+  onConfirmDelete: () => void;
+  onChangeRoomFor: (cls: BlockingClass) => void;
+}) {
+  const open = target != null;
+  const blocked = !!target && target.blockedBy.length > 0;
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl focus:outline-none">
+          <div className="mb-3 flex items-start justify-between gap-4">
+            <div>
+              <Dialog.Title className="text-base font-semibold">
+                {blocked ? `Reassign before deleting "${target?.name}"` : `Delete "${target?.name}"?`}
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-xs text-ink-muted">
+                {blocked
+                  ? "This room is still in use. Move each class to another room, then delete it."
+                  : "This removes the room layout. Classes aren't affected. This can't be undone."}
+              </Dialog.Description>
+            </div>
+            <Dialog.Close asChild>
+              <button className="rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink" aria-label="Close">
+                <Icon name="x" size={16} />
+              </button>
+            </Dialog.Close>
+          </div>
+
+          {blocked && (
+            <ul className="mb-1 space-y-1.5">
+              {target!.blockedBy.map((cls) => (
+                <li
+                  key={cls.id}
+                  className="flex items-center justify-between gap-2 rounded-md border border-ink/15 px-2.5 py-1.5 text-sm"
+                >
+                  <span className="min-w-0 truncate font-medium">{cls.name}</span>
+                  <button
+                    className="btn-secondary shrink-0 px-2 py-1 text-xs"
+                    onClick={() => onChangeRoomFor(cls)}
+                  >
+                    Change room
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Dialog.Close asChild>
+              <button className="btn-secondary">{blocked ? "Done" : "Cancel"}</button>
+            </Dialog.Close>
+            {!blocked && (
+              <button
+                className="btn-danger"
+                onClick={() => { onConfirmDelete(); onClose(); }}
+              >
+                Delete room
+              </button>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
