@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import Icon from "@/components/Icon";
 import { FURNITURE_DEFAULTS, FURNITURE_KINDS, furnitureLabel } from "@/lib/furniture";
 import { SWATCHES } from "@/lib/color";
+import UndoRedoButtons from "@/components/canvas/UndoRedoButtons";
 
 export type PaletteDragType = "single-desk" | "multi-desk" | "furniture";
 
@@ -29,6 +30,9 @@ interface Props {
   onDistributeHorizontal: () => void;
   onFlipHorizontal: () => void;
   onFlipVertical: () => void;
+  /** Mark the selected desks as front row / excluded ("don't seat here"). */
+  onMarkFrontRow: () => void;
+  onMarkExcluded: () => void;
   /** Per-object color override. Receives a CSS color string from a swatch
    *  or the native color picker. Applied to every selected item. */
   onSetColor: (fill: string) => void;
@@ -75,6 +79,8 @@ export default function DeskPalette({
   onDistributeHorizontal,
   onFlipHorizontal,
   onFlipVertical,
+  onMarkFrontRow,
+  onMarkExcluded,
   onSetColor,
   onResetColor,
   locked,
@@ -94,6 +100,7 @@ export default function DeskPalette({
   // Flip works on a single item (mirror its own seat layout) or any group.
   const canFlip = selectionSize >= 1 && !locked;
   const canColor = selectionSize >= 1 && !locked;
+  const canMark = selectionSize >= 1 && !locked;
   const isDefaultRoom = room.width === DEFAULT_ROOM_W && room.height === DEFAULT_ROOM_H;
 
   if (collapsed) {
@@ -124,6 +131,9 @@ export default function DeskPalette({
       </div>
 
       <div className="flex-1 overflow-auto p-3">
+        <div className="mb-3">
+          <UndoRedoButtons />
+        </div>
         <SectionHeader label="Single-student" open={singleOpen} onToggle={() => setSingleOpen((o) => !o)} />
         {singleOpen && (
           <ul className="mb-4 space-y-1">
@@ -241,6 +251,26 @@ export default function DeskPalette({
           <button className="btn-secondary justify-center" onClick={onFlipVertical} disabled={!canFlip} title="Mirror selection across the horizontal axis">
             <Icon name="flip-vertical" size={14} />
             <span className="text-xs">Flip V</span>
+          </button>
+        </div>
+        <div className="mb-2 grid grid-cols-2 gap-1">
+          <button
+            className="btn-secondary justify-center"
+            onClick={onMarkFrontRow}
+            disabled={!canMark}
+            title="Mark the selected desks as front row (toggles the orange dot)"
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#f59e0b" }} />
+            <span className="text-xs">Front row</span>
+          </button>
+          <button
+            className="btn-secondary justify-center"
+            onClick={onMarkExcluded}
+            disabled={!canMark}
+            title="Don't seat students at the selected desks (toggles the red dot)"
+          >
+            <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
+            <span className="text-xs">No seating</span>
           </button>
         </div>
         <p className="mb-3 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>

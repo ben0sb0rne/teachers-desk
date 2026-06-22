@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type DragEvent as ReactDragEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type Konva from "konva";
 import { useAppStore } from "@/store/appStore";
@@ -12,8 +12,11 @@ import ExportDialog from "@/components/ExportDialog";
 import { cloneDeskWithFreshIds, defaultParamsFor, layoutDesk, makeDesk, type ShapeParams } from "@/lib/shapes";
 import { cloneFurnitureWithFreshId, makeFurniture } from "@/lib/furniture";
 import { assign } from "@/lib/assign";
+import { roomSeats } from "@/lib/adjacency";
 import { pageToRoom } from "@/lib/canvasCoords";
+import { DND_STUDENT } from "@/lib/dnd";
 import Icon from "@/components/Icon";
+import { toast } from "@/lib/toast";
 import type { ClassRoom, Desk, DeskId, DeskKind, Furniture, FurnitureId, FurnitureKind, Room, SeatId, StudentId } from "@/types";
 
 const PASTE_OFFSET = 20;
@@ -457,6 +460,27 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     });
   }
 
+  function handleMarkFrontRow() {
+    if (!room) return;
+    const sel = room.desks.filter((d) => selectedItemIds.includes(d.id));
+    if (sel.length === 0) return;
+    // Toggle: if every selected desk is already all-front, turn it off.
+    const allFront = sel.every((d) => d.seats.length > 0 && d.seats.every((s) => s.isFrontRow));
+    const patches: Record<DeskId, Partial<Desk>> = {};
+    for (const d of sel) patches[d.id] = { seats: d.seats.map((s) => ({ ...s, isFrontRow: !allFront })) };
+    updateRoomItems(room.id, patches, {});
+  }
+
+  function handleMarkExcluded() {
+    if (!room) return;
+    const sel = room.desks.filter((d) => selectedItemIds.includes(d.id));
+    if (sel.length === 0) return;
+    const allExcluded = sel.every((d) => d.excluded);
+    const patches: Record<DeskId, Partial<Desk>> = {};
+    for (const d of sel) patches[d.id] = { excluded: !allExcluded };
+    updateRoomItems(room.id, patches, {});
+  }
+
   function normalizeAngle(deg: number): number {
     return ((deg % 360) + 360) % 360;
   }
@@ -514,6 +538,30 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     assignSeatStore(klass.id, effectiveRoomId, seatId, studentId);
   }
 
+  // Drag-and-drop seating: the assignments panel tags the drag with a student
+  // id; dropping over the canvas assigns that student to the nearest seat.
+  function handleCanvasDragOver(e: ReactDragEvent) {
+    if (!Array.from(e.dataTransfer.types).includes(DND_STUDENT)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleCanvasDrop(e: ReactDragEvent) {
+    if (!Array.from(e.dataTransfer.types).includes(DND_STUDENT)) return;
+    e.preventDefault();
+    const studentId = e.dataTransfer.getData(DND_STUDENT);
+    if (!studentId || !klass || !room || !effectiveRoomId) return;
+    const pt = pageToRoom(stageRef.current, e.clientX, e.clientY);
+    if (!pt) return;
+    let best: { seatId: SeatId; d: number } | null = null;
+    for (const s of roomSeats(room)) {
+      const d = Math.hypot(s.x - pt.x, s.y - pt.y);
+      if (!best || d < best.d) best = { seatId: s.seatId, d };
+    }
+    // Only assign if the drop landed reasonably near a seat.
+    if (best && best.d <= 80) assignSeatStore(klass.id, effectiveRoomId, best.seatId, studentId);
+  }
+
   /** Apply a fill color (or clear it back to the kind default when fill is
    *  undefined) to every selected desk + furniture item. */
   function applyColorToSelection(fill: string | undefined) {
@@ -540,6 +588,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
         if (!klass || !effectiveRoomId) return;
         saveArrangement(klass.id, effectiveRoomId, value.length > 0 ? value : undefined);
         setWarning(null);
+        toast("Arrangement saved");
         return;
       }
       case "furniture-label": {
@@ -595,6 +644,8 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
             onDistributeHorizontal={handleDistributeHorizontal}
             onFlipHorizontal={handleFlipHorizontal}
             onFlipVertical={handleFlipVertical}
+            onMarkFrontRow={handleMarkFrontRow}
+            onMarkExcluded={handleMarkExcluded}
             onSetColor={handleSetColor}
             onResetColor={handleResetColor}
             locked={userLocked}
@@ -603,7 +654,11 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
             onToggleGrid={() => setShowGrid((g) => !g)}
           />
         )}
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+        onDragOver={handleCanvasDragOver}
+        onDrop={handleCanvasDrop}
+      >
         <RoomStage
           ref={stageRef}
           room={room}

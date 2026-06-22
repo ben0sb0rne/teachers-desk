@@ -279,7 +279,9 @@ body.app-view .suite-topstrip-actions a:focus-visible {
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
-  flex: 1 1 auto;
+  /* Don't grow — a dedicated spacer pushes the utility actions to the far
+     right, so contextual nav (tabs) sits beside the breadcrumb. */
+  flex: 0 1 auto;
 }
 .suite-breadcrumb > a,
 .suite-breadcrumb > span {

@@ -49,6 +49,9 @@ interface Props {
   /** Editor only: open the desk context menu (front row / don't seat here) at
    *  the given screen coords. */
   onDeskContextMenu?: (deskId: string, clientX: number, clientY: number) => void;
+  /** Counter-rotate seat-name labels by -viewRotation so names stay upright
+   *  when the export view is rotated. Default 0. */
+  viewRotation?: number;
 }
 
 const NAME_FONT_SIZE = 13;
@@ -181,6 +184,7 @@ export default function DeskNode({
   nameDisplay,
   collisions,
   onDeskContextMenu,
+  viewRotation = 0,
 }: Props) {
   const groupRef = useRef<Konva.Group>(null);
   const updateDesk = useAppStore((s) => s.updateDesk);
@@ -411,6 +415,7 @@ export default function DeskNode({
                 y={labelShift.y}
                 offsetX={nameW / 2}
                 offsetY={NAME_BOX_HEIGHT / 2}
+                rotation={-viewRotation}
                 wrap="word"
                 ellipsis
                 listening

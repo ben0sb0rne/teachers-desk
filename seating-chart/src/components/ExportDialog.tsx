@@ -31,7 +31,8 @@ interface Props {
   arrangement: Arrangement | null;
 }
 
-const DEFAULT_CLASS_LABEL_SIZE = 24;
+type Quality = "thumbnail" | "hd" | "4k";
+const QUALITY_PIXEL_RATIO: Record<Quality, number> = { thumbnail: 1, hd: 2, "4k": 4 };
 
 export default function ExportDialog({ open, onOpenChange, klass, room, assignments, arrangement }: Props) {
   const [showFloor, setShowFloor] = useState(true);
@@ -40,8 +41,8 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
   const [showNames, setShowNames] = useState(true);
   const [showFrontRowMarkers, setShowFrontRowMarkers] = useState(false);
   const [showFrontWallLabel, setShowFrontWallLabel] = useState(true);
-  const [showClassName, setShowClassName] = useState(true);
-  const [classNameSize, setClassNameSize] = useState(DEFAULT_CLASS_LABEL_SIZE);
+  const [quality, setQuality] = useState<Quality>("hd");
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
   /** Surfaces popup-blocker failures when Print can't open its preview window. */
   const [printError, setPrintError] = useState<string | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -56,8 +57,8 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
       setShowNames(true);
       setShowFrontRowMarkers(false);
       setShowFrontWallLabel(true);
-      setShowClassName(true);
-      setClassNameSize(DEFAULT_CLASS_LABEL_SIZE);
+      setQuality("hd");
+      setRotation(0);
       setPrintError(null);
     }
   }, [open]);
@@ -81,7 +82,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
       blackAndWhite,
       hideNames: !showNames,
       hideFrontRowMarkers: !showFrontRowMarkers,
-      pixelRatio: 4,
+      pixelRatio: QUALITY_PIXEL_RATIO[quality],
     });
   }
 
@@ -95,14 +96,18 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
       blackAndWhite,
       hideNames: !showNames,
       hideFrontRowMarkers: !showFrontRowMarkers,
-      pixelRatio: 4,
+      pixelRatio: QUALITY_PIXEL_RATIO[quality],
     });
     // Pick page orientation that best fits the chart's actual rendered
     // shape (room + items, including outward door arcs). Landscape if it's
     // wider than tall, portrait otherwise. Keeping margin: 0 strips the
     // browser's default URL/date/page-number headers + footers.
     const fit = computeFitBounds(room);
-    const orientation = fit.width >= fit.height ? "landscape" : "portrait";
+    // A 90/270 view rotation swaps the chart's effective width/height.
+    const rotated = rotation === 90 || rotation === 270;
+    const fitW = rotated ? fit.height : fit.width;
+    const fitH = rotated ? fit.width : fit.height;
+    const orientation = fitW >= fitH ? "landscape" : "portrait";
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) {
       setPrintError(
@@ -187,46 +192,44 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                     checked={showFrontWallLabel}
                     onChange={setShowFrontWallLabel}
                   />
-                  <CheckboxRow
-                    label="Class name"
-                    checked={showClassName}
-                    onChange={setShowClassName}
-                  />
                 </div>
               </fieldset>
-              {/* Class-name size slider — only meaningful while the class
-                  name is shown, so disable when the toggle is off. The
-                  reset icon snaps back to the default size for users who
-                  drag the slider far away and want to start over. */}
+              <Segmented
+                label="Image quality"
+                options={[
+                  { value: "thumbnail", label: "Thumb" },
+                  { value: "hd", label: "HD" },
+                  { value: "4k", label: "4K" },
+                ]}
+                value={quality}
+                onChange={(v) => setQuality(v as Quality)}
+              />
               <div>
-                <div className="label mb-1 flex items-center justify-between">
-                  <span>Name size</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-mono text-[10px] text-ink-muted">
-                      {classNameSize}px
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setClassNameSize(DEFAULT_CLASS_LABEL_SIZE)}
-                      disabled={!showClassName || classNameSize === DEFAULT_CLASS_LABEL_SIZE}
-                      title="Reset to default size"
-                      aria-label="Reset name size"
-                      className="rounded p-0.5 text-ink-muted hover:bg-ink/5 hover:text-ink disabled:opacity-40 disabled:hover:bg-transparent"
-                    >
-                      <Icon name="rotate-ccw" size={12} />
-                    </button>
+                <div className="label mb-2">Rotate</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setRotation((r) => (((r + 270) % 360) as 0 | 90 | 180 | 270))}
+                    title="Rotate counter-clockwise"
+                    aria-label="Rotate counter-clockwise"
+                  >
+                    <Icon name="rotate-ccw" size={14} />
+                  </button>
+                  <span className="min-w-[3ch] text-center font-mono text-xs text-ink-muted">
+                    {rotation}°
                   </span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setRotation((r) => (((r + 90) % 360) as 0 | 90 | 180 | 270))}
+                    title="Rotate clockwise"
+                    aria-label="Rotate clockwise"
+                  >
+                    <Icon name="rotate-cw" size={14} />
+                  </button>
                 </div>
-                <input
-                  type="range"
-                  min={12}
-                  max={128}
-                  step={1}
-                  value={classNameSize}
-                  onChange={(e) => setClassNameSize(Number(e.target.value))}
-                  disabled={!showClassName}
-                  className="w-full"
-                />
+                <p className="mt-1 text-[10px] text-ink-muted">View only — names stay upright.</p>
               </div>
             </aside>
 
@@ -264,8 +267,9 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                 roomBackgroundFill={roomBackgroundFill}
                 backgroundFill={backgroundFill}
                 fitContents
-                classNameLabel={showClassName ? klass.name : undefined}
-                classNameLabelSize={classNameSize}
+                framePadding={16}
+                viewRotation={rotation}
+                nameDisplay={klass.nameDisplay}
               />
             </div>
           </div>

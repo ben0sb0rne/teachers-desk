@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import HelpDialog from "@/components/HelpDialog";
 import SuiteSettingsDialog from "@/components/SuiteSettingsDialog";
 import ClassSwitcher from "@/components/ClassSwitcher";
+import Toaster from "@/components/Toaster";
 import Icon from "@/components/Icon";
 
 export default function AppShell() {
@@ -99,6 +100,9 @@ export default function AppShell() {
             <TabLink to={`/classes/${klass.id}/history`}>History</TabLink>
           </nav>
         )}
+        {/* Spacer pushes the utility cluster to the far right, so the tabs sit
+            with the class context on the left rather than crowding the icons. */}
+        <div className="flex-1" aria-hidden />
         <div className="suite-topstrip-actions">
           <button
             type="button"
@@ -124,6 +128,7 @@ export default function AppShell() {
       </main>
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <SuiteSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <Toaster />
     </div>
   );
 }
