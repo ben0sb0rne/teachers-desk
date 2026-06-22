@@ -124,6 +124,12 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
     </>
   ),
+  "rotate-cw": (
+    <>
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </>
+  ),
   // Lucide flip-horizontal / flip-vertical: a shape mirrored across the
   // central axis. The dashed line is the mirror; the side arcs are the
   // shape silhouettes that mirror onto each other.

@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import type { ClassRoom, NameDisplayMode, Room, SeatId, StudentId } from "@/types";
 import { roomSeats } from "@/lib/adjacency";
 import Icon from "@/components/Icon";
+import UndoRedoButtons from "@/components/canvas/UndoRedoButtons";
+import { DND_STUDENT } from "@/lib/dnd";
 
 interface Props {
   collapsed: boolean;
@@ -80,6 +82,10 @@ export default function AssignmentPanel({
         >
           <Icon name="chevrons-left" size={14} />
         </button>
+      </div>
+
+      <div className="border-b border-slate-200 p-3">
+        <UndoRedoButtons />
       </div>
 
       {/* Room switcher (only when the class uses more than one room) + the
@@ -166,6 +172,12 @@ export default function AssignmentPanel({
               return (
                 <li
                   key={s.seatId}
+                  draggable={!!student}
+                  onDragStart={(e) => {
+                    if (!student) return;
+                    e.dataTransfer.setData(DND_STUDENT, student.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
                   className={
                     "flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-slate-50" +
                     (selectable ? " cursor-pointer" : "")
@@ -207,10 +219,19 @@ export default function AssignmentPanel({
 
         {unseated.length > 0 && (
           <>
-            <div className="label mb-2 mt-4">Not yet seated ({unseated.length})</div>
+            <div className="label mb-1 mt-4">Not yet seated ({unseated.length})</div>
+            <p className="mb-2 text-[10px] text-ink-muted">Drag a name onto a seat to place them.</p>
             <ul className="space-y-1 text-sm">
               {unseated.map((s) => (
-                <li key={s.id} className="flex items-center gap-2 px-1 py-0.5">
+                <li
+                  key={s.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DND_STUDENT, s.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  className="flex cursor-grab items-center gap-2 rounded px-1 py-0.5 hover:bg-slate-50 active:cursor-grabbing"
+                >
                   <span className="truncate">{s.name}</span>
                   {s.needsFrontRow && <span className="text-xs text-amber-700">front</span>}
                   {s.keepApart.length > 0 && (

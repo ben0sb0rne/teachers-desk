@@ -43,6 +43,14 @@ const MARQUEE_STROKE = lightTokens.marqueeStroke;
 // Translucent selection-marquee fill — accent blue at 12% alpha.
 const MARQUEE_FILL = `rgb(${CHANNELS.ACCENT_BLUE} / 0.12)`;
 
+/** Clockwise rotation of a wall by the view rotation, so the "Front of room"
+ *  label follows its wall to the new on-screen edge. */
+function rotateWall(wall: Wall, deg: number): Wall {
+  const order: Wall[] = ["top", "right", "bottom", "left"];
+  const steps = (((deg / 90) % 4) + 4) % 4;
+  return order[(order.indexOf(wall) + steps) % 4];
+}
+
 function frontWallLine(wall: Wall, w: number, h: number): number[] {
   switch (wall) {
     case "top": return [0, 0, w, 0];
@@ -135,6 +143,9 @@ interface Props {
   framePadding?: number;
   /** Per-class chart name display mode. Default = full canonical name. */
   nameDisplay?: NameDisplayMode;
+  /** Export-only: rotate the whole view by this many degrees, keeping names
+   *  upright via counter-rotation. Default 0 — editor/seating never rotate. */
+  viewRotation?: 0 | 90 | 180 | 270;
 }
 
 interface Marquee {
@@ -178,6 +189,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     classNameLabelSize = 24,
     framePadding = 40,
     nameDisplay,
+    viewRotation = 0,
   },
   ref,
 ) {
@@ -359,15 +371,23 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       height: union.height + FIT_CONTENTS_PADDING * 2 + labelBandHeight,
     };
   }, [fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight]);
-  const scale = Math.min(
-    (size.w - padding * 2) / viewBounds.width,
-    (size.h - padding * 2) / viewBounds.height,
-  );
+  // Rotation-aware camera. At 90/270 the content's on-screen bounding box has
+  // its width/height swapped, so we fit against the swapped dims, then place
+  // the view-bounds CENTER at the stage center under rotation+scale.
+  // viewRotation defaults to 0, where this reduces to a plain centered fit.
+  const rad = (viewRotation * Math.PI) / 180;
+  const cosR = Math.cos(rad);
+  const sinR = Math.sin(rad);
+  const swap = viewRotation === 90 || viewRotation === 270;
+  const fitW = swap ? viewBounds.height : viewBounds.width;
+  const fitH = swap ? viewBounds.width : viewBounds.height;
+  const scale = Math.min((size.w - padding * 2) / fitW, (size.h - padding * 2) / fitH);
   const safeScale = isFinite(scale) && scale > 0 ? scale : 1;
-  // Layer offset — point (viewBounds.x, viewBounds.y) in room coords needs to
-  // land at the top-left of the centered camera frame on stage.
-  const offsetX = (size.w - viewBounds.width * safeScale) / 2 - viewBounds.x * safeScale;
-  const offsetY = (size.h - viewBounds.height * safeScale) / 2 - viewBounds.y * safeScale;
+  const centerX = viewBounds.x + viewBounds.width / 2;
+  const centerY = viewBounds.y + viewBounds.height / 2;
+  // screen(p) = layerPos + R(θ)·(scale·p); solve so the center lands mid-stage.
+  const offsetX = size.w / 2 - safeScale * (centerX * cosR - centerY * sinR);
+  const offsetY = size.h / 2 - safeScale * (centerX * sinR + centerY * cosR);
 
   function pointerToRoom(): { x: number; y: number } | null {
     const layer = layerRef.current;
@@ -535,7 +555,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
         onMouseUp={handleStagePointerUp}
         onTouchEnd={handleStagePointerUp}
       >
-        <Layer ref={layerRef} x={offsetX} y={offsetY} scaleX={safeScale} scaleY={safeScale}>
+        <Layer ref={layerRef} x={offsetX} y={offsetY} scaleX={safeScale} scaleY={safeScale} rotation={viewRotation}>
           {/* Optional background sheet — sits BEHIND the room rect so a
               solid color (e.g. white) shows through outside the room when
               the user wants a non-transparent export. Listening is off so
@@ -621,6 +641,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               showEmptySeatDots={showEmptySeatDots}
               nameDisplay={nameDisplay}
               collisions={collisions}
+              viewRotation={viewRotation}
               onDeskContextMenu={
                 interactive && !effectiveLocked
                   ? (deskId, cx, cy) => setDeskMenu({ deskId, x: cx, y: cy })
@@ -724,7 +745,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           )}
         </Layer>
       </Stage>
-      {showFrontWallLabel && <FrontOfRoomLabel frontWall={room.frontWall ?? "top"} />}
+      {showFrontWallLabel && <FrontOfRoomLabel frontWall={rotateWall(room.frontWall ?? "top", viewRotation)} />}
       {interactive && picker && (
         <SeatPicker
           x={picker.x}

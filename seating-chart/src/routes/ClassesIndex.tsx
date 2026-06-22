@@ -6,6 +6,7 @@ import { useAppStore, findSeating } from "@/store/appStore";
 import RoomStage from "@/components/canvas/RoomStage";
 import Icon from "@/components/Icon";
 import { cn } from "@/lib/cn";
+import { toast } from "@/lib/toast";
 import TextInputDialog from "@/components/TextInputDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { ClassRoom, Room } from "@/types";
@@ -111,8 +112,22 @@ export default function ClassesIndex() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
+      {rooms.length === 0 && classes.length === 0 && (
+        <div className="mb-6 rounded-md border border-ink/15 bg-paper/60 p-4 text-sm text-ink-muted">
+          <strong className="text-ink">Welcome.</strong> Make a <em>room</em> — a reusable desk
+          layout — and a <em>class</em> — your roster — then attach the room to the class to seat
+          students. One room can be shared by several classes.
+        </div>
+      )}
+
       {/* ───────────── Rooms ───────────── */}
-      <h1 className="mb-1 text-2xl font-bold tracking-tight text-ink">Rooms</h1>
+      <div className="mb-1 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">Rooms</h1>
+        <button className="btn-secondary" onClick={() => setAddRoomOpen(true)}>
+          <Icon name="plus" size={14} />
+          New room
+        </button>
+      </div>
       <p className="mb-4 text-sm text-ink-muted">
         Reusable desk layouts. Point several classes at one room — editing it updates them all.
       </p>
@@ -134,7 +149,9 @@ export default function ClassesIndex() {
             }
           />
         ))}
-        <AddTile label="New room" onClick={() => setAddRoomOpen(true)} />
+        {/* Big dashed tile only as the empty-state CTA; otherwise the subtle
+            "New room" button by the heading handles it. */}
+        {rooms.length === 0 && <AddTile label="New room" onClick={() => setAddRoomOpen(true)} />}
       </div>
 
       {/* ───────────── Classes ───────────── */}
@@ -262,14 +279,17 @@ export default function ClassesIndex() {
         onSubmit={(v) => {
           if (!duplicateRoomTarget) return;
           const newId = duplicateRoom(duplicateRoomTarget.id, v);
-          if (newId) navigate(`/rooms/${newId}`);
+          if (newId) {
+            toast(`Duplicated to “${v}”`);
+            navigate(`/rooms/${newId}`);
+          }
         }}
       />
 
       <DeleteRoomDialog
         target={deleteRoomTarget}
         onClose={() => setDeleteRoomTarget(null)}
-        onConfirmDelete={() => { if (deleteRoomTarget) deleteRoom(deleteRoomTarget.id); }}
+        onConfirmDelete={() => { if (deleteRoomTarget) { deleteRoom(deleteRoomTarget.id); toast("Room deleted"); } }}
         onRemoveFromClass={(classId) => { if (deleteRoomTarget) removeClassRoom(classId, deleteRoomTarget.id); }}
       />
 
@@ -294,7 +314,7 @@ export default function ClassesIndex() {
         description="This deletes the class along with its roster and all of its seating. Room layouts are not affected. This cannot be undone."
         confirmLabel="Delete class"
         danger
-        onConfirm={() => { if (deleteClassTarget) deleteClass(deleteClassTarget.id); }}
+        onConfirm={() => { if (deleteClassTarget) { deleteClass(deleteClassTarget.id); toast("Class deleted"); } }}
       />
 
       <ConfirmDialog
@@ -357,8 +377,7 @@ function RoomTile({
               showFrontWallLabel={false}
               showFrontRowMarkers={false}
               showEmptySeatDots={false}
-              fitContents
-              framePadding={10}
+              framePadding={8}
             />
           </div>
         ) : (
