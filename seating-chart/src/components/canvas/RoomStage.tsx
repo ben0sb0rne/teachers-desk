@@ -10,10 +10,12 @@ import {
 } from "react";
 import { Stage, Layer, Rect, Line, Text, Transformer } from "react-konva";
 import type Konva from "konva";
-import type { RoomId, Room, SeatId, Student, StudentId, Wall } from "@/types";
+import type { NameDisplayMode, RoomId, Room, SeatId, Student, StudentId, Wall } from "@/types";
 import DeskNode from "./DeskNode";
 import FurnitureNode from "./FurnitureNode";
 import SeatPicker from "./SeatPicker";
+import DeskContextMenu from "./DeskContextMenu";
+import { collisionFirstNames } from "@/lib/displayName";
 import { snapPosition, type Guide, type SnapItem, GRID } from "@/lib/snap";
 import { shouldKeepRatio } from "@/lib/shapes";
 import { rotatedItemAABB, unionAABB, type AABB } from "@/lib/geometry";
@@ -131,6 +133,8 @@ interface Props {
   /** Screen-px margin reserved around the fitted content. Default 40; pass a
    *  small value for compact thumbnails so the layout fills the frame. */
   framePadding?: number;
+  /** Per-class chart name display mode. Default = full canonical name. */
+  nameDisplay?: NameDisplayMode;
 }
 
 interface Marquee {
@@ -173,6 +177,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     classNameLabel,
     classNameLabelSize = 24,
     framePadding = 40,
+    nameDisplay,
   },
   ref,
 ) {
@@ -187,6 +192,9 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   const dragSession = useRef<DragSession | null>(null);
   useImperativeHandle(ref, () => stageRef.current!, []);
 
+  // First names shared by ≥2 students — drives the "collision" name mode.
+  const collisions = useMemo(() => collisionFirstNames(students), [students]);
+
   // Canvas chrome (room background, grid dots, front-wall line) is pinned
   // to lightTokens regardless of the active theme. The "diorama" inside the
   // canvas is meant to read like cream paper on a desk; flipping it dark in
@@ -199,10 +207,13 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
 
   const updateDesk = useAppStore((s) => s.updateDesk);
   const updateFurniture = useAppStore((s) => s.updateFurniture);
+  const setDeskFrontRow = useAppStore((s) => s.setDeskFrontRow);
+  const setDeskExcluded = useAppStore((s) => s.setDeskExcluded);
 
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [guides, setGuides] = useState<Guide[]>([]);
   const [picker, setPicker] = useState<{ seatId: SeatId; x: number; y: number } | null>(null);
+  const [deskMenu, setDeskMenu] = useState<{ deskId: string; x: number; y: number } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   // Live shift-key tracking — when held, rotation snaps aggressively to 45°.
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -608,6 +619,13 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               showNames={showNames}
               showFrontRowMarker={showFrontRowMarkers}
               showEmptySeatDots={showEmptySeatDots}
+              nameDisplay={nameDisplay}
+              collisions={collisions}
+              onDeskContextMenu={
+                interactive && !effectiveLocked
+                  ? (deskId, cx, cy) => setDeskMenu({ deskId, x: cx, y: cy })
+                  : undefined
+              }
             />
           ))}
 
@@ -721,6 +739,22 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           onClose={() => setPicker(null)}
         />
       )}
+      {interactive && deskMenu && (() => {
+        const d = room.desks.find((dd) => dd.id === deskMenu.deskId);
+        if (!d) return null;
+        const allFront = d.seats.length > 0 && d.seats.every((s) => s.isFrontRow);
+        return (
+          <DeskContextMenu
+            x={deskMenu.x}
+            y={deskMenu.y}
+            isFront={allFront}
+            isExcluded={!!d.excluded}
+            onToggleFront={() => setDeskFrontRow(roomId, d.id, !allFront)}
+            onToggleExcluded={() => setDeskExcluded(roomId, d.id, !d.excluded)}
+            onClose={() => setDeskMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 });

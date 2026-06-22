@@ -83,6 +83,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   const removeFurniture = useAppStore((s) => s.removeFurniture);
   const updateRoom = useAppStore((s) => s.updateRoom);
   const assignSeatStore = useAppStore((s) => s.assignSeat);
+  const setNameDisplay = useAppStore((s) => s.setNameDisplay);
   const setAssignmentsStore = useAppStore((s) => s.setAssignments);
   const restoreArrangement = useAppStore((s) => s.restoreArrangement);
   const saveArrangement = useAppStore((s) => s.saveArrangement);
@@ -573,6 +574,8 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
               activeRoomId={effectiveRoomId ?? undefined}
               onChangeRoom={(rid) => setActiveRoomId(rid)}
               onEditRoom={() => navigate(`/rooms/${room.id}`)}
+              nameDisplay={klass.nameDisplay}
+              onChangeNameDisplay={(modeNext) => setNameDisplay(klass.id, modeNext)}
             />
           )
         : (
@@ -613,6 +616,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
           roomId={room.id}
           locked={locked}
           showGrid={showGrid}
+          nameDisplay={seating ? klass?.nameDisplay : undefined}
         />
         {warning && (
           <div className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 max-w-md rounded border border-amber-200 bg-amber-50/95 px-3 py-2 text-sm text-amber-900 shadow-md backdrop-blur">
@@ -629,7 +633,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
         {!seating && (
           <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded bg-white/85 px-2 py-1 text-[10px] text-ink-muted shadow-sm">
             <Icon name="help-circle" size={10} className="mr-1 inline -mt-0.5" />
-            Tip: right-click a desk to mark its seats as front-row
+            Tip: right-click a desk to mark it front row or “don’t seat here”
           </div>
         )}
       </div>

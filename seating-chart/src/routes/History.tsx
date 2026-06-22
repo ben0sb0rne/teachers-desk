@@ -124,6 +124,7 @@ export default function History() {
                       showEmptySeatDots={false}
                       fitContents
                       framePadding={12}
+                      nameDisplay={klass.nameDisplay}
                     />
                   </div>
                 )}

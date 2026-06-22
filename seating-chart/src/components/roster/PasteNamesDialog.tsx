@@ -17,9 +17,21 @@ export default function PasteNamesDialog({ open, onOpenChange, classId }: Props)
     .map((l) => l.trim())
     .filter(Boolean);
 
+  /** "Last, First" (a comma wins) or "First Last" (split on the first space). */
+  function parseLine(line: string): { firstName: string; lastName: string } {
+    if (line.includes(",")) {
+      const [last, first] = line.split(",", 2).map((s) => s.trim());
+      return { firstName: first ?? "", lastName: last ?? "" };
+    }
+    const sp = line.indexOf(" ");
+    return sp === -1
+      ? { firstName: line, lastName: "" }
+      : { firstName: line.slice(0, sp), lastName: line.slice(sp + 1).trim() };
+  }
+
   function handleAdd() {
     if (lines.length === 0) return;
-    addStudents(classId, lines);
+    addStudents(classId, lines.map(parseLine));
     setText("");
     onOpenChange(false);
   }
@@ -31,11 +43,12 @@ export default function PasteNamesDialog({ open, onOpenChange, classId }: Props)
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl focus:outline-none">
           <Dialog.Title className="mb-1 text-lg font-semibold">Paste student names</Dialog.Title>
           <Dialog.Description className="mb-4 text-sm text-ink-muted">
-            One name per line. Empty lines are ignored.
+            One student per line — “First Last” or “Last, First” both work. We auto-split into first
+            and last; empty lines are ignored.
           </Dialog.Description>
           <textarea
             className="input h-56 resize-none font-mono text-sm"
-            placeholder={"Ada Lovelace\nAlan Turing\nGrace Hopper"}
+            placeholder={"Ada Lovelace\nTuring, Alan\nGrace Hopper"}
             value={text}
             onChange={(e) => setText(e.target.value)}
             autoFocus

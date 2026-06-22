@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Shape, Text } from "react-konva";
 import type Konva from "konva";
-import type { Desk, SeatId, Student, StudentId, RoomId } from "@/types";
+import type { Desk, NameDisplayMode, SeatId, Student, StudentId, RoomId } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
+import { displayName } from "@/lib/displayName";
 
 // DeskNode reads theme values statically because the desk's own slate fill
 // (STROKE/FILL below) is hardcoded slate that doesn't flip — flipping the
@@ -15,6 +16,9 @@ const ACCENT_BLUE = lightTokens.accentBlue;
 const DOOR_FILL = lightTokens.doorFill;
 const DOOR_STROKE = lightTokens.doorStroke;
 const PAPER_EDGE = lightTokens.paperEdge;
+// "Don't seat here" marker — red, sits opposite the front-row dot.
+const EXCLUDED_FILL = "#ef4444";
+const EXCLUDED_STROKE = "#b91c1c";
 
 interface Props {
   desk: Desk;
@@ -38,6 +42,13 @@ interface Props {
    *  (editor needs them as click targets). ExportDialog flips off so the
    *  exported PNG isn't peppered with stray circles. */
   showEmptySeatDots?: boolean;
+  /** Per-class name display mode + the set of colliding first names (drives the
+   *  "collision" mode). Default = the full canonical name. */
+  nameDisplay?: NameDisplayMode;
+  collisions?: Set<string>;
+  /** Editor only: open the desk context menu (front row / don't seat here) at
+   *  the given screen coords. */
+  onDeskContextMenu?: (deskId: string, clientX: number, clientY: number) => void;
 }
 
 const NAME_FONT_SIZE = 13;
@@ -136,6 +147,21 @@ function frontRowMarkerPos(desk: Desk): { x: number; y: number } {
   return { x: desk.width - 6, y: 6 };
 }
 
+/** Where to place the per-desk "excluded" red dot — the opposite corner from
+ *  the front-row dot so the two never collide. */
+function excludedMarkerPos(desk: Desk): { x: number; y: number } {
+  if (desk.kind === "multi-circle") {
+    const cx = desk.width / 2;
+    const cy = desk.height / 2;
+    const r = desk.width / 2;
+    return { x: cx + r * Math.cos((-3 * Math.PI) / 4), y: cy + r * Math.sin((-3 * Math.PI) / 4) };
+  }
+  if (desk.kind === "single-triangle") {
+    return { x: 6, y: desk.height - 8 };
+  }
+  return { x: 6, y: 6 };
+}
+
 export default function DeskNode({
   desk,
   selected,
@@ -152,11 +178,12 @@ export default function DeskNode({
   showNames = true,
   showFrontRowMarker = true,
   showEmptySeatDots = true,
+  nameDisplay,
+  collisions,
+  onDeskContextMenu,
 }: Props) {
   const groupRef = useRef<Konva.Group>(null);
   const updateDesk = useAppStore((s) => s.updateDesk);
-  const setDeskFrontRow = useAppStore((s) => s.setDeskFrontRow);
-  const setSeatFrontRow = useAppStore((s) => s.setSeatFrontRow);
 
   // Expose this Group to RoomStage's shared Transformer.
   useEffect(() => {
@@ -215,7 +242,6 @@ export default function DeskNode({
     };
   });
 
-  const allFront = desk.seats.length > 0 && desk.seats.every((s) => s.isFrontRow);
   const anyFront = desk.seats.some((s) => s.isFrontRow);
   const nameW = nameBoxWidth(desk);
   // Per-desk color override. The user's fill always wins — selection state
@@ -230,6 +256,10 @@ export default function DeskNode({
   const strokeWidth = selected ? STROKE_WIDTH_SELECTED : STROKE_WIDTH;
   const nameColor = desk.fill ? deriveTextColor(desk.fill) : PAPER_EDGE;
   const markerPos = frontRowMarkerPos(desk);
+  const excludedPos = excludedMarkerPos(desk);
+  // Editor + seating dim an excluded desk so "no one sits here" reads at a
+  // glance; the export hides markers (showFrontRowMarker=false) → no dim.
+  const excludedVisible = !!desk.excluded && showFrontRowMarker;
 
   return (
     <Group
@@ -237,6 +267,7 @@ export default function DeskNode({
       x={desk.x}
       y={desk.y}
       rotation={desk.rotation}
+      opacity={excludedVisible ? 0.5 : 1}
       draggable={draggable}
       onMouseDown={(e) => {
         e.cancelBubble = true;
@@ -260,11 +291,11 @@ export default function DeskNode({
       onContextMenu={(e) => {
         e.evt.preventDefault();
         e.cancelBubble = true;
-        // Front-row is a layout property of the (shared) room. When the layout
-        // is locked — e.g. a class's seating view — don't let a right-click
-        // change it for every class using the room.
+        // Front-row / excluded are layout properties of the (shared) room. When
+        // the layout is locked — e.g. a class's seating view — a right-click
+        // shouldn't change them for every class using the room.
         if (!draggable) return;
-        setDeskFrontRow(roomId, desk.id, !allFront);
+        onDeskContextMenu?.(desk.id, e.evt.clientX, e.evt.clientY);
       }}
       onDragStart={() => onDragStart(desk.id)}
       onDragMove={(e) => {
@@ -351,12 +382,6 @@ export default function DeskNode({
               const pos = stage?.getPointerPosition();
               if (pos) onSeatClick(seat.id, pos.x, pos.y);
             }}
-            onContextMenu={(e) => {
-              e.evt.preventDefault();
-              e.cancelBubble = true;
-              if (!draggable) return;
-              setSeatFrontRow(roomId, desk.id, seat.id, !seat.isFrontRow);
-            }}
           >
             {!student ? (
               showEmptySeatDots ? (
@@ -371,7 +396,7 @@ export default function DeskNode({
             ) : showNames ? (
               <Text
                 name="seat-name-label"
-                text={student.name}
+                text={displayName(student, nameDisplay, collisions)}
                 fontSize={NAME_FONT_SIZE}
                 fontStyle="bold"
                 fill={nameColor}
@@ -407,6 +432,19 @@ export default function DeskNode({
           radius={FRONT_MARKER_RADIUS}
           fill={DOOR_FILL}
           stroke={DOOR_STROKE}
+          strokeWidth={0.5}
+          listening={false}
+        />
+      )}
+
+      {excludedVisible && (
+        <Circle
+          name="excluded-marker"
+          x={excludedPos.x}
+          y={excludedPos.y}
+          radius={FRONT_MARKER_RADIUS}
+          fill={EXCLUDED_FILL}
+          stroke={EXCLUDED_STROKE}
           strokeWidth={0.5}
           listening={false}
         />

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ClassRoom, Room, SeatId, StudentId } from "@/types";
+import type { ClassRoom, NameDisplayMode, Room, SeatId, StudentId } from "@/types";
 import { roomSeats } from "@/lib/adjacency";
 import Icon from "@/components/Icon";
 
@@ -25,6 +25,9 @@ interface Props {
   onChangeRoom?: (roomId: string) => void;
   /** Open the room layout editor for the active room. */
   onEditRoom?: () => void;
+  /** Per-class chart name display + setter (renders a small selector). */
+  nameDisplay?: NameDisplayMode;
+  onChangeNameDisplay?: (mode: NameDisplayMode) => void;
 }
 
 export default function AssignmentPanel({
@@ -43,6 +46,8 @@ export default function AssignmentPanel({
   activeRoomId,
   onChangeRoom,
   onEditRoom,
+  nameDisplay,
+  onChangeNameDisplay,
 }: Props) {
   const seats = useMemo(() => roomSeats(room), [room]);
   const seated = new Set(Object.values(assignments));
@@ -97,6 +102,23 @@ export default function AssignmentPanel({
             <Icon name="edit" size={14} />
             Edit {room.name}
           </button>
+        )}
+        {onChangeNameDisplay && (
+          <label className="block">
+            <span className="label mb-1 block">Names on chart</span>
+            <select
+              className="input"
+              value={nameDisplay ?? "collision"}
+              onChange={(e) => onChangeNameDisplay(e.target.value as NameDisplayMode)}
+              title="How student names appear on the seating chart"
+            >
+              <option value="collision">Smart (first, +initial if shared)</option>
+              <option value="first">First name</option>
+              <option value="first-initial">First + last initial</option>
+              <option value="full">Full name</option>
+              <option value="number">Student number</option>
+            </select>
+          </label>
         )}
       </div>
 

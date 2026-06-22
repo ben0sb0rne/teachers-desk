@@ -19,7 +19,35 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 7) s = migrateV6toV7(s);
   if (fromVersion < 8) s = migrateV7toV8(s);
   if (fromVersion < 9) s = migrateV8toV9(s);
+  if (fromVersion < 10) s = migrateV9toV10(s);
   return s as AppState;
+}
+
+/** v9 → v10: split each student's `name` into `firstName`/`lastName` on the
+ *  first space. Lossless — `\`${firstName} ${lastName}\`.trim()` reconstructs
+ *  the original `name`, so the canonical/display string (and the Wheel/Bingo
+ *  rosters) are unchanged. Other new fields default unset. */
+export function migrateV9toV10(persisted: unknown): AppState {
+  const obj = persisted as Record<string, unknown>;
+  const classes = (obj.classes ?? []) as Array<Record<string, unknown>>;
+  const migratedClasses = classes.map((klass) => {
+    const students = ((klass.students ?? []) as Array<Record<string, unknown>>).map((st) => {
+      const full = ((st.name as string) ?? "").trim();
+      const sp = full.indexOf(" ");
+      return {
+        ...st,
+        firstName: sp === -1 ? full : full.slice(0, sp),
+        lastName: sp === -1 ? "" : full.slice(sp + 1).trim(),
+      };
+    });
+    return { ...klass, students };
+  });
+  return {
+    rooms: (obj.rooms as Room[]) ?? [],
+    classes: migratedClasses as unknown as ClassRoom[],
+    activeClassId: (obj.activeClassId as string | null) ?? null,
+    schemaVersion: SCHEMA_VERSION,
+  } as AppState;
 }
 
 /** v8 → v9: a class can now be taught in multiple rooms. Replace the single

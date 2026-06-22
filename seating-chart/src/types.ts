@@ -7,7 +7,14 @@ export type RoomId = string;
 
 export interface Student {
   id: StudentId;
+  /** Display + canonical name (what the Wheel/Bingo read). When first/last are
+   *  set it stays in sync as `${firstName} ${lastName}`.trim(). */
   name: string;
+  /** Optional structured name parts — power the display modes + numbering. */
+  firstName?: string;
+  lastName?: string;
+  /** Manual, free-text — a class number or an SIS id. */
+  studentNumber?: string;
   needsFrontRow: boolean;
   keepApart: StudentId[];
   notes?: string;
@@ -42,6 +49,9 @@ export interface Desk {
   perSide?: number;     // multi-square
   seatCount?: number;   // multi-circle
   seats: Seat[];
+  /** When true, Randomize skips this desk's seats — "don't seat here". Shown
+   *  with a red corner dot. */
+  excluded?: boolean;
   /** Optional per-desk fill override. When set, stroke + name-text colors
    *  are derived automatically (lib/color.ts). Unset = use the default
    *  slate fill from DeskNode. */
@@ -126,6 +136,10 @@ export interface RoomSeating {
   arrangements: Arrangement[];
 }
 
+/** How student names render on the chart. `collision` = first name, adding a
+ *  last initial only when ≥2 students in the class share that first name. */
+export type NameDisplayMode = "collision" | "first" | "first-initial" | "full" | "number";
+
 export interface ClassRoom {
   id: ClassId;
   name: string;
@@ -133,9 +147,11 @@ export interface ClassRoom {
   /** The rooms this class is taught in, each with its own seating. Empty = no
    *  room assigned yet. Order is display order; the first is the default. */
   seatings: RoomSeating[];
+  /** Per-class chart name display. Unset = "collision". */
+  nameDisplay?: NameDisplayMode;
 }
 
-export const SCHEMA_VERSION = 9 as const;
+export const SCHEMA_VERSION = 10 as const;
 
 export interface AppState {
   /** Top-level, reusable room layouts. Referenced by ClassRoom.seatings[].roomId. */

@@ -32,7 +32,10 @@ export interface AssignResult {
  */
 export function assign(input: AssignInput): AssignResult {
   const { room, students, history } = input;
-  const seatRefs = roomSeats(room);
+  // Desks the teacher marked "don't seat here" are dropped from the seat pool
+  // up front, so the solver never places a student on them.
+  const excludedDeskIds = new Set(room.desks.filter((d) => d.excluded).map((d) => d.id));
+  const seatRefs = roomSeats(room).filter((s) => !excludedDeskIds.has(s.deskId));
   const seatIds = seatRefs.map((s) => s.seatId);
   const warnings: string[] = [];
 
