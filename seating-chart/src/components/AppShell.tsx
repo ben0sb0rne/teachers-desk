@@ -55,10 +55,10 @@ export default function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Toggle body.app-view on class-editor routes so the topstrip switches
-  // from transparent (homepage) to paper-cream (app-view) per the suite
-  // convention in shared/desk.css.
-  const isAppView = !!isClassRoute || !!isRoomRoute;
+  // The whole seating chart now sits on the paper-cream app surface (the
+  // room-designer palette), not the homepage wood. app-view keeps the topstrip
+  // the paper-cream/ink bar on every route, including the index.
+  const isAppView = true;
   useEffect(() => {
     document.body.classList.toggle("app-view", isAppView);
     document.body.classList.toggle("view-home", !isAppView);

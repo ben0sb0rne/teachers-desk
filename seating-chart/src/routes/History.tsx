@@ -33,7 +33,7 @@ export default function History() {
   const [renaming, setRenaming] = useState<Arrangement | null>(null);
   const [pending, setPending] = useState<PendingConfirm | null>(null);
 
-  if (!klass) return <div className="p-6 text-paper-on-wood/70">Class not found.</div>;
+  if (!klass) return <div className="p-6 text-ink-muted">Class not found.</div>;
 
   function handleRestoreClick(arrangementId: ArrangementId) {
     if (!klass) return;
@@ -58,9 +58,8 @@ export default function History() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      {/* Heading sits on wood-bg — use the always-light cream token. */}
-      <h1 className="mb-1 text-xl font-bold text-paper-on-wood">History · {klass.name}</h1>
-      <p className="mb-6 text-sm text-paper-on-wood/70">
+      <h1 className="mb-1 text-xl font-bold text-ink">History · {klass.name}</h1>
+      <p className="mb-6 text-sm text-ink-muted">
         Previous seating arrangements. View opens an export-ready preview;
         Restore reloads the layout on the room canvas.
       </p>
