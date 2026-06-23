@@ -111,7 +111,7 @@ export default function ClassesIndex() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="mx-auto max-w-6xl p-6">
       {rooms.length === 0 && classes.length === 0 && (
         <div className="mb-6 rounded-md border border-ink/15 bg-paper/60 p-4 text-sm text-ink-muted">
           <strong className="text-ink">Welcome.</strong> Make a <em>room</em> — a reusable desk
@@ -120,99 +120,79 @@ export default function ClassesIndex() {
         </div>
       )}
 
-      {/* ───────────── Rooms ───────────── */}
+      {/* ───────────── Classes (daily use — lead with them) ───────────── */}
       <div className="mb-1 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink">Rooms</h1>
-        <button className="btn-secondary" onClick={() => setAddRoomOpen(true)}>
-          <Icon name="plus" size={14} />
-          New room
-        </button>
-      </div>
-      <p className="mb-4 text-sm text-ink-muted">
-        Reusable desk layouts. Point several classes at one room — editing it updates them all.
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {rooms.map((r) => (
-          <RoomTile
-            key={r.id}
-            room={r}
-            usedBy={classNamesByRoom.get(r.id) ?? []}
-            onRename={() => setRenameRoomTarget({ id: r.id, name: r.name })}
-            onDuplicate={() => setDuplicateRoomTarget({ id: r.id, name: r.name })}
-            onDelete={() =>
-              setDeleteRoomTarget({
-                id: r.id,
-                name: r.name,
-                usedBy: classes.filter((c) => c.seatings.some((se) => se.roomId === r.id)),
-              })
-            }
-          />
-        ))}
-        {/* Big dashed tile only as the empty-state CTA; otherwise the subtle
-            "New room" button by the heading handles it. */}
-        {rooms.length === 0 && <AddTile label="New room" onClick={() => setAddRoomOpen(true)} />}
-      </div>
-
-      {/* ───────────── Classes ───────────── */}
-      <div className="mb-1 mt-10 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-ink">Classes</h1>
         <button className="btn-secondary" onClick={() => setNewClassOpen(true)}>
           <Icon name="plus" size={14} />
           New class
         </button>
       </div>
-      <p className="mb-3 text-sm text-ink-muted">
-        Each class has its own roster and seating. Attach one or more rooms to seat students in.
+      <p className="mb-4 text-sm text-ink-muted">
+        What you open daily — each card previews its seating. Attach one or more rooms to seat students in.
       </p>
 
       {classes.length === 0 ? (
         <div className="card p-6 text-center text-ink-muted">No classes yet — add one with “New class”.</div>
       ) : (
-        <ul className="space-y-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {classes.map((c) => {
             const classRooms = c.seatings
               .map((se) => roomById.get(se.roomId))
               .filter((r): r is Room => !!r);
             return (
-              <li key={c.id} className="card flex items-center justify-between gap-3 p-4">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-medium">{c.name}</div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                    <span className="text-ink-muted">{pluralise(c.students.length, "student")}</span>
-                    <span className="text-ink-muted" aria-hidden>·</span>
-                    {classRooms.map((r) => (
-                      <RoomChip
-                        key={r.id}
-                        name={r.name}
-                        onOpen={() => openSeating(c.id, r.id)}
-                        onRemove={() => handleRemoveRoom(c.id, r.id, r.name)}
-                      />
-                    ))}
-                    <AddRoomChip
-                      label={classRooms.length === 0 ? "Assign a room" : "Add room"}
-                      onClick={() =>
-                        setAddRoomTarget({ classId: c.id, className: c.name, roomIds: c.seatings.map((se) => se.roomId) })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Link to={`/classes/${c.id}/roster`} className="btn-secondary whitespace-nowrap">
-                    Roster
-                  </Link>
-                  <Link to={`/classes/${c.id}/room`} className="btn-primary whitespace-nowrap">
-                    Seating
-                  </Link>
-                  <ClassMenu
-                    onRename={() => setRenameClassTarget({ id: c.id, name: c.name })}
-                    onDelete={() => setDeleteClassTarget({ id: c.id, name: c.name })}
-                  />
-                </div>
-              </li>
+              <ClassCard
+                key={c.id}
+                klass={c}
+                classRooms={classRooms}
+                onSeat={(roomId) => openSeating(c.id, roomId)}
+                onAddRoom={() =>
+                  setAddRoomTarget({ classId: c.id, className: c.name, roomIds: c.seatings.map((se) => se.roomId) })
+                }
+                onRemoveRoom={(roomId, roomName) => handleRemoveRoom(c.id, roomId, roomName)}
+                onRename={() => setRenameClassTarget({ id: c.id, name: c.name })}
+                onDelete={() => setDeleteClassTarget({ id: c.id, name: c.name })}
+              />
             );
           })}
-        </ul>
+        </div>
+      )}
+
+      {/* ───────────── Rooms (reusable layouts — secondary) ───────────── */}
+      <div className="mb-1 mt-10 flex flex-wrap items-center gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-ink">Rooms</h2>
+        <button className="btn-secondary" onClick={() => setAddRoomOpen(true)}>
+          <Icon name="plus" size={14} />
+          New room
+        </button>
+      </div>
+      <p className="mb-4 text-sm text-ink-muted">
+        Reusable desk layouts — edit one and every class using it updates.
+      </p>
+
+      {rooms.length === 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <AddTile label="New room" onClick={() => setAddRoomOpen(true)} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {rooms.map((r) => (
+            <RoomTile
+              key={r.id}
+              room={r}
+              usedBy={classNamesByRoom.get(r.id) ?? []}
+              onRename={() => setRenameRoomTarget({ id: r.id, name: r.name })}
+              onDuplicate={() => setDuplicateRoomTarget({ id: r.id, name: r.name })}
+              onDelete={() =>
+                setDeleteRoomTarget({
+                  id: r.id,
+                  name: r.name,
+                  usedBy: classes.filter((c) => c.seatings.some((se) => se.roomId === r.id)),
+                })
+              }
+            />
+          ))}
+        </div>
       )}
 
       {/* ───────────── Dialogs ───────────── */}
@@ -346,6 +326,110 @@ function usedByLabel(names: string[]): string {
   if (names.length === 0) return "Not used by any class yet";
   if (names.length <= 2) return `Used by ${names.join(", ")}`;
   return `Used by ${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+}
+
+/** Saturated (non-pastel) identity dot per class, picked stably from the id so
+ *  cards read apart at a glance on a projector. */
+const CLASS_ACCENTS = ["#1D9E75", "#378ADD", "#BA7517", "#D85A30", "#534AB7", "#639922"];
+function classAccent(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return CLASS_ACCENTS[h % CLASS_ACCENTS.length];
+}
+
+/** A class as a card: a live preview of its (first) room's layout, an identity
+ *  dot + name, student count, the room chips it's taught in, and Roster /
+ *  Seating actions. Clicking the preview opens seating; a class with no room
+ *  shows an attach-a-room prompt instead. */
+function ClassCard({
+  klass,
+  classRooms,
+  onSeat,
+  onAddRoom,
+  onRemoveRoom,
+  onRename,
+  onDelete,
+}: {
+  klass: ClassRoom;
+  classRooms: Room[];
+  onSeat: (roomId?: string) => void;
+  onAddRoom: () => void;
+  onRemoveRoom: (roomId: string, name: string) => void;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
+  const preview = classRooms[0];
+  const accent = classAccent(klass.id);
+  return (
+    <div className="card flex flex-col overflow-hidden">
+      <div className="relative aspect-[3/2] bg-slate-100">
+        {preview && preview.desks.length > 0 ? (
+          <>
+            <div className="absolute inset-0 flex">
+              <RoomStage
+                interactive={false}
+                room={preview}
+                students={[]}
+                assignments={{}}
+                roomId={preview.id}
+                showFrontWallLabel={false}
+                showFrontRowMarkers={false}
+                showEmptySeatDots={false}
+                framePadding={8}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => onSeat(preview.id)}
+              aria-label={`Open seating for ${klass.name}`}
+              className="absolute inset-0 ring-inset transition hover:ring-2 hover:ring-accent-blue/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50"
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onAddRoom}
+            className="grid h-full w-full place-items-center px-3 text-center text-xs text-ink-muted hover:bg-ink/5"
+          >
+            <span className="flex flex-col items-center gap-1">
+              <Icon name="plus" size={20} />
+              {preview ? "No desks yet — set up the room" : "No room yet — attach one"}
+            </span>
+          </button>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: accent }} aria-hidden />
+            <span className="truncate text-base font-medium">{klass.name}</span>
+          </div>
+          <ClassMenu onRename={onRename} onDelete={onDelete} />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-ink-muted">{pluralise(klass.students.length, "student")}</span>
+          {classRooms.length > 0 && <span className="text-ink-muted" aria-hidden>·</span>}
+          {classRooms.map((r) => (
+            <RoomChip
+              key={r.id}
+              name={r.name}
+              onOpen={() => onSeat(r.id)}
+              onRemove={() => onRemoveRoom(r.id, r.name)}
+            />
+          ))}
+          <AddRoomChip label={classRooms.length === 0 ? "Assign a room" : "Add room"} onClick={onAddRoom} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Link to={`/classes/${klass.id}/roster`} className="btn-secondary justify-center">
+            Roster
+          </Link>
+          <Link to={`/classes/${klass.id}/room`} className="btn-primary justify-center">
+            Seating
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** A room as a tile: live read-only layout thumbnail (click → editor), name,

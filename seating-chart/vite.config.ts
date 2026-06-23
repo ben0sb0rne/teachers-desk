@@ -14,6 +14,10 @@ export default defineConfig({
   base,
   plugins: [react()],
   resolve: {
+    // Force a single React instance — Vite dev otherwise pre-bundles some
+    // Radix packages (e.g. react-toast) against a duplicate React, which
+    // throws "Invalid hook call" in the dev server. No-op for the prod build.
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@shared": path.resolve(__dirname, "../shared"),
