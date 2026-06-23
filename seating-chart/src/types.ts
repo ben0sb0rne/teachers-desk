@@ -136,9 +136,30 @@ export interface RoomSeating {
   arrangements: Arrangement[];
 }
 
-/** How student names render on the chart. `collision` = first name, adding a
- *  last initial only when ≥2 students in the class share that first name. */
-export type NameDisplayMode = "collision" | "first" | "first-initial" | "full" | "number";
+/** How student names render on the chart — independent toggles for each piece,
+ *  so a teacher composes exactly what shows. Unset on a class = DEFAULT_NAME_DISPLAY. */
+export interface NameDisplay {
+  /** Show the first name. */
+  firstName: boolean;
+  /** Show the full last name (wins over lastInitial when both are set). */
+  lastName: boolean;
+  /** Show the last name as an initial ("Chris R."). */
+  lastInitial: boolean;
+  /** Show the student number ("#7"). */
+  studentNumber: boolean;
+  /** Add a last initial only for students who share a first name (when no last
+   *  name is otherwise shown). */
+  autoInitial: boolean;
+}
+
+/** First name, with an auto last-initial only when first names clash. */
+export const DEFAULT_NAME_DISPLAY: NameDisplay = {
+  firstName: true,
+  lastName: false,
+  lastInitial: false,
+  studentNumber: false,
+  autoInitial: true,
+};
 
 export interface ClassRoom {
   id: ClassId;
@@ -147,11 +168,11 @@ export interface ClassRoom {
   /** The rooms this class is taught in, each with its own seating. Empty = no
    *  room assigned yet. Order is display order; the first is the default. */
   seatings: RoomSeating[];
-  /** Per-class chart name display. Unset = "collision". */
-  nameDisplay?: NameDisplayMode;
+  /** Per-class chart name display. Unset = DEFAULT_NAME_DISPLAY. */
+  nameDisplay?: NameDisplay;
 }
 
-export const SCHEMA_VERSION = 10 as const;
+export const SCHEMA_VERSION = 11 as const;
 
 export interface AppState {
   /** Top-level, reusable room layouts. Referenced by ClassRoom.seatings[].roomId. */

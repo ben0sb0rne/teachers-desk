@@ -10,7 +10,7 @@ import {
 } from "react";
 import { Stage, Layer, Rect, Line, Text, Transformer } from "react-konva";
 import type Konva from "konva";
-import type { NameDisplayMode, RoomId, Room, SeatId, Student, StudentId, Wall } from "@/types";
+import type { NameDisplay, RoomId, Room, SeatId, Student, StudentId, Wall } from "@/types";
 import DeskNode from "./DeskNode";
 import FurnitureNode from "./FurnitureNode";
 import SeatPicker from "./SeatPicker";
@@ -132,6 +132,12 @@ interface Props {
    *  History thumbnails enable this so items that sit outside the room — e.g.
    *  doors with arcs swinging through the wall — aren't clipped. */
   fitContents?: boolean;
+  /** Frame just the desks' bounding box (ignore the room rect + furniture) so a
+   *  thumbnail/export shows only the seating, centered. Default false. */
+  fitToDesks?: boolean;
+  /** Render furniture (teacher desk, windows, door, …). Default true; class
+   *  thumbnails + the "desks only" export turn it off. */
+  showFurniture?: boolean;
   /** When defined, render this string as a Konva text label in the room's
    *  top-right corner (not the camera frame's). Used by the export preview
    *  to print the class name on the chart. */
@@ -142,7 +148,7 @@ interface Props {
    *  small value for compact thumbnails so the layout fills the frame. */
   framePadding?: number;
   /** Per-class chart name display mode. Default = full canonical name. */
-  nameDisplay?: NameDisplayMode;
+  nameDisplay?: NameDisplay;
   /** Export-only: rotate the whole view by this many degrees, keeping names
    *  upright via counter-rotation. Default 0 — editor/seating never rotate. */
   viewRotation?: 0 | 90 | 180 | 270;
@@ -185,6 +191,8 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     roomBackgroundFill,
     backgroundFill,
     fitContents = false,
+    fitToDesks = false,
+    showFurniture = true,
     classNameLabel,
     classNameLabelSize = 24,
     framePadding = 40,
@@ -354,6 +362,18 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   // label band above when a class-name is requested.
   const viewBounds: AABB = useMemo(() => {
     const roomBounds: AABB = { x: 0, y: 0, width: room.width, height: room.height };
+    // Fit to just the desks (class thumbnails + "desks only" export): frame the
+    // union of the desks' rotated AABBs, ignoring the room rect + furniture.
+    if (fitToDesks && room.desks.length > 0) {
+      let deskUnion = rotatedItemAABB(room.desks[0]);
+      for (const d of room.desks.slice(1)) deskUnion = unionAABB(deskUnion, rotatedItemAABB(d));
+      return {
+        x: deskUnion.x - FIT_CONTENTS_PADDING,
+        y: deskUnion.y - FIT_CONTENTS_PADDING - labelBandHeight,
+        width: deskUnion.width + FIT_CONTENTS_PADDING * 2,
+        height: deskUnion.height + FIT_CONTENTS_PADDING * 2 + labelBandHeight,
+      };
+    }
     if (!fitContents) {
       // Even without item-fit, reserve the label band so the editor view
       // wouldn't clip the class-name label if anyone passes one.
@@ -370,7 +390,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       width: union.width + FIT_CONTENTS_PADDING * 2,
       height: union.height + FIT_CONTENTS_PADDING * 2 + labelBandHeight,
     };
-  }, [fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight]);
+  }, [fitToDesks, fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight]);
   // Rotation-aware camera. At 90/270 the content's on-screen bounding box has
   // its width/height swapped, so we fit against the swapped dims, then place
   // the view-bounds CENTER at the stage center under rotation+scale.
@@ -601,7 +621,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             dash={[12 / safeScale, 8 / safeScale]}
           />
 
-          {(room.furniture ?? []).map((f) => (
+          {showFurniture && (room.furniture ?? []).map((f) => (
             <FurnitureNode
               key={f.id}
               furniture={f}

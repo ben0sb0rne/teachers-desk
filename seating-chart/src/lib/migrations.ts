@@ -1,4 +1,4 @@
-import type { AppState, Arrangement, ClassRoom, Desk, Room, Seat, Student } from "@/types";
+import type { AppState, Arrangement, ClassRoom, Desk, NameDisplay, Room, Seat, Student } from "@/types";
 import { SCHEMA_VERSION } from "@/types";
 import * as sharedStorage from "@shared/storage.js";
 
@@ -20,7 +20,35 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 8) s = migrateV7toV8(s);
   if (fromVersion < 9) s = migrateV8toV9(s);
   if (fromVersion < 10) s = migrateV9toV10(s);
+  if (fromVersion < 11) s = migrateV10toV11(s);
   return s as AppState;
+}
+
+const MODE_TO_DISPLAY: Record<string, NameDisplay> = {
+  collision: { firstName: true, lastName: false, lastInitial: false, studentNumber: false, autoInitial: true },
+  first: { firstName: true, lastName: false, lastInitial: false, studentNumber: false, autoInitial: false },
+  "first-initial": { firstName: true, lastName: false, lastInitial: true, studentNumber: false, autoInitial: false },
+  full: { firstName: true, lastName: true, lastInitial: false, studentNumber: false, autoInitial: false },
+  number: { firstName: false, lastName: false, lastInitial: false, studentNumber: true, autoInitial: false },
+};
+
+/** v10 → v11: the per-class `nameDisplay` enum becomes a set of independent
+ *  toggles (NameDisplay). Map each old mode to the equivalent toggles; an unset
+ *  mode stays unset (defaults applied at render). */
+export function migrateV10toV11(persisted: unknown): AppState {
+  const obj = persisted as Record<string, unknown>;
+  const classes = (obj.classes ?? []) as Array<Record<string, unknown>>;
+  const migrated = classes.map((klass) => {
+    const nd = klass.nameDisplay;
+    if (typeof nd !== "string") return klass;
+    return { ...klass, nameDisplay: MODE_TO_DISPLAY[nd] };
+  });
+  return {
+    rooms: (obj.rooms as Room[]) ?? [],
+    classes: migrated as unknown as ClassRoom[],
+    activeClassId: (obj.activeClassId as string | null) ?? null,
+    schemaVersion: SCHEMA_VERSION,
+  } as AppState;
 }
 
 /** v9 → v10: split each student's `name` into `firstName`/`lastName` on the

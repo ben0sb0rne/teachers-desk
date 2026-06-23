@@ -13,7 +13,7 @@ import type {
   DeskId,
   Furniture,
   FurnitureId,
-  NameDisplayMode,
+  NameDisplay,
   Room,
   RoomId,
   RoomSeating,
@@ -76,7 +76,7 @@ interface AppActions {
   ) => void;
   updateStudent: (classId: ClassId, studentId: StudentId, patch: Partial<Student>) => void;
   /** Per-class chart name display mode. */
-  setNameDisplay: (classId: ClassId, mode: NameDisplayMode) => void;
+  setNameDisplay: (classId: ClassId, mode: NameDisplay) => void;
   removeStudent: (classId: ClassId, studentId: StudentId) => void;
   toggleKeepApart: (classId: ClassId, a: StudentId, b: StudentId) => void;
 

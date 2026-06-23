@@ -1,9 +1,19 @@
 import { useMemo } from "react";
-import type { ClassRoom, NameDisplayMode, Room, SeatId, StudentId } from "@/types";
+import type { ClassRoom, NameDisplay, Room, SeatId, StudentId } from "@/types";
+import { DEFAULT_NAME_DISPLAY } from "@/types";
 import { roomSeats } from "@/lib/adjacency";
 import Icon from "@/components/Icon";
 import UndoRedoButtons from "@/components/canvas/UndoRedoButtons";
 import { DND_STUDENT } from "@/lib/dnd";
+
+/** The composable name pieces shown as checkboxes on the seating screen. */
+const NAME_TOGGLES: { key: keyof NameDisplay; label: string }[] = [
+  { key: "firstName", label: "First name" },
+  { key: "lastInitial", label: "Last initial" },
+  { key: "lastName", label: "Full last name" },
+  { key: "studentNumber", label: "Student number" },
+  { key: "autoInitial", label: "Add last initial for duplicates" },
+];
 
 interface Props {
   collapsed: boolean;
@@ -28,8 +38,8 @@ interface Props {
   /** Open the room layout editor for the active room. */
   onEditRoom?: () => void;
   /** Per-class chart name display + setter (renders a small selector). */
-  nameDisplay?: NameDisplayMode;
-  onChangeNameDisplay?: (mode: NameDisplayMode) => void;
+  nameDisplay?: NameDisplay;
+  onChangeNameDisplay?: (display: NameDisplay) => void;
 }
 
 export default function AssignmentPanel({
@@ -110,21 +120,24 @@ export default function AssignmentPanel({
           </button>
         )}
         {onChangeNameDisplay && (
-          <label className="block">
+          <div>
             <span className="label mb-1 block">Names on chart</span>
-            <select
-              className="input"
-              value={nameDisplay ?? "collision"}
-              onChange={(e) => onChangeNameDisplay(e.target.value as NameDisplayMode)}
-              title="How student names appear on the seating chart"
-            >
-              <option value="collision">Smart (first, +initial if shared)</option>
-              <option value="first">First name</option>
-              <option value="first-initial">First + last initial</option>
-              <option value="full">Full name</option>
-              <option value="number">Student number</option>
-            </select>
-          </label>
+            <div className="space-y-1 rounded-md border border-slate-200 p-2">
+              {NAME_TOGGLES.map((t) => {
+                const nd = nameDisplay ?? DEFAULT_NAME_DISPLAY;
+                return (
+                  <label key={t.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={nd[t.key]}
+                      onChange={(e) => onChangeNameDisplay({ ...nd, [t.key]: e.target.checked })}
+                    />
+                    <span>{t.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
