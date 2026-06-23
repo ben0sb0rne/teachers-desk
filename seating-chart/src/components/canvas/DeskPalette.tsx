@@ -270,7 +270,7 @@ export default function DeskPalette({
             title="Don't seat students at the selected desks (toggles the red dot)"
           >
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#ef4444" }} />
-            <span className="text-xs">No seating</span>
+            <span className="text-xs">Don't seat here</span>
           </button>
         </div>
         <p className="mb-3 text-[10px] text-ink-muted">Distribute needs 3+ items selected.</p>

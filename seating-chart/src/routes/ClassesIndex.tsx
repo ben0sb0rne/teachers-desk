@@ -115,7 +115,7 @@ export default function ClassesIndex() {
       {rooms.length === 0 && classes.length === 0 && (
         <div className="mb-6 rounded-md border border-ink/15 bg-paper/60 p-4 text-sm text-ink-muted">
           <strong className="text-ink">Welcome.</strong> Make a <em>room</em> — a reusable desk
-          layout — and a <em>class</em> — your roster — then attach the room to the class to seat
+          layout — and a <em>class</em> — your roster — then add the room to the class to seat
           students. One room can be shared by several classes.
         </div>
       )}
@@ -129,7 +129,7 @@ export default function ClassesIndex() {
         </button>
       </div>
       <p className="mb-4 text-sm text-ink-muted">
-        What you open daily — each card previews its seating. Attach one or more rooms to seat students in.
+        What you open daily — each card previews its seating. Add one or more rooms to seat students in.
       </p>
 
       {classes.length === 0 ? (
@@ -215,7 +215,7 @@ export default function ClassesIndex() {
         open={newClassOpen}
         onOpenChange={setNewClassOpen}
         title="New class"
-        description="Name the class (e.g. Period 3 Math). You'll add students and attach a room next."
+        description="Name the class (e.g. Period 3 Math). You'll add students and a room next."
         placeholder="e.g. Period 3 Math"
         submitLabel="Create class"
         validate={(v) =>
@@ -359,6 +359,7 @@ function ClassCard({
   onDelete: () => void;
 }) {
   const preview = classRooms[0];
+  const previewSeating = preview ? klass.seatings.find((se) => se.roomId === preview.id) : undefined;
   const accent = classAccent(klass.id);
   return (
     <div className="card flex flex-col overflow-hidden">
@@ -369,13 +370,16 @@ function ClassCard({
               <RoomStage
                 interactive={false}
                 room={preview}
-                students={[]}
-                assignments={{}}
+                students={klass.students}
+                assignments={previewSeating?.currentAssignments ?? {}}
                 roomId={preview.id}
+                nameDisplay={klass.nameDisplay}
+                showFurniture={false}
                 showFrontWallLabel={false}
                 showFrontRowMarkers={false}
                 showEmptySeatDots={false}
-                framePadding={8}
+                fitToDesks
+                framePadding={10}
               />
             </div>
             <button
@@ -417,7 +421,7 @@ function ClassCard({
               onRemove={() => onRemoveRoom(r.id, r.name)}
             />
           ))}
-          <AddRoomChip label={classRooms.length === 0 ? "Assign a room" : "Add room"} onClick={onAddRoom} />
+          <AddRoomChip label={classRooms.length === 0 ? "Add a room" : "Add room"} onClick={onAddRoom} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Link to={`/classes/${klass.id}/roster`} className="btn-secondary justify-center">
@@ -461,7 +465,8 @@ function RoomTile({
               showFrontWallLabel={false}
               showFrontRowMarkers={false}
               showEmptySeatDots={false}
-              framePadding={8}
+              fitContents
+              framePadding={10}
             />
           </div>
         ) : (

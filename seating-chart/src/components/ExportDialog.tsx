@@ -43,6 +43,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
   const [showFrontWallLabel, setShowFrontWallLabel] = useState(true);
   const [quality, setQuality] = useState<Quality>("hd");
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [layout, setLayout] = useState<"room" | "desks">("room");
   /** Surfaces popup-blocker failures when Print can't open its preview window. */
   const [printError, setPrintError] = useState<string | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
@@ -59,14 +60,15 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
       setShowFrontWallLabel(true);
       setQuality("hd");
       setRotation(0);
+      setLayout("room");
       setPrintError(null);
     }
   }, [open]);
 
   const shown = arrangement?.assignments ?? assignments;
-  const roomBackgroundFill = showFloor
-    ? room.background
-    : "rgba(0,0,0,0)";
+  const deskOnly = layout === "desks";
+  // Desks-only export drops the floor; otherwise the "Floor color" toggle wins.
+  const roomBackgroundFill = deskOnly || !showFloor ? "rgba(0,0,0,0)" : room.background;
   const backgroundFill = showBackground ? "#ffffff" : undefined;
 
   function buildFilename(): string {
@@ -141,8 +143,8 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
             <div>
               <Dialog.Title className="text-base font-semibold">
                 {arrangement
-                  ? `Export "${arrangement.label || "untitled"}"`
-                  : "Export current arrangement"}
+                  ? `Download or print "${arrangement.label || "untitled"}"`
+                  : "Download or print"}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-ink-muted">
                 Live preview reflects every option below.
@@ -163,6 +165,17 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
               above a full-width preview canvas. */}
           <div className="grid min-h-[20rem] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[14rem_1fr]">
             <aside className="space-y-4 overflow-y-auto pr-2">
+              <div className="rounded-md border border-ink/20 bg-slate-50 p-2">
+                <Segmented
+                  label="Export"
+                  options={[
+                    { value: "room", label: "Whole room" },
+                    { value: "desks", label: "Desks + names" },
+                  ]}
+                  value={layout}
+                  onChange={(v) => setLayout(v as "room" | "desks")}
+                />
+              </div>
               <Segmented
                 label="Color"
                 options={[
@@ -175,7 +188,9 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
               <fieldset>
                 <legend className="label mb-2">Show</legend>
                 <div className="space-y-1.5">
-                  <CheckboxRow label="Floor color" checked={showFloor} onChange={setShowFloor} />
+                  {!deskOnly && (
+                    <CheckboxRow label="Floor color" checked={showFloor} onChange={setShowFloor} />
+                  )}
                   <CheckboxRow
                     label="White background"
                     checked={showBackground}
@@ -187,11 +202,13 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                     checked={showFrontRowMarkers}
                     onChange={setShowFrontRowMarkers}
                   />
-                  <CheckboxRow
-                    label="Front-of-room label"
-                    checked={showFrontWallLabel}
-                    onChange={setShowFrontWallLabel}
-                  />
+                  {!deskOnly && (
+                    <CheckboxRow
+                      label="Front-of-room label"
+                      checked={showFrontWallLabel}
+                      onChange={setShowFrontWallLabel}
+                    />
+                  )}
                 </div>
               </fieldset>
               <Segmented
@@ -260,13 +277,15 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                 students={klass.students}
                 assignments={shown}
                 roomId={room.id}
-                showFrontWallLabel={showFrontWallLabel}
+                showFrontWallLabel={deskOnly ? false : showFrontWallLabel}
                 showNames={showNames}
                 showFrontRowMarkers={showFrontRowMarkers}
                 showEmptySeatDots={false}
+                showFurniture={!deskOnly}
                 roomBackgroundFill={roomBackgroundFill}
                 backgroundFill={backgroundFill}
-                fitContents
+                fitContents={!deskOnly}
+                fitToDesks={deskOnly}
                 framePadding={16}
                 viewRotation={rotation}
                 nameDisplay={klass.nameDisplay}

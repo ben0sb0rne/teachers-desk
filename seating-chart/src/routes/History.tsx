@@ -100,7 +100,7 @@ export default function History() {
 
       {effectiveRoomId == null ? (
         <div className="card p-8 text-center text-ink-muted">
-          This class has no rooms yet. Attach a room from the Classes page or the Seating screen to start saving arrangements.
+          This class has no rooms yet. Add a room from the Classes page or the Seating screen to start saving arrangements.
         </div>
       ) : arrangements.length === 0 ? (
         <div className="card p-8 text-center text-ink-muted">

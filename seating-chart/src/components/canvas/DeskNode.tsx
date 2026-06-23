@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Rect, Circle, Shape, Text } from "react-konva";
 import type Konva from "konva";
-import type { Desk, NameDisplayMode, SeatId, Student, StudentId, RoomId } from "@/types";
+import type { Desk, NameDisplay, SeatId, Student, StudentId, RoomId } from "@/types";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
@@ -44,7 +44,7 @@ interface Props {
   showEmptySeatDots?: boolean;
   /** Per-class name display mode + the set of colliding first names (drives the
    *  "collision" mode). Default = the full canonical name. */
-  nameDisplay?: NameDisplayMode;
+  nameDisplay?: NameDisplay;
   collisions?: Set<string>;
   /** Editor only: open the desk context menu (front row / don't seat here) at
    *  the given screen coords. */
