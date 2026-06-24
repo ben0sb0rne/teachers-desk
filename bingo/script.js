@@ -41,7 +41,11 @@ const TOPIC_GROUPS = [
   // Kindergarten
   { id:'add-sub-10', short:'Add/Subtract within 10', long:'Single-digit addition and subtraction',
     grades:{'K':'K.OA.5'}, fluency:{'K':true},
-    variants:[{label:'Addition'},{label:'Subtraction'},{label:'Mixed'}] },
+    variants:[
+      {label:'Addition', path:'sets/grade-k/add-subtract-within-10-addition.csv'},
+      {label:'Subtraction', path:'sets/grade-k/add-subtract-within-10-subtraction.csv'},
+      {label:'Mixed', path:'sets/grade-k/add-subtract-within-10-addition-subtraction.csv', recommended:true},
+    ] },
   { id:'decompose-teens', short:'Teen Decomposition', long:'Breaking apart numbers like 14 = 10 + ?',
     grades:{'K':'K.NBT.1'}, variants:[{label:'Default'}] },
   { id:'one-more-less', short:'One More, One Less', long:'Counting up or down by 1',
@@ -51,10 +55,9 @@ const TOPIC_GROUPS = [
   { id:'add-sub-20', short:'Add/Subtract within 20', long:'Single-digit operations crossing the ten',
     grades:{'1':'1.OA.6'}, fluency:{'1':true},
     variants:[
-      {label:'Addition: sums to 10'},
-      {label:'Addition: sums 11–20'},
-      {label:'Subtraction: minuends to 10'},
-      {label:'Subtraction: minuends 11–20'},
+      {label:'Addition', path:'sets/grade-1/add-subtract-within-20-addition.csv'},
+      {label:'Subtraction', path:'sets/grade-1/add-subtract-within-20-subtraction.csv'},
+      {label:'Mixed', path:'sets/grade-1/add-subtract-within-20-addition-subtraction.csv', recommended:true},
     ] },
   { id:'ten-more-less', short:'10 More, 10 Less', long:'Mental jumps of ten',
     grades:{'1':'1.NBT.5'}, variants:[{label:'Default'}] },
@@ -66,56 +69,97 @@ const TOPIC_GROUPS = [
   // Grade 2
   { id:'add-sub-100', short:'Add/Subtract within 100', long:'Two-digit addition and subtraction',
     grades:{'2':'2.NBT.5'}, fluency:{'2':true},
-    variants:[{label:'Within 50'},{label:'Within 100'}] },
+    variants:[
+      {label:'Addition', path:'sets/grade-2/add-subtract-within-100-addition.csv'},
+      {label:'Subtraction', path:'sets/grade-2/add-subtract-within-100-subtraction.csv'},
+      {label:'Mixed', path:'sets/grade-2/add-subtract-within-100-addition-subtraction.csv', recommended:true},
+    ] },
   { id:'place-value', short:'Place Value', long:'Identify place values in multi-digit numbers',
     grades:{'2':'2.NBT.1'}, variants:[{label:'Default'}] },
   { id:'money-cents', short:'Money Totals', long:'Adding coins and bills (in cents)',
-    grades:{'2':'2.MD.8'}, variants:[{label:'Default'}] },
+    grades:{'2':'2.MD.8'},
+    variants:[{label:'Default', path:'sets/grade-2/money-totals.csv'}] },
   { id:'skip-counting', short:'Skip Counting', long:'Filling in missing numbers in skip-count sequences',
     grades:{'2':'2.NBT.2'}, variants:[{label:'Default'}] },
 
   // Grade 3
-  { id:'mult-div-facts', short:'Multiplication & Division Facts', long:'Single-digit fact families within 100',
+  { id:'mult-div-facts', short:'Multiplication & Division Facts', long:'Times tables 0–12 and fact families',
     grades:{'3':'3.OA.7'}, fluency:{'3':true},
-    variants:[{label:'Multiplication'},{label:'Division'},{label:'Mixed'}] },
+    variants:[
+      {label:'Multiplication', path:'sets/grade-3/multiplication-facts-0-12.csv'},
+      {label:'Division', path:'sets/grade-3/division-facts-0-12.csv'},
+      {label:'Mixed', path:'sets/grade-3/multiplication-division-facts-0-12.csv', recommended:true},
+    ] },
   { id:'add-sub-1000', short:'Add/Subtract within 1000', long:'Three-digit addition and subtraction',
-    grades:{'3':'3.NBT.2'}, fluency:{'3':true}, variants:[{label:'Default'}] },
+    grades:{'3':'3.NBT.2'}, fluency:{'3':true},
+    variants:[
+      {label:'Addition', path:'sets/grade-3/add-subtract-within-1000-addition.csv'},
+      {label:'Subtraction', path:'sets/grade-3/add-subtract-within-1000-subtraction.csv'},
+      {label:'Mixed', path:'sets/grade-3/add-subtract-within-1000-addition-subtraction.csv', recommended:true},
+    ] },
   { id:'rounding', short:'Rounding', long:'Round to nearest 10 or 100',
     grades:{'3':'3.NBT.1','4':'4.NBT.3'},
-    variants:[{label:'Nearest 10'},{label:'Nearest 100'}] },
+    variants:[
+      {label:'Nearest 10', path:'sets/grade-3/rounding-nearest-10.csv'},
+      {label:'Nearest 100', path:'sets/grade-3/rounding-nearest-100.csv'},
+    ] },
   { id:'rectangle-area', short:'Rectangle Area', long:'Area = length × width',
-    grades:{'3':'3.MD.7'}, variants:[{label:'Default'}] },
+    grades:{'3':'3.MD.7'},
+    variants:[{label:'Default', path:'sets/grade-3/rectangle-area.csv'}] },
   { id:'perimeter', short:'Perimeter', long:'Sum of all side lengths',
-    grades:{'3':'3.MD.8'}, variants:[{label:'Default'}] },
+    grades:{'3':'3.MD.8'},
+    variants:[{label:'Default', path:'sets/grade-3/perimeter.csv'}] },
   { id:'mult-multiples-10', short:'Multiplying by Multiples of 10', long:'Products of single digits and 10s',
-    grades:{'3':'3.NBT.3'}, variants:[{label:'Default'}] },
+    grades:{'3':'3.NBT.3'},
+    variants:[{label:'Default', path:'sets/grade-3/multiply-by-multiples-of-10.csv'}] },
   { id:'equiv-fractions', short:'Equivalent Fractions', long:'Find the missing numerator',
-    grades:{'3':'3.NF.3b','4':'4.NF.1'}, variants:[{label:'Default'}] },
+    grades:{'3':'3.NF.3b','4':'4.NF.1'},
+    variants:[{label:'Default', path:'sets/grade-3/equivalent-fractions.csv'}] },
 
   // Grade 4
   { id:'multi-digit-add-sub', short:'Multi-Digit Add/Subtract', long:'Standard algorithm for large numbers',
-    grades:{'4':'4.NBT.4'}, fluency:{'4':true}, variants:[{label:'Default'}] },
+    grades:{'4':'4.NBT.4'}, fluency:{'4':true},
+    variants:[
+      {label:'Addition', path:'sets/grade-4/multi-digit-addition.csv'},
+      {label:'Subtraction', path:'sets/grade-4/multi-digit-subtraction.csv'},
+      {label:'Mixed', path:'sets/grade-4/multi-digit-addition-subtraction.csv', recommended:true},
+    ] },
   { id:'multi-digit-mult', short:'Multi-Digit Multiplication', long:'Multiplying larger numbers',
     grades:{'4':'4.NBT.5','5':'5.NBT.5'},
-    variants:[{label:'2-digit × 1-digit'},{label:'2-digit × 2-digit'}] },
-  { id:'multi-digit-division', short:'Multi-Digit Division', long:'Division with multi-digit dividends',
+    variants:[
+      {label:'2-digit × 1-digit', path:'sets/grade-4/multi-digit-multiplication-2-digit-by-1-digit.csv'},
+      {label:'3-digit × 1-digit', path:'sets/grade-4/multi-digit-multiplication-3-digit-by-1-digit.csv'},
+      {label:'4-digit × 1-digit', path:'sets/grade-4/multi-digit-multiplication-4-digit-by-1-digit.csv'},
+      {label:'2-digit × 2-digit', path:'sets/grade-4/multi-digit-multiplication-2-digit-by-2-digit.csv', recommended:true},
+      {label:'3-digit × 2-digit', path:'sets/grade-5/multi-digit-multiplication-3-digit-by-2-digit.csv'},
+    ] },
+  { id:'multi-digit-division', short:'Multi-Digit Division', long:'Long division with multi-digit dividends',
     grades:{'4':'4.NBT.6','5':'5.NBT.6'},
-    variants:[{label:'1-digit divisor'}] },
+    variants:[
+      {label:'1-digit divisor', path:'sets/grade-4/long-division-1-digit-divisor.csv', recommended:true},
+      {label:'2-digit divisor', path:'sets/grade-5/long-division-2-digit-divisor.csv'},
+    ] },
   { id:'frac-add-sub-like', short:'Like-Denominator Fractions', long:'Add and subtract fractions with same denominator',
-    grades:{'4':'4.NF.3'}, variants:[{label:'Default'}] },
+    grades:{'4':'4.NF.3'},
+    variants:[{label:'Default', path:'sets/grade-4/like-denominator-fractions.csv'}] },
   { id:'frac-times-whole', short:'Fraction × Whole', long:'Multiplying a fraction by a whole number',
-    grades:{'4':'4.NF.4'}, variants:[{label:'Default'}] },
+    grades:{'4':'4.NF.4'},
+    variants:[{label:'Default', path:'sets/grade-4/fraction-times-whole-number.csv'}] },
   { id:'decimal-fraction-conv', short:'Decimal-Fraction Conversion', long:'Tenths and hundredths, both directions',
     grades:{'4':'4.NF.6'}, variants:[{label:'Default'}] },
   { id:'angle-additivity', short:'Angle Additivity', long:'Adjacent angles sum to a whole',
     grades:{'4':'4.MD.7'}, variants:[{label:'Default'}] },
   { id:'unit-conversion', short:'Unit Conversion', long:'Convert within measurement systems',
-    grades:{'4':'4.MD.1','5':'5.MD.1'}, variants:[{label:'Default'}] },
+    grades:{'4':'4.MD.1','5':'5.MD.1'},
+    variants:[{label:'Default', path:'sets/grade-4/unit-conversion.csv'}] },
 
   // Grade 5
   { id:'decimal-ops', short:'Decimal Operations', long:'Add, subtract, multiply with decimals',
     grades:{'5':'5.NBT.7'},
-    variants:[{label:'Addition/Subtraction'},{label:'Multiplication'}] },
+    variants:[
+      {label:'Addition/Subtraction', path:'sets/grade-5/decimal-addition-subtraction.csv'},
+      {label:'Multiplication', path:'sets/grade-5/decimal-multiplication.csv'},
+    ] },
   { id:'frac-times-frac', short:'Multiplying Fractions', long:'Fraction × fraction',
     grades:{'5':'5.NF.4'}, variants:[{label:'Default'}] },
   { id:'frac-div', short:'Dividing Fractions', long:'Fraction and whole-number division',
@@ -124,24 +168,31 @@ const TOPIC_GROUPS = [
   { id:'volume-prisms', short:'Volume of Prisms', long:'Rectangular prism volume',
     grades:{'5':'5.MD.5'}, variants:[{label:'Default'}] },
   { id:'powers-of-10', short:'Powers of 10', long:'Multiplying and dividing by powers of 10',
-    grades:{'5':'5.NBT.2'}, variants:[{label:'Default'}] },
+    grades:{'5':'5.NBT.2'},
+    variants:[{label:'Default', path:'sets/grade-5/powers-of-10.csv'}] },
   { id:'order-of-ops', short:'Order of Operations', long:'PEMDAS evaluation',
-    grades:{'5':'5.OA.1','6':'6.EE.2c'}, variants:[{label:'Default'}] },
+    grades:{'5':'5.OA.1','6':'6.EE.2c'},
+    variants:[{label:'Default', path:'sets/grade-5/order-of-operations.csv'}] },
 
   // Grade 6
   { id:'gcf-lcm', short:'GCF & LCM', long:'Greatest common factor, least common multiple',
     grades:{'6':'6.NS.4'},
     variants:[{label:'GCF'},{label:'LCM'}] },
   { id:'absolute-value', short:'Absolute Value', long:'Distance from zero',
-    grades:{'6':'6.NS.7c'}, variants:[{label:'Default'}] },
+    grades:{'6':'6.NS.7c'},
+    variants:[{label:'Default', path:'sets/grade-6/absolute-value.csv'}] },
   { id:'unit-rates', short:'Unit Rates', long:'Rates per single unit',
-    grades:{'6':'6.RP.2','7':'7.RP.1'}, variants:[{label:'Default'}] },
+    grades:{'6':'6.RP.2','7':'7.RP.1'},
+    variants:[{label:'Default', path:'sets/grade-6/unit-rates.csv'}] },
   { id:'percents', short:'Percents', long:'Find percent of a quantity',
-    grades:{'6':'6.RP.3c','7':'7.RP.3'}, variants:[{label:'Default'}] },
+    grades:{'6':'6.RP.3c','7':'7.RP.3'},
+    variants:[{label:'Default', path:'sets/grade-6/percent-of-a-number.csv'}] },
   { id:'eval-expressions', short:'Evaluating Expressions', long:'Substitute values into algebraic expressions',
-    grades:{'6':'6.EE.2c','7':'7.EE.2'}, variants:[{label:'Default'}] },
+    grades:{'6':'6.EE.2c','7':'7.EE.2'},
+    variants:[{label:'Default', path:'sets/grade-6/evaluating-expressions.csv'}] },
   { id:'one-step-eqs', short:'One-Step Equations', long:'Solve with one operation',
-    grades:{'6':'6.EE.7'}, variants:[{label:'Default'}] },
+    grades:{'6':'6.EE.7'},
+    variants:[{label:'Default', path:'sets/grade-6/one-step-equations.csv'}] },
   { id:'polygon-area', short:'Polygon Areas', long:'Triangles, parallelograms, trapezoids',
     grades:{'6':'6.G.1'},
     variants:[{label:'Triangles'},{label:'Parallelograms'},{label:'Trapezoids'}] },
@@ -158,9 +209,13 @@ const TOPIC_GROUPS = [
     ] },
   { id:'mult-negatives', short:'Multiplying Negatives', long:'Multiplying & dividing rational numbers',
     grades:{'7':'7.NS.2','Pre-Algebra':'7.NS.2'}, fluency:{'7':true},
-    variants:[{label:'Integers'},{label:'Including rationals'}] },
+    variants:[
+      {label:'Integers', path:'sets/grade-7/multiply-divide-integers.csv', recommended:true},
+      {label:'Including rationals'},
+    ] },
   { id:'two-step-eqs', short:'Two-Step Equations', long:'Solve with two operations',
-    grades:{'7':'7.EE.4a'}, variants:[{label:'Default'}] },
+    grades:{'7':'7.EE.4a'},
+    variants:[{label:'Default', path:'sets/grade-7/two-step-equations.csv'}] },
   { id:'circle-area-circ', short:'Circle Area & Circumference', long:'Using π in answers',
     grades:{'7':'7.G.4'}, variants:[{label:'Area'},{label:'Circumference'}] },
   { id:'simple-prob', short:'Simple Probability', long:'Single-event likelihood',
@@ -168,7 +223,8 @@ const TOPIC_GROUPS = [
   { id:'angle-relationships', short:'Angle Relationships', long:'Complementary, supplementary, vertical',
     grades:{'7':'7.G.5','8':'8.G.5'}, variants:[{label:'Default'}] },
   { id:'proportions', short:'Proportions', long:'Solving for missing parts of a proportion',
-    grades:{'7':'7.RP.2','Pre-Algebra':'7.RP.2'}, variants:[{label:'Default'}] },
+    grades:{'7':'7.RP.2','Pre-Algebra':'7.RP.2'},
+    variants:[{label:'Default', path:'sets/grade-7/proportions.csv'}] },
   { id:'inequalities', short:'Inequalities', long:'Boundary value of a one-variable inequality',
     grades:{'7':'7.EE.4b','Pre-Algebra':'7.EE.4b'}, variants:[{label:'Default'}] },
 
@@ -178,7 +234,10 @@ const TOPIC_GROUPS = [
     variants:[{label:'Integer exponents'},{label:'Negative & zero exponents'}] },
   { id:'sq-cube-roots', short:'Square & Cube Roots', long:'Perfect squares and cubes',
     grades:{'8':'8.EE.2'},
-    variants:[{label:'Squares to 225'},{label:'Cubes to 1000'}] },
+    variants:[
+      {label:'Square roots', path:'sets/grade-8/square-roots.csv'},
+      {label:'Cube roots', path:'sets/grade-8/cube-roots.csv'},
+    ] },
   { id:'sci-notation', short:'Scientific Notation', long:'Operations in scientific notation',
     grades:{'8':'8.EE.4'}, calc:true, variants:[{label:'Default'}] },
   { id:'slope', short:'Slope', long:'Slope from points or equation',
@@ -192,7 +251,7 @@ const TOPIC_GROUPS = [
     variants:[{label:'Integer triples'},{label:'Find hypotenuse'},{label:'Find leg'}] },
   { id:'function-eval', short:'Function Evaluation', long:'Evaluate functions at given inputs',
     grades:{'8':'8.F.1','Pre-Algebra':'F-IF.2','Algebra I':'F-IF.2'},
-    variants:[{label:'Default'}] },
+    variants:[{label:'Default', path:'sets/grade-8/function-evaluation.csv'}] },
   { id:'function-notation', short:'Function Notation', long:'Reading and using f(x) notation',
     grades:{'Pre-Algebra':'F-IF.2','Algebra II':'F-IF.2'},
     variants:[{label:'Default'}] },
@@ -433,13 +492,12 @@ function loadProblems(csvText, filename) {
     if (!prob)                  rowErrors.push('Problem is empty');
     // Answer can be numeric OR a LaTeX expression. Only require non-empty.
     if (ansRaw === '')          rowErrors.push('Answer is required');
-    const ansNum = parseFloat(ansRaw);
 
     const editRow = { id: newRowId(), column: col || '', problem: prob, answer: ansRaw, errors: rowErrors };
     allRows.push(editRow);
 
     if (rowErrors.length === 0) {
-      problems.push({ column: col, problem: prob, answer: ansNum });
+      problems.push({ column: col, problem: prob, answer: ansRaw });
     }
   }
 
@@ -880,7 +938,11 @@ function buildColumnAnswers(problems) {
   }
   const result = {};
   for (const [col, vals] of Object.entries(map)) {
-    result[col] = [...vals].sort((a,b) => a - b);
+    result[col] = [...vals].sort((a, b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return String(a).localeCompare(String(b));
+    });
   }
   return result;
 }
@@ -1556,7 +1618,7 @@ function syncProblemsFromEditRows() {
   const answerKeys = {};
   state.editRows.forEach(r => {
     if (r.errors.length > 0) return;
-    const key = r.column.toUpperCase() + ':' + parseFloat(r.answer);
+    const key = r.column.toUpperCase() + ':' + r.answer.trim();
     (answerKeys[key] = answerKeys[key] || []).push(r.id);
   });
   Object.values(answerKeys).forEach(ids => {
@@ -1577,7 +1639,7 @@ function syncProblemsFromEditRows() {
   // 4. Derive valid problems
   state.problems = state.editRows
     .filter(r => r.errors.length === 0)
-    .map(r => ({ column: r.column.toUpperCase(), problem: r.problem.trim(), answer: parseFloat(r.answer) }));
+    .map(r => ({ column: r.column.toUpperCase(), problem: r.problem.trim(), answer: r.answer.trim() }));
   state.columnAnswers = buildColumnAnswers(state.problems);
   updatePvPreviewCount();
   // The set is now potentially dirty — refresh the beforeunload guard

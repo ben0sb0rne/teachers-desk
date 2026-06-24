@@ -1,0 +1,76 @@
+column,problem,answer
+B,4 miles in 2 hours,2
+B,9 miles in 3 hours,3
+B,16 miles in 4 hours,4
+B,$20 for 4 items,5
+B,30 km in 5 h,6
+B,49 miles in 7 hours,7
+B,40 km in 5 h,8
+B,63 miles in 7 hours,9
+B,33 miles in 3 hours,11
+B,24 miles in 2 hours,12
+B,26 km in 2 h,13
+B,98 km in 7 h,14
+B,60 miles in 4 hours,15
+B,$80 for 5 items,16
+B,68 km in 4 h,17
+I,144 miles in 8 hours,18
+I,133 miles in 7 hours,19
+I,120 miles in 6 hours,20
+I,63 miles in 3 hours,21
+I,44 miles in 2 hours,22
+I,92 miles in 4 hours,23
+I,96 km in 4 h,24
+I,125 km in 5 h,25
+I,189 km in 7 h,27
+I,84 km in 3 h,28
+I,58 miles in 2 hours,29
+I,60 miles in 2 hours,30
+I,155 km in 5 h,31
+I,128 km in 4 h,32
+I,$165 for 5 items,33
+N,136 miles in 4 hours,34
+N,70 miles in 2 hours,35
+N,$180 for 5 items,36
+N,296 km in 8 h,37
+N,304 miles in 8 hours,38
+N,234 miles in 6 hours,39
+N,240 miles in 6 hours,40
+N,210 miles in 5 hours,42
+N,301 km in 7 h,43
+N,220 km in 5 h,44
+N,$225 for 5 items,45
+N,$138 for 3 items,46
+N,376 km in 8 h,47
+N,$96 for 2 items,48
+N,392 km in 8 h,49
+G,100 miles in 2 hours,50
+G,255 miles in 5 hours,51
+G,312 km in 6 h,52
+G,424 miles in 8 hours,53
+G,216 miles in 4 hours,54
+G,165 km in 3 h,55
+G,336 miles in 6 hours,56
+G,116 km in 2 h,58
+G,$354 for 6 items,59
+G,420 miles in 7 hours,60
+G,488 km in 8 h,61
+G,$124 for 2 items,62
+G,$189 for 3 items,63
+G,$384 for 6 items,64
+G,195 km in 3 h,65
+O,462 miles in 7 hours,66
+O,134 miles in 2 hours,67
+O,136 km in 2 h,68
+O,138 km in 2 h,69
+O,350 km in 5 h,70
+O,497 km in 7 h,71
+O,288 miles in 4 hours,72
+O,370 km in 5 h,74
+O,225 km in 3 h,75
+O,$380 for 5 items,76
+O,462 miles in 6 hours,77
+O,312 miles in 4 hours,78
+O,316 miles in 4 hours,79
+O,320 miles in 4 hours,80
+O,648 km in 8 h,81
