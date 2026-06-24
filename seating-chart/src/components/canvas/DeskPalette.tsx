@@ -9,6 +9,9 @@ import UndoRedoButtons from "@/components/canvas/UndoRedoButtons";
 export type PaletteDragType = "single-desk" | "multi-desk" | "furniture";
 
 interface Props {
+  /** Which half of the split editor palette this instance renders:
+   *  "insert" (left — tools you place) or "inspect" (right — edit selection + room). */
+  variant: "insert" | "inspect";
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onPlaceSingle: (kind: DeskKind) => void;
@@ -64,6 +67,7 @@ const DEFAULT_ROOM_W = 1000;
 const DEFAULT_ROOM_H = 700;
 
 export default function DeskPalette({
+  variant,
   collapsed,
   onToggleCollapsed,
   onPlaceSingle,
@@ -101,36 +105,51 @@ export default function DeskPalette({
   const canFlip = selectionSize >= 1 && !locked;
   const canColor = selectionSize >= 1 && !locked;
   const canMark = selectionSize >= 1 && !locked;
+  const isInsert = variant === "insert";
   const isDefaultRoom = room.width === DEFAULT_ROOM_W && room.height === DEFAULT_ROOM_H;
 
   if (collapsed) {
     return (
-      <aside className="flex w-10 shrink-0 flex-col items-center border-r border-slate-200 bg-white py-2">
+      <aside
+        className={cn(
+          "flex w-10 shrink-0 flex-col items-center bg-white py-2",
+          isInsert ? "border-r border-slate-200" : "border-l border-slate-200",
+        )}
+      >
         <button
           className="rounded p-1.5 text-ink-muted hover:bg-slate-100"
           onClick={onToggleCollapsed}
-          title="Expand palette"
+          title={isInsert ? "Expand tools" : "Expand edit panel"}
         >
-          <Icon name="chevrons-right" size={16} />
+          <Icon name={isInsert ? "chevrons-right" : "chevrons-left"} size={16} />
         </button>
       </aside>
     );
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside
+      className={cn(
+        "flex w-60 shrink-0 flex-col bg-white",
+        isInsert ? "border-r border-slate-200" : "border-l border-slate-200",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Palette</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+          {isInsert ? "Tools" : "Edit"}
+        </span>
         <button
           className="rounded p-1 text-ink-muted hover:bg-slate-100"
           onClick={onToggleCollapsed}
-          title="Collapse palette"
+          title="Collapse panel"
         >
-          <Icon name="chevrons-left" size={14} />
+          <Icon name={isInsert ? "chevrons-left" : "chevrons-right"} size={14} />
         </button>
       </div>
 
       <div className="flex-1 overflow-auto p-3">
+        {isInsert ? (
+          <>
         <div className="mb-3">
           <UndoRedoButtons />
         </div>
@@ -204,6 +223,9 @@ export default function DeskPalette({
             ))}
           </ul>
         )}
+          </>
+        ) : (
+          <>
 
         <div className="mb-2 flex items-center justify-between">
           <span className="label">Arrange selected</span>
@@ -382,6 +404,8 @@ export default function DeskPalette({
               </label>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </aside>
