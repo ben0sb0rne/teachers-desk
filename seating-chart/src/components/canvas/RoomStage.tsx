@@ -457,15 +457,14 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     const minY = Math.min(next.y1, next.y2);
     const maxY = Math.max(next.y1, next.y2);
     const inside: string[] = [];
+    // Hit-test the VISIBLE (rotated) box so rotated desks select where they
+    // actually sit, not where their un-rotated rect would be.
+    const hits = (b: AABB) => b.x + b.width >= minX && b.x <= maxX && b.y + b.height >= minY && b.y <= maxY;
     for (const d of room.desks) {
-      if (d.x + d.width >= minX && d.x <= maxX && d.y + d.height >= minY && d.y <= maxY) {
-        inside.push(d.id);
-      }
+      if (hits(rotatedItemAABB(d))) inside.push(d.id);
     }
     for (const f of room.furniture ?? []) {
-      if (f.x + f.width >= minX && f.x <= maxX && f.y + f.height >= minY && f.y <= maxY) {
-        inside.push(f.id);
-      }
+      if (hits(rotatedItemAABB(f))) inside.push(f.id);
     }
     onSelectionChange(inside);
   }
@@ -492,25 +491,40 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   }
 
   function snapItemDrag(itemId: string, x: number, y: number) {
-    const allItems: SnapItem[] = [
-      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height, kind: "desk" as const })),
-      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height, kind: "furniture" as const })),
+    // Snap by each piece's VISIBLE (rotated) bounding box so rotated desks line
+    // up by what you see. We snap the AABB, then map the result back to the
+    // node's top-left (what Konva positions by). For rotation 0 the AABB equals
+    // the raw rect, so this is a no-op for un-rotated items.
+    const all = [
+      ...room.desks.map((d) => ({ id: d.id, x: d.x, y: d.y, width: d.width, height: d.height, rotation: d.rotation, kind: "desk" as const })),
+      ...(room.furniture ?? []).map((f) => ({ id: f.id, x: f.x, y: f.y, width: f.width, height: f.height, rotation: f.rotation, kind: "furniture" as const })),
     ];
-    const me = allItems.find((it) => it.id === itemId);
-    if (!me) return { x, y };
-    const result = snapPosition({ ...me, x, y }, x, y, allItems, {
-      roomWidth: room.width,
-      roomHeight: room.height,
-      crossType: !!room.advancedAlignment,
+    const meRaw = all.find((it) => it.id === itemId);
+    if (!meRaw) return { x, y };
+    const meAabb = rotatedItemAABB({ ...meRaw, x, y });
+    const offsetX = x - meAabb.x;
+    const offsetY = y - meAabb.y;
+    const peers: SnapItem[] = all.map((it) => {
+      const b = rotatedItemAABB(it);
+      return { id: it.id, x: b.x, y: b.y, width: b.width, height: b.height, kind: it.kind };
     });
+    const result = snapPosition(
+      { id: itemId, x: meAabb.x, y: meAabb.y, width: meAabb.width, height: meAabb.height, kind: meRaw.kind },
+      meAabb.x,
+      meAabb.y,
+      peers,
+      { roomWidth: room.width, roomHeight: room.height, crossType: !!room.advancedAlignment },
+    );
     setGuides(result.guides);
+    const snappedX = result.x + offsetX;
+    const snappedY = result.y + offsetY;
 
     const session = dragSession.current;
     if (session && session.initialPositions.size > 1) {
       const initial = session.initialPositions.get(itemId);
       if (initial) {
-        const dx = result.x - initial.x;
-        const dy = result.y - initial.y;
+        const dx = snappedX - initial.x;
+        const dy = snappedY - initial.y;
         for (const [id, pos] of session.initialPositions) {
           if (id === itemId) continue;
           const node = nodeRefs.current.get(id);
@@ -526,7 +540,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       }
     }
 
-    return { x: result.x, y: result.y };
+    return { x: snappedX, y: snappedY };
   }
 
   function handleItemDragEnd() {

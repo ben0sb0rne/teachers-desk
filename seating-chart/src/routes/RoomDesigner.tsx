@@ -132,6 +132,9 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
   const [paletteCollapsed, setPaletteCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768,
+  );
   const [panelCollapsed, setPanelCollapsed] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
@@ -401,33 +404,39 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
 
   function handleDistributeVertical() {
     if (!room || selectedItemIds.length < 3) return;
-    const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds)
-      .slice()
-      .sort((a, b) => a.entity.y - b.entity.y);
-    const minY = items[0].entity.y;
-    const maxY = items[items.length - 1].entity.y;
-    const step = (maxY - minY) / (items.length - 1);
+    const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
+    // Distribute by the VISIBLE (rotated) top edge, then map back to each item's
+    // top-left so rotated desks space evenly by what you actually see.
+    const aabbs = new Map(items.map((it) => [it.entity.id, rotatedAABB(it)]));
+    const sorted = items.slice().sort((a, b) => aabbs.get(a.entity.id)!.minY - aabbs.get(b.entity.id)!.minY);
+    const minY = aabbs.get(sorted[0].entity.id)!.minY;
+    const maxY = aabbs.get(sorted[sorted.length - 1].entity.id)!.minY;
+    const step = (maxY - minY) / (sorted.length - 1);
     const targetY = new Map<string, number>();
-    items.forEach((it, i) => targetY.set(it.entity.id, Math.round(minY + i * step)));
+    sorted.forEach((it, i) => targetY.set(it.entity.id, minY + i * step));
     applyItemPatches(items, (it) => {
-      const newY = targetY.get(it.entity.id);
-      return newY == null || newY === it.entity.y ? null : { y: newY };
+      const target = targetY.get(it.entity.id);
+      if (target == null) return null;
+      const newY = Math.round(it.entity.y + (target - aabbs.get(it.entity.id)!.minY));
+      return newY === it.entity.y ? null : { y: newY };
     });
   }
 
   function handleDistributeHorizontal() {
     if (!room || selectedItemIds.length < 3) return;
-    const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds)
-      .slice()
-      .sort((a, b) => a.entity.x - b.entity.x);
-    const minX = items[0].entity.x;
-    const maxX = items[items.length - 1].entity.x;
-    const step = (maxX - minX) / (items.length - 1);
+    const items = collectSelectedItems(room.desks, room.furniture ?? [], selectedItemIds);
+    const aabbs = new Map(items.map((it) => [it.entity.id, rotatedAABB(it)]));
+    const sorted = items.slice().sort((a, b) => aabbs.get(a.entity.id)!.minX - aabbs.get(b.entity.id)!.minX);
+    const minX = aabbs.get(sorted[0].entity.id)!.minX;
+    const maxX = aabbs.get(sorted[sorted.length - 1].entity.id)!.minX;
+    const step = (maxX - minX) / (sorted.length - 1);
     const targetX = new Map<string, number>();
-    items.forEach((it, i) => targetX.set(it.entity.id, Math.round(minX + i * step)));
+    sorted.forEach((it, i) => targetX.set(it.entity.id, minX + i * step));
     applyItemPatches(items, (it) => {
-      const newX = targetX.get(it.entity.id);
-      return newX == null || newX === it.entity.x ? null : { x: newX };
+      const target = targetX.get(it.entity.id);
+      if (target == null) return null;
+      const newX = Math.round(it.entity.x + (target - aabbs.get(it.entity.id)!.minX));
+      return newX === it.entity.x ? null : { x: newX };
     });
   }
 
@@ -638,6 +647,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
           )
         : (
           <DeskPalette
+            variant="insert"
             collapsed={paletteCollapsed}
             onToggleCollapsed={() => setPaletteCollapsed((c) => !c)}
             onPlaceSingle={handlePlaceSingle}
@@ -701,6 +711,34 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
           </div>
         )}
       </div>
+      {!seating && (
+        <DeskPalette
+          variant="inspect"
+          collapsed={inspectorCollapsed}
+          onToggleCollapsed={() => setInspectorCollapsed((c) => !c)}
+          onPlaceSingle={handlePlaceSingle}
+          onOpenMulti={handleOpenMulti}
+          onPlaceFurniture={handlePlaceFurniture}
+          onPaletteDragStart={handlePaletteDragStart}
+          room={room}
+          onUpdateRoom={(patch) => updateRoom(room.id, patch)}
+          selectionSize={selectedItemIds.length}
+          onAlignVertical={handleAlignVertical}
+          onAlignHorizontal={handleAlignHorizontal}
+          onDistributeVertical={handleDistributeVertical}
+          onDistributeHorizontal={handleDistributeHorizontal}
+          onFlipHorizontal={handleFlipHorizontal}
+          onFlipVertical={handleFlipVertical}
+          onMarkFrontRow={handleMarkFrontRow}
+          onMarkExcluded={handleMarkExcluded}
+          onSetColor={handleSetColor}
+          onResetColor={handleResetColor}
+          locked={userLocked}
+          onToggleLocked={() => setUserLocked((l) => !l)}
+          showGrid={showGrid}
+          onToggleGrid={() => setShowGrid((g) => !g)}
+        />
+      )}
       {klass && (
         <ExportDialog
           open={exportOpen}
