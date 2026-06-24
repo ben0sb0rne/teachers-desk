@@ -365,8 +365,13 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     // Fit to just the desks (class thumbnails + "desks only" export): frame the
     // union of the desks' rotated AABBs, ignoring the room rect + furniture.
     if (fitToDesks && room.desks.length > 0) {
-      let deskUnion = rotatedItemAABB(room.desks[0]);
-      for (const d of room.desks.slice(1)) deskUnion = unionAABB(deskUnion, rotatedItemAABB(d));
+      // Prefer the OCCUPIED desks (where students actually sit) so a stray empty
+      // desk off to one side doesn't drag the frame off-center. Fall back to all
+      // desks when nothing is seated yet.
+      const seated = room.desks.filter((d) => d.seats.some((s) => assignments[s.id] != null));
+      const target = seated.length > 0 ? seated : room.desks;
+      let deskUnion = rotatedItemAABB(target[0]);
+      for (const d of target.slice(1)) deskUnion = unionAABB(deskUnion, rotatedItemAABB(d));
       return {
         x: deskUnion.x - FIT_CONTENTS_PADDING,
         y: deskUnion.y - FIT_CONTENTS_PADDING - labelBandHeight,
@@ -390,7 +395,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
       width: union.width + FIT_CONTENTS_PADDING * 2,
       height: union.height + FIT_CONTENTS_PADDING * 2 + labelBandHeight,
     };
-  }, [fitToDesks, fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight]);
+  }, [fitToDesks, fitContents, room.width, room.height, room.desks, room.furniture, labelBandHeight, assignments]);
   // Rotation-aware camera. At 90/270 the content's on-screen bounding box has
   // its width/height swapped, so we fit against the swapped dims, then place
   // the view-bounds CENTER at the stage center under rotation+scale.
