@@ -976,6 +976,7 @@ function initGame() {
   state.currentIndex = -1;
   state.calledAnswers = { B: new Set(), I: new Set(), N: new Set(), G: new Set(), O: new Set() };
   state.gameOver = false;
+  state.answerVisible = false;   // fresh game starts hidden; toggle persists across Next/Back within a game
   resetRenderState();
 }
 
@@ -997,7 +998,6 @@ function nextProblem() {
   // if we're in the middle of history, just move forward
   if (state.currentIndex < state.history.length - 1) {
     state.currentIndex++;
-    state.answerVisible = false;
     return true;
   }
   if (state.gameOver) return false;
@@ -1013,7 +1013,6 @@ function nextProblem() {
     state.calledAnswers[p.column].add(p.answer);
     state.history.push(p);
     state.currentIndex = state.history.length - 1;
-    state.answerVisible = false;
     return true;
   }
 
@@ -1024,12 +1023,14 @@ function nextProblem() {
 function prevProblem() {
   if (state.currentIndex <= 0) return false;
   state.currentIndex--;
-  state.answerVisible = false;
   return true;
 }
 
 function toggleAnswer() {
   state.answerVisible = !state.answerVisible;
+  // Re-fit: revealing the answer reserves vertical space for it (see
+  // computeProblemFontSize); hiding it gives that space back to the equation.
+  computeProblemFontSize();
 }
 
 function resetGame() {
@@ -2138,8 +2139,12 @@ function _computeProblemFontSizeNow() {
   for (let i = 0; i < FONT_SIZE_BINARY_SEARCH_ITERATIONS; i++) {
     const mid = Math.floor((lo + hi) / 2);
     probe.style.fontSize = mid + 'px';
+    // When the answer is revealed it renders below the equation (font ≈ 0.8× the
+    // equation, capped 2rem–8rem); reserve its height so the equation shrinks to
+    // fit instead of overflowing the area and pushing the board off-screen.
+    const answerH = state.answerVisible ? Math.min(Math.max(32, mid * 0.8), 128) * 1.2 + 16 : 0;
     // +14px safety margin absorbs sub-pixel rounding between the probe and the live element.
-    const maxEquH = Math.max(16, totalH - mid * indicatorMul - 16 - 14);
+    const maxEquH = Math.max(16, totalH - mid * indicatorMul - 16 - 14 - answerH);
     if (probe.offsetWidth <= availW && probe.offsetHeight <= maxEquH) {
       best = mid; lo = mid + 1;
     } else {
@@ -2277,7 +2282,7 @@ function applySettings() {
   document.documentElement.style.setProperty('--rbs', s.recentBallScale ?? 1.0);
   document.getElementById('bottom-nav').hidden = !s.showNavButtons;
   const isRecent = s.boardMode === 'recent';
-  const panelVisible = isRecent ? (s.showBoard && s.showRecentBalls) : s.showBoard;
+  const panelVisible = s.showBoard;
   document.getElementById('board-panel').classList.toggle('hidden', !panelVisible);
   document.getElementById('board-grid').classList.toggle('mode-hidden', isRecent);
   document.getElementById('recent-balls-strip').classList.toggle('mode-hidden', !isRecent);
@@ -2602,10 +2607,6 @@ function renderDisplayTab(host) {
         <label for="s-show-progress">Show call count</label>
         <input type="checkbox" id="s-show-progress" ${s.showProgress ? 'checked' : ''}>
       </div>
-      <div class="settings-row">
-        <label for="s-show-recent">Show recently called numbers</label>
-        <input type="checkbox" id="s-show-recent" ${s.showRecentBalls ? 'checked' : ''}>
-      </div>
     </div>
   `;
   if (showFontRow) {
@@ -2619,10 +2620,6 @@ function renderDisplayTab(host) {
   };
   host.querySelector('#s-show-progress').onchange = e => {
     state.settings.showProgress = e.target.checked;
-    saveSettings(); render();
-  };
-  host.querySelector('#s-show-recent').onchange = e => {
-    state.settings.showRecentBalls = e.target.checked;
     saveSettings(); render();
   };
 }
@@ -4127,6 +4124,18 @@ function wireEvents() {
     clearTimeout(_resizeDebounceTimer);
     _resizeDebounceTimer = setTimeout(computeProblemFontSize, 150);
   });
+
+  // Re-fit whenever #problem-area's box actually changes size — covers viewport
+  // resize AND the topstrip showing/hiding on fullscreen toggle (a layout change
+  // that fires no resize event). This settles the fullscreen-exit case where the
+  // font otherwise stayed at its larger fullscreen size.
+  const probArea = document.getElementById('problem-area');
+  if (probArea && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      clearTimeout(_resizeDebounceTimer);
+      _resizeDebounceTimer = setTimeout(computeProblemFontSize, 120);
+    }).observe(probArea);
+  }
 }
 
 /* ============================================================

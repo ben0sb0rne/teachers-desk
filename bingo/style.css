@@ -648,6 +648,12 @@ body.view-caller.is-fullscreen .suite-topstrip-actions {
    deep-ink type, both modes. */
 #problem-area {
   flex: 1;
+  /* Allow the flex item to shrink to its allocated height instead of growing
+     to fit content — without this, revealing the answer balloons the area and
+     pushes the board off-screen (and the font auto-fit then measures the
+     ballooned height). The auto-fit reserves room for the answer; this keeps
+     the box at the height the auto-fit assumes. */
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
