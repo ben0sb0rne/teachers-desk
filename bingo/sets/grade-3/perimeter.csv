@@ -1,0 +1,76 @@
+column,problem,answer
+B,Rectangle: 2 by 2. Perimeter?,8
+B,Rectangle: 2 by 3. Perimeter?,10
+B,Rectangle: 2 by 5. Perimeter?,14
+B,Square: side 4. Perimeter?,16
+B,Rectangle: 3 by 6. Perimeter?,18
+B,Rectangle: 2 by 8. Perimeter?,20
+B,Rectangle: 6 by 6. Perimeter?,24
+B,Rectangle: 3 by 10. Perimeter?,26
+B,Rectangle: 3 by 11. Perimeter?,28
+B,Rectangle: 8 by 8. Perimeter?,32
+B,Rectangle: 4 by 13. Perimeter?,34
+B,Rectangle: 9 by 9. Perimeter?,36
+B,Rectangle: 3 by 16. Perimeter?,38
+B,Rectangle: 5 by 16. Perimeter?,42
+B,Rectangle: 5 by 17. Perimeter?,44
+I,Rectangle: 5 by 18. Perimeter?,46
+I,Rectangle: 4 by 21. Perimeter?,50
+I,Rectangle: 2 by 24. Perimeter?,52
+I,Rectangle: 4 by 23. Perimeter?,54
+I,Rectangle: 2 by 26. Perimeter?,56
+I,Rectangle: 6 by 24. Perimeter?,60
+I,Rectangle: 15 by 16. Perimeter?,62
+I,Rectangle: 16 by 16. Perimeter?,64
+I,Rectangle: 12 by 22. Perimeter?,68
+I,Rectangle: 14 by 21. Perimeter?,70
+I,Rectangle: 7 by 29. Perimeter?,72
+I,Rectangle: 3 by 34. Perimeter?,74
+I,Rectangle: 13 by 26. Perimeter?,78
+I,Rectangle: 4 by 36. Perimeter?,80
+I,Rectangle: 13 by 28. Perimeter?,82
+N,Rectangle: 8 by 35. Perimeter?,86
+N,Rectangle: 11 by 33. Perimeter?,88
+N,Rectangle: 8 by 37. Perimeter?,90
+N,Rectangle: 23 by 23. Perimeter?,92
+N,Square: side 24. Perimeter?,96
+N,Rectangle: 10 by 39. Perimeter?,98
+N,Rectangle: 20 by 30. Perimeter?,100
+N,Square: side 26. Perimeter?,104
+N,Rectangle: 13 by 40. Perimeter?,106
+N,Rectangle: 15 by 39. Perimeter?,108
+N,Rectangle: 18 by 37. Perimeter?,110
+N,Rectangle: 17 by 40. Perimeter?,114
+N,Rectangle: 22 by 36. Perimeter?,116
+N,Rectangle: 26 by 33. Perimeter?,118
+N,Square: side 30. Perimeter?,120
+G,Rectangle: 29 by 33. Perimeter?,124
+G,Rectangle: 24 by 39. Perimeter?,126
+G,Rectangle: 32 by 32. Perimeter?,128
+G,Rectangle: 33 by 33. Perimeter?,132
+G,Rectangle: 29 by 38. Perimeter?,134
+G,Rectangle: 28 by 40. Perimeter?,136
+G,Rectangle: 33 by 36. Perimeter?,138
+G,Rectangle: 33 by 38. Perimeter?,142
+G,Rectangle: 36 by 36. Perimeter?,144
+G,Rectangle: 36 by 37. Perimeter?,146
+G,Rectangle: 37 by 38. Perimeter?,150
+G,Square: side 38. Perimeter?,152
+G,Rectangle: 38 by 39. Perimeter?,154
+G,Rectangle: 38 by 40. Perimeter?,156
+G,Rectangle: 40 by 40. Perimeter?,160
+O,Square: side 41. Perimeter?,164
+O,Square: side 42. Perimeter?,168
+O,Square: side 44. Perimeter?,176
+O,Square: side 45. Perimeter?,180
+O,Square: side 46. Perimeter?,184
+O,Square: side 47. Perimeter?,188
+O,Square: side 49. Perimeter?,196
+O,Square: side 50. Perimeter?,200
+O,Square: side 51. Perimeter?,204
+O,Square: side 53. Perimeter?,212
+O,Square: side 54. Perimeter?,216
+O,Square: side 55. Perimeter?,220
+O,Square: side 56. Perimeter?,224
+O,Square: side 58. Perimeter?,232
+O,Square: side 59. Perimeter?,236
