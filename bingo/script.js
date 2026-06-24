@@ -124,9 +124,12 @@ const TOPIC_GROUPS = [
   { id:'multi-digit-add-sub', short:'Multi-Digit Add/Subtract', long:'Standard algorithm for large numbers',
     grades:{'4':'4.NBT.4'}, fluency:{'4':true},
     variants:[
-      {label:'Addition', path:'sets/grade-4/multi-digit-addition.csv'},
-      {label:'Subtraction', path:'sets/grade-4/multi-digit-subtraction.csv'},
-      {label:'Mixed', path:'sets/grade-4/multi-digit-addition-subtraction.csv', recommended:true},
+      {label:'3-digit Addition', path:'sets/grade-4/three-digit-addition.csv'},
+      {label:'3-digit Subtraction', path:'sets/grade-4/three-digit-subtraction.csv'},
+      {label:'3-digit Mixed', path:'sets/grade-4/three-digit-addition-subtraction.csv', recommended:true},
+      {label:'4-digit Addition', path:'sets/grade-4/multi-digit-addition.csv'},
+      {label:'4-digit Subtraction', path:'sets/grade-4/multi-digit-subtraction.csv'},
+      {label:'4-digit Mixed', path:'sets/grade-4/multi-digit-addition-subtraction.csv'},
     ] },
   { id:'multi-digit-mult', short:'Multi-Digit Multiplication', long:'Multiplying larger numbers',
     grades:{'4':'4.NBT.5','5':'5.NBT.5'},
@@ -2079,10 +2082,6 @@ function _computeProblemFontSizeNow() {
   const problemArea = document.getElementById('problem-area');
   if (!problemArea || problemArea.offsetWidth === 0) return;
 
-  const longestProblem = state.problems.reduce(
-    (best, p) => p.problem.length > best.length ? p.problem : best, ''
-  );
-
   // Mirror CSS: #problem-card { max-width: clamp(700px, 70vw, 1400px) }
   // Card may be hidden (offsetWidth=0) when this runs before render(), so compute directly.
   const cardMaxW = Math.min(Math.max(700, window.innerWidth * 0.7), 1400);
@@ -2094,14 +2093,39 @@ function _computeProblemFontSizeNow() {
   if (availW <= 0 || totalH <= 0) return;
 
   const probe = document.createElement('span');
-  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-weight:700;line-height:1.1;letter-spacing:-0.01em;top:-9999px;left:-9999px;';
-  if (longestProblem.includes('\\') && typeof katex !== 'undefined') {
-    try { probe.innerHTML = katex.renderToString(longestProblem, { throwOnError: false, displayMode: false }); }
-    catch(e) { probe.textContent = longestProblem; }
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;line-height:1.1;letter-spacing:-0.01em;top:-9999px;left:-9999px;';
+  // Measure at the SAME font weight/family the live #problem-text renders at —
+  // otherwise the probe under-measures, the real text overflows the approved
+  // width, and word-break wraps it onto a second line. (#problem-text is weight 800.)
+  const liveText = document.getElementById('problem-text');
+  if (liveText) {
+    const cs = getComputedStyle(liveText);
+    probe.style.fontWeight = cs.fontWeight;
+    probe.style.fontFamily = cs.fontFamily;
   } else {
-    probe.textContent = longestProblem;
+    probe.style.fontWeight = '800';
   }
   document.body.appendChild(probe);
+
+  const renderInProbe = (text) => {
+    if (text.includes('\\') && typeof katex !== 'undefined') {
+      try { probe.innerHTML = katex.renderToString(text, { throwOnError: false, displayMode: false }); return; }
+      catch (e) {}
+    }
+    probe.textContent = text;
+  };
+
+  // Size to the WIDEST problem by rendered pixel width — NOT the longest by
+  // character count. Same-length problems differ in width ('+' is wider than
+  // '-', and 8/9/0 are wider than 1), and at large (fullscreen) fonts that gap
+  // exceeds the box, wrapping the widest problem onto a second line.
+  probe.style.fontSize = '100px';
+  let widest = state.problems[0].problem, widestW = -1;
+  for (const p of state.problems) {
+    renderInProbe(p.problem);
+    if (probe.offsetWidth > widestW) { widestW = probe.offsetWidth; widest = p.problem; }
+  }
+  renderInProbe(widest);
 
   // The column indicator above the equation is either #col-chip (flat,
   // 1.3em diameter = 0.65 × font-size) or #col-ball (photoreal 3D,
@@ -3824,6 +3848,10 @@ function updateFullscreenBtn() {
   // Body class drives the CSS that collapses the topstrip in fullscreen,
   // leaving only the fullscreen toggle visible as a floating button.
   document.body.classList.toggle('is-fullscreen', inFs);
+  // Entering/exiting fullscreen hides/shows the topstrip, changing the height
+  // available to the caller problem — re-fit it (deferred via the wrapper so the
+  // new layout settles first). No-op outside the caller view.
+  computeProblemFontSize();
   if (!btn) return;
   const use = btn.querySelector('use');
   if (use) use.setAttribute('href', inFs ? '#icon-fullscreen-exit' : '#icon-fullscreen');
