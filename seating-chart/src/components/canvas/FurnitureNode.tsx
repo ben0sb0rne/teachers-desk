@@ -3,6 +3,7 @@ import { Group, Rect, Circle, Line, Shape, Text } from "react-konva";
 import type Konva from "konva";
 import type { RoomId, Furniture } from "@/types";
 import { FURNITURE_DEFAULTS, furnitureLabel } from "@/lib/furniture";
+import { snapToGrid } from "@/lib/snap";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
@@ -142,13 +143,15 @@ export default function FurnitureNode({
         if (!node) return;
         const sx = node.scaleX();
         const sy = node.scaleY();
-        const newWidth = Math.max(MIN_DIM, furniture.width * sx);
-        const newHeight = Math.max(MIN_DIM, furniture.height * sy);
+        // Snap furniture to the grid on resize so pieces land on whole cells —
+        // both their size and (corner-anchored) position.
+        const newWidth = Math.max(MIN_DIM, snapToGrid(furniture.width * sx));
+        const newHeight = Math.max(MIN_DIM, snapToGrid(furniture.height * sy));
         node.scaleX(1);
         node.scaleY(1);
         updateFurniture(roomId, furniture.id, {
-          x: node.x(),
-          y: node.y(),
+          x: snapToGrid(node.x()),
+          y: snapToGrid(node.y()),
           rotation: node.rotation(),
           width: newWidth,
           height: newHeight,

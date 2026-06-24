@@ -221,6 +221,15 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
         const desks = room.desks.filter((d) => selectedItemIds.includes(d.id));
         const furniture = (room.furniture ?? []).filter((f) => selectedItemIds.includes(f.id));
         setClipboard({ desks, furniture });
+      } else if (mod && e.key.toLowerCase() === "x" && selectedItemIds.length > 0) {
+        if (locked) return;
+        e.preventDefault();
+        const desks = room.desks.filter((d) => selectedItemIds.includes(d.id));
+        const furniture = (room.furniture ?? []).filter((f) => selectedItemIds.includes(f.id));
+        setClipboard({ desks, furniture });
+        if (desks.length) removeDesks(room.id, desks.map((d) => d.id));
+        if (furniture.length) removeFurniture(room.id, furniture.map((f) => f.id));
+        setSelectedItemIds([]);
       } else if (mod && e.key.toLowerCase() === "v" && (clipboard.desks.length || clipboard.furniture.length)) {
         if (locked) return;
         e.preventDefault();

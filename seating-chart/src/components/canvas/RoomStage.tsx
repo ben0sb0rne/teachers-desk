@@ -549,25 +549,33 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     dragSession.current = null;
   }
 
-  const gridDots = useMemo(() => {
+  const gridLines = useMemo(() => {
     if (!showGrid) return null;
-    const step = GRID * 4;
-    const dots: { x: number; y: number }[] = [];
-    for (let x = step; x < room.width; x += step) {
-      for (let y = step; y < room.height; y += step) {
-        dots.push({ x, y });
-      }
-    }
-    return dots;
+    const vertical: number[] = [];
+    const horizontal: number[] = [];
+    for (let x = GRID; x < room.width; x += GRID) vertical.push(x);
+    for (let y = GRID; y < room.height; y += GRID) horizontal.push(y);
+    return { vertical, horizontal };
   }, [showGrid, room.width, room.height]);
 
   return (
     <div
       ref={containerRef}
       className={
-        "relative min-h-0 flex-1 " + (interactive ? "bg-slate-100" : "")
+        "relative min-h-0 flex-1 " + (interactive ? "bg-slate-100 select-none" : "")
       }
       style={{ touchAction: "none" }}
+      onPointerDownCapture={
+        interactive
+          ? () => {
+              // Clicking the canvas drops focus from any lingering input (room
+              // size, color, …) so window keyboard shortcuts — Ctrl/Cmd+Z, etc.
+              // — fire on the editor instead of doing a native text-undo.
+              const a = document.activeElement as HTMLElement | null;
+              if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) a.blur();
+            }
+          : undefined
+      }
     >
       <Stage
         ref={stageRef}
@@ -606,18 +614,30 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
             strokeWidth={2 / safeScale}
           />
 
-          {gridDots &&
-            gridDots.map((d, i) => (
-              <Rect
-                key={`g-${i}`}
-                x={d.x - 1}
-                y={d.y - 1}
-                width={2}
-                height={2}
-                fill={NEUTRAL_LINE}
-                listening={false}
-              />
-            ))}
+          {gridLines && (
+            <>
+              {gridLines.vertical.map((x) => (
+                <Line
+                  key={`gv-${x}`}
+                  points={[x, 0, x, room.height]}
+                  stroke={NEUTRAL_LINE}
+                  strokeWidth={1 / safeScale}
+                  opacity={0.45}
+                  listening={false}
+                />
+              ))}
+              {gridLines.horizontal.map((y) => (
+                <Line
+                  key={`gh-${y}`}
+                  points={[0, y, room.width, y]}
+                  stroke={NEUTRAL_LINE}
+                  strokeWidth={1 / safeScale}
+                  opacity={0.45}
+                  listening={false}
+                />
+              ))}
+            </>
+          )}
 
           <Line
             points={frontWallLine(room.frontWall ?? "top", room.width, room.height)}
@@ -676,9 +696,8 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           ))}
 
           {interactive && (
-            // Hold Shift to snap rotation aggressively to every 45°.
-            // Otherwise the existing 5° tolerance keeps cardinal angles smooth
-            // without forcing them.
+            // Hold Shift to snap rotation to every 22.5°. Otherwise the loose 5°
+            // tolerance keeps cardinal (45°) angles smooth without forcing them.
             <Transformer
               ref={transformerRef}
               rotateEnabled={!effectiveLocked}
@@ -689,8 +708,12 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               // opposite the dragged anchor. Single-select keeps default
               // corner-anchored scaling.
               centeredScaling={selectedItemIds.length > 1}
-              rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-              rotationSnapTolerance={shiftHeld ? 23 : 5}
+              rotationSnaps={
+                shiftHeld
+                  ? [0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5, 180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5]
+                  : [0, 45, 90, 135, 180, 225, 270, 315]
+              }
+              rotationSnapTolerance={shiftHeld ? 12 : 5}
               borderStroke={ACCENT_BLUE}
               anchorStroke={ACCENT_BLUE}
               anchorFill="#ffffff"

@@ -1,4 +1,4 @@
-export const GRID = 10;
+export const GRID = 20;
 export const SNAP_THRESHOLD = 6;
 /** Looser tolerance for "is this item on the same row/column?" checks used by
  *  distribution guides. Tighter than SNAP_THRESHOLD makes the user have to
