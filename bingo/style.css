@@ -1674,6 +1674,18 @@ kbd {
 [data-theme="dark"] .tag-fluency { background: #4a3f0d; color: #ffd966; }
 .tag-calc { background: #e3f2fd; color: #1565c0; font-family: monospace; }
 [data-theme="dark"] .tag-calc { background: #0d2a4a; color: #66b3ff; }
+/* Pace filter row + play-tier badges */
+.hp-play-row { align-items: center; }
+.hp-chips-label {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-muted); margin-right: 2px; align-self: center;
+}
+.tag-play { background: transparent; border: 1px solid currentColor; padding: 0 5px; }
+.tag-play-quick     { color: #2e7d32; }
+.tag-play-standard  { color: var(--text-muted); }
+.tag-play-challenge { color: #c0560a; }
+[data-theme="dark"] .tag-play-quick     { color: #7bc47f; }
+[data-theme="dark"] .tag-play-challenge { color: #e8893f; }
 
 /* Empty / roadmap link */
 .hp-empty {
@@ -1907,6 +1919,30 @@ kbd {
   width: 80px; padding: 7px 10px; font-size: .95rem; font-weight: 600;
   border-radius: 8px; border: 1px solid var(--border);
   background: var(--surface2); color: var(--text); text-align: center;
+}
+/* Game-pacing panel */
+.pv-pace-grid { display: grid; grid-template-columns: 1fr; gap: 3px 0; }
+.pv-pace-grid > label {
+  font-size: .82rem; font-weight: 600; color: rgb(var(--bingo-ink-muted) / 0.9); margin-top: 8px;
+}
+.pv-pace-grid > label:first-child { margin-top: 0; }
+.pv-pace-grid select,
+.pv-pace-grid input {
+  width: 100%; padding: 6px 8px; font-size: .9rem; font-weight: 600;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text);
+}
+#pv-pace-readout {
+  margin-top: 12px; padding: 10px 12px; border-radius: 6px;
+  background: rgb(var(--bingo-paper-rule) / 0.10);
+  border: 1px solid rgb(var(--bingo-paper-rule) / 0.20);
+  font-size: .95rem; color: var(--text); line-height: 1.45;
+}
+#pv-pace-readout strong { font-weight: 800; }
+.pv-pace-vary { color: rgb(var(--bingo-ink-muted) / 0.7); font-size: .8rem; font-weight: 500; }
+.pv-pace-hint {
+  margin: 8px 0 0; font-size: .82rem; line-height: 1.45;
+  color: rgb(var(--bingo-ink-muted) / 0.85); font-style: italic;
 }
 #pv-style-picker { display: flex; flex-direction: column; gap: 8px; }
 .pv-style-card {

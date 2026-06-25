@@ -395,6 +395,24 @@ const TOPIC_GROUPS = [
 function topicIsPlayable(group) {
   return group.variants.some(v => v.path);
 }
+
+// Play tier — intrinsic "fun to do 30× in a row" difficulty, INDEPENDENT of
+// grade. Drives the play-feel menu filter + the topic-card badge so a teacher
+// can find the right *feel* across grades (e.g. a 6th-grade class wanting a fast
+// warm-up can surface 1–2 digit work filed under earlier grades). Actual seconds
+// per problem depends on the class, so the pace preview lets the teacher adjust.
+const PLAY_TIERS = {
+  quick:     { label: 'Quick' },
+  standard:  { label: 'Standard' },
+  challenge: { label: 'Challenge' },
+};
+function topicPlayTier(group) {
+  const t = (group.id + ' ' + group.short + ' ' + group.long + ' ' +
+             group.variants.map(v => v.path || '').join(' ')).toLowerCase();
+  if (/(multi-digit|multi digit|three-digit|three digit|four-digit|within 1000|long division|long-division|two-step|two step|multi-step|multi step|order of operations|order-of-ops|by-2-digit|3-digit-by|2-digit-by-2|polynomial|quadratic|logarith|integral|derivativ|asymptote|composition|matrix|determinant|conic|trig|\bsystem)/.test(t)) return 'challenge';
+  if (/(facts|within 10\b|within 20\b|one more|ten more|10 more|skip count|place value|rounding|powers of 10|powers-of-10|multiples of 10|multiples-10|absolute value|square|cube root|\bmoney|decompose|missing addend)/.test(t)) return 'quick';
+  return 'standard';
+}
 // Return the deduped list of CCSS standards a group covers across the allowed
 // grades. Each grades[gk] may be a string OR a string[]; both shapes are
 // supported so a single grade can map to multiple standards without churn.
@@ -472,6 +490,51 @@ function parseCSVText(text) {
 const BINGO_COLS = ['B','I','N','G','O'];
 const VALID_COLS = new Set(BINGO_COLS);
 
+// Win patterns — teacher-announced (cards are physical; not software-enforced).
+// `factor` = average calls-to-first-winner relative to a single line, from a
+// Monte-Carlo sim (tools/bingo-pace-sim.py). Key finding: for a small class a single
+// line is the FASTEST pattern (12 winning lines per card); corners/plus/x/
+// blackout are progressively SLOWER — useful for variety / deliberately longer
+// games, not for speed. Consumed by the pace preview.
+const BINGO_PATTERNS = [
+  { id: 'line',     label: 'Single line',        hint: 'any row, column, or diagonal', factor: 1.0,  speed: 'Fastest' },
+  { id: 'stamp',    label: 'Postage stamp',      hint: 'any 2×2 block in a corner',    factor: 1.13, speed: 'Fast' },
+  { id: 'corners',  label: 'Four corners',       hint: 'the four corner squares',      factor: 1.57, speed: 'Slower' },
+  { id: 'plus',     label: 'Plus / cross',       hint: 'full middle row + column',      factor: 2.2,  speed: 'Slow' },
+  { id: 'x',        label: 'X (both diagonals)', hint: 'both diagonals',                factor: 2.2,  speed: 'Slow' },
+  { id: 'blackout', label: 'Blackout',           hint: 'cover the whole card',          factor: 2.9,  speed: 'Slowest' },
+];
+function bingoPattern(id) { return BINGO_PATTERNS.find(p => p.id === id) || BINGO_PATTERNS[0]; }
+
+// Single-line first-winner call counts from the sim, by pool depth (answers per
+// column) and class size (cards). Bilinearly interpolated; other patterns scale
+// by `factor`. Estimates only — the game-to-game spread is wide.
+const PACE_LINE = {
+  6:  { 10: 11.6, 15: 10.9, 20: 10.6, 28: 10.0 },
+  9:  { 10: 16.2, 15: 15.0, 20: 14.2, 28: 13.3 },
+  15: { 10: 25.7, 15: 23.4, 20: 22.0, 28: 20.7 },
+};
+function _paceInterp(map, x) {
+  const ks = Object.keys(map).map(Number).sort((a, b) => a - b);
+  if (x <= ks[0]) return map[ks[0]];
+  if (x >= ks[ks.length - 1]) return map[ks[ks.length - 1]];
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (x >= ks[i] && x <= ks[i + 1]) {
+      const t = (x - ks[i]) / (ks[i + 1] - ks[i]);
+      return map[ks[i]] + (map[ks[i + 1]] - map[ks[i]]) * t;
+    }
+  }
+  return map[ks[ks.length - 1]];
+}
+// Estimate average calls to the FIRST winner for a pattern / class size / pool.
+function paceFirstWinnerCalls(patternId, numCards, poolPerCol) {
+  const pool = Math.max(6, Math.min(15, poolPerCol || 15));
+  const cards = Math.max(4, numCards || 24);
+  const byPool = {};
+  for (const p of [6, 9, 15]) byPool[p] = _paceInterp(PACE_LINE[p], cards);
+  return _paceInterp(byPool, pool) * bingoPattern(patternId).factor;
+}
+
 function loadProblems(csvText, filename) {
   const rows = parseCSVText(csvText);
   const errors = [];
@@ -541,6 +604,8 @@ const DEFAULT_SETTINGS = {
   theme: 'light',
   showBoard: true,
   boardContent: 'problems',   // 'problems' | 'answers'
+  winPattern: 'line',         // teacher-announced target; feeds the pace preview
+  classSize: 24,              // students; pace-preview input
   showNavButtons: true,
   showProgress: false,
   showRecentBalls: true,
@@ -912,6 +977,14 @@ const state = {
   currentIndex: -1,
   calledAnswers: {},   // { B: Set<number>, I: Set<number>, ... }
   columnAnswers: {},   // { B: number[], ... } — sorted distinct answers per column
+  // "Fewer numbers" speed pool. poolSize 0 = full set (default — no change to
+  // today's behavior). When >0, problems/columnAnswers above are a STABLE
+  // subset derived from the full backups, shared by card generation AND the
+  // call queue so a printed card never holds a number that won't be called.
+  poolSize: 0,
+  _fullProblems: null,
+  _fullColumnAnswers: null,
+  _poolSubset: null,   // { B: Set<answer>, ... } — the chosen subset when poolSize>0
   setName: '',
   // Stable identifier for the currently-loaded custom set in localStorage.
   // Null when no set is loaded; assigned (or restored) when a set enters
@@ -970,8 +1043,56 @@ function buildColumnAnswers(problems) {
   return result;
 }
 
+// ---- "Fewer numbers" speed pool -------------------------------------------
+// The subset is derived once (on pool-size change / set load) and reused by
+// BOTH card generation and the call queue, so a printed card never holds a
+// number that won't be called. poolSize 0 = full set (default).
+
+function _pickN(arr, n) {            // n stable random entries (Fisher–Yates copy)
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, Math.max(0, n));
+}
+
+function derivePoolSubset() {
+  if (!state.poolSize) { state._poolSubset = null; return; }
+  const sub = {};
+  for (const col of BINGO_COLS) {
+    const all = state.columnAnswers[col] || [];
+    sub[col] = new Set(_pickN(all, Math.min(state.poolSize, all.length)));
+  }
+  state._poolSubset = sub;
+}
+
+function activeColumnAnswers() {     // answers in play per column
+  if (!state.poolSize || !state._poolSubset) return state.columnAnswers;
+  const out = {};
+  for (const col of BINGO_COLS) {
+    out[col] = (state.columnAnswers[col] || []).filter(a => state._poolSubset[col]?.has(a));
+  }
+  return out;
+}
+
+function activeProblems() {          // problems actually called
+  if (!state.poolSize || !state._poolSubset) return state.problems;
+  return state.problems.filter(p => state._poolSubset[p.column]?.has(p.answer));
+}
+
+function maxPoolPerColumn() {        // largest selectable pool (smallest column)
+  const sizes = BINGO_COLS.map(c => (state.columnAnswers[c] || []).length).filter(n => n > 0);
+  return sizes.length ? Math.min(...sizes) : 0;
+}
+
+function setPoolSize(n) {            // 0 = full; re-derive the stable subset
+  state.poolSize = n > 0 ? Math.max(5, n) : 0;
+  derivePoolSubset();
+}
+
 function initGame() {
-  state.queue = shuffle(state.problems);
+  state.queue = shuffle(activeProblems());
   state.history = [];
   state.currentIndex = -1;
   state.calledAnswers = { B: new Set(), I: new Set(), N: new Set(), G: new Set(), O: new Set() };
@@ -1078,6 +1199,7 @@ function applyLoadedSet(problems, name, allRows = null) {
   state.problems      = problems;
   state.setName       = name;
   state.columnAnswers = buildColumnAnswers(problems);
+  state.poolSize = 0; state._poolSubset = null;   // a freshly loaded set starts at full pool
   // Populate editRows — use allRows from CSV parse (preserves invalid rows)
   // or derive from valid problems if allRows not provided
   state.editRows = allRows
@@ -1163,7 +1285,7 @@ function loadSetAndPlay(csv, filename, errorElId = null) {
 // band: '' (All) or band id ('elem','mid','hs','stat')
 // grade: '' (no grade picked) or specific gradeKey
 // expandedId: id of the topic group whose variants are currently expanded ('' = none)
-const _hpFilter = { band: '', grade: '', query: '', expandedId: '' };
+const _hpFilter = { band: '', grade: '', play: '', query: '', expandedId: '' };
 
 function renderHomepage() {
   const container = document.getElementById('hp-tiles');
@@ -1194,6 +1316,13 @@ function renderHomepage() {
       <div class="hp-chips hp-band-row" id="hp-bands" role="tablist" aria-label="Filter by grade band">
         <button class="hp-chip${_hpFilter.band === '' ? ' is-active' : ''}" data-band="">All</button>
         ${GRADE_BANDS.map(b => `<button class="hp-chip${_hpFilter.band === b.id ? ' is-active' : ''}" data-band="${escHtml(b.id)}">${escHtml(b.label)}</button>`).join('')}
+      </div>
+      <div class="hp-chips hp-play-row" id="hp-plays" aria-label="Filter by pace">
+        <span class="hp-chips-label">Pace</span>
+        <button class="hp-chip${_hpFilter.play === '' ? ' is-active' : ''}" data-play="">Any</button>
+        <button class="hp-chip${_hpFilter.play === 'quick' ? ' is-active' : ''}" data-play="quick">Quick</button>
+        <button class="hp-chip${_hpFilter.play === 'standard' ? ' is-active' : ''}" data-play="standard">Standard</button>
+        <button class="hp-chip${_hpFilter.play === 'challenge' ? ' is-active' : ''}" data-play="challenge">Challenge</button>
       </div>
       <div class="hp-chips hp-grade-row" id="hp-grades" aria-label="Filter by specific grade"></div>
       <div id="hp-sets-list" class="hp-sets-list" aria-live="polite"></div>
@@ -1313,6 +1442,7 @@ function renderHomepage() {
     state.editRows = [];
     state.problems = [];
     state.columnAnswers = {};
+    state.poolSize = 0; state._poolSubset = null;
     state.setName = 'New Set';
     // Assign a fresh id so the first edit auto-saves to a new
     // tools.bingo.customSets entry rather than clobbering anything.
@@ -1343,6 +1473,16 @@ function renderHomepage() {
     _hpFilter.expandedId = '';
     document.querySelectorAll('#hp-bands .hp-chip').forEach(c => c.classList.toggle('is-active', c === chip));
     renderGradeChips();
+    renderAvailableSets();
+  });
+
+  // Pace (play-feel) chips — orthogonal to grade; filters across all grades
+  document.getElementById('hp-plays').addEventListener('click', e => {
+    const chip = e.target.closest('.hp-chip');
+    if (!chip) return;
+    _hpFilter.play = chip.dataset.play;
+    _hpFilter.expandedId = '';
+    document.querySelectorAll('#hp-plays .hp-chip').forEach(c => c.classList.toggle('is-active', c === chip));
     renderAvailableSets();
   });
 
@@ -1413,6 +1553,7 @@ function renderAvailableSets() {
   const playable = TOPIC_GROUPS.filter(g =>
     topicIsPlayable(g) &&
     _topicMatchesQuery(g, q) &&
+    (!_hpFilter.play || topicPlayTier(g) === _hpFilter.play) &&
     Object.keys(g.grades).some(gk => activeGrades.includes(gk))
   );
 
@@ -1490,8 +1631,10 @@ function _renderTopicCard(group, gk) {
   const stdGrades = _hpFilter.grade ? [gk] : _activeGrades();
   const stdText = topicAllStandards(group, stdGrades).join(' · ');
   const isFluency = !!(group.fluency && group.fluency[gk]);
+  const _tier = topicPlayTier(group);
   const tags = (isFluency ? '<span class="hp-tag tag-fluency" title="Fluency standard">★&#xFE0E;</span>' : '')
-             + (group.calc ? '<span class="hp-tag tag-calc" title="Calculator recommended">[calc]</span>' : '');
+             + (group.calc ? '<span class="hp-tag tag-calc" title="Calculator recommended">[calc]</span>' : '')
+             + `<span class="hp-tag tag-play tag-play-${_tier}" title="Pace: ${PLAY_TIERS[_tier].label}">${PLAY_TIERS[_tier].label}</span>`;
   const playableVariants = group.variants.filter(v => v.path);
   const hasMultipleVariants = playableVariants.length > 1;
   const isExpanded = _hpFilter.expandedId === group.id && hasMultipleVariants;
@@ -1570,6 +1713,68 @@ function renderPrintView() {
   // Detect duplicate (column, answer) pairs in loaded data so editor + gates flag them on first render.
   syncProblemsFromEditRows();
   renderPvEditTable();
+  renderPacingPanel();
+}
+
+// Game-pacing panel (print sidebar): pool depth (D) + win pattern (A) + class
+// size feed a live first-winner estimate (C). Planning aid only — never shown on
+// the projected caller view (keeps the brief's "no game-pacing timer" intact).
+function renderPacingPanel() {
+  const poolSel = document.getElementById('pv-pool');
+  const patSel  = document.getElementById('pv-pattern');
+  if (!poolSel || !patSel) return;
+
+  const maxPool = maxPoolPerColumn();   // smallest full column (cards need 5/col)
+  const presets = [12, 9, 6].filter(v => v < maxPool && v >= 5);
+  poolSel.innerHTML =
+    `<option value="0">Full set${maxPool ? ` (${maxPool}/column)` : ''}</option>` +
+    presets.map(v => `<option value="${v}">${v} per column — faster</option>`).join('');
+  poolSel.value = String(state.poolSize || 0);
+
+  patSel.innerHTML = BINGO_PATTERNS.map(p =>
+    `<option value="${p.id}">${escHtml(p.label)} — ${p.speed.toLowerCase()}</option>`).join('');
+  patSel.value = state.settings.winPattern || 'line';
+
+  const csEl = document.getElementById('pv-classsize');
+  if (csEl) csEl.value = state.settings.classSize || 24;
+
+  poolSel.onchange = () => { setPoolSize(parseInt(poolSel.value, 10) || 0); updatePaceReadout(); };
+  patSel.onchange  = () => { state.settings.winPattern = patSel.value; saveSettings(); updatePaceReadout(); };
+  if (csEl) csEl.onchange = () => {
+    state.settings.classSize = Math.min(60, Math.max(2, parseInt(csEl.value, 10) || 24));
+    saveSettings(); updatePaceReadout();
+  };
+  const paceEl = document.getElementById('pv-pace-speed');
+  if (paceEl) paceEl.onchange = updatePaceReadout;
+
+  updatePaceReadout();
+}
+
+function updatePaceReadout() {
+  const out = document.getElementById('pv-pace-readout');
+  const nudge = document.getElementById('pv-pace-nudge');
+  if (!out) return;
+  const maxPool = maxPoolPerColumn();
+  if (!maxPool) {
+    out.textContent = 'Load a set to estimate game length.';
+    if (nudge) nudge.hidden = true;
+    return;
+  }
+  const pool    = state.poolSize || maxPool;     // per-column depth actually in play
+  const cards   = state.settings.classSize || 24;
+  const pattern = state.settings.winPattern || 'line';
+  const sec     = parseInt(document.getElementById('pv-pace-speed')?.value, 10) || 20;
+  const calls   = Math.round(paceFirstWinnerCalls(pattern, cards, pool));
+  const mins    = calls * sec / 60;
+  const mlabel  = mins < 1.5 ? '~1 min' : `~${Math.round(mins)} min`;
+  out.innerHTML = `≈ <strong>${calls}</strong> calls → <strong>${mlabel}</strong> to a first winner ` +
+                  `<span class="pv-pace-vary">(varies game to game)</span>`;
+  if (nudge) {
+    const couldSpeedUp = cards <= 18 && !state.poolSize && maxPool > 7;
+    nudge.hidden = !couldSpeedUp;
+    if (couldSpeedUp) nudge.textContent =
+      'Small class? A smaller pool roughly halves the calls to a winner — reprint cards after changing it.';
+  }
 }
 
 /* ============================================================
@@ -2297,10 +2502,10 @@ function renderProgress() {
   const el = document.getElementById('progress-display');
   if (!state.settings.showProgress) { el.textContent = ''; return; }
   const p = currentProblem();
-  if (!p) { el.textContent = `${state.problems.length} problems loaded`; return; }
+  if (!p) { el.textContent = `${activeProblems().length} problems loaded`; return; }
 
   const calledCount = Object.values(state.calledAnswers).reduce((s, set) => s + set.size, 0);
-  const totalAnswers = Object.values(state.columnAnswers).reduce((s, arr) => s + arr.length, 0);
+  const totalAnswers = Object.values(activeColumnAnswers()).reduce((s, arr) => s + arr.length, 0);
   const remaining = totalAnswers - calledCount;
   el.textContent = `${calledCount} of ${totalAnswers} called • ${remaining} remaining`;
 }
@@ -2877,9 +3082,10 @@ const BINGO_SETTINGS_TABS = {
    ============================================================ */
 function generateBingoCards(n) {
   const cols = BINGO_COLS;
+  const active = activeColumnAnswers();   // honor the "fewer numbers" speed pool
   return Array.from({ length: n }, () =>
     cols.map((col, ci) => {
-      const pool = [...(state.columnAnswers[col] || [])];
+      const pool = [...(active[col] || [])];
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];

@@ -111,6 +111,25 @@
         <label class="pv-opt-label">Number of cards</label>
         <input id="pv-count" type="number" min="1" max="200" value="30">
       </div>
+      <div class="pv-opt-group" id="pv-pacing-group">
+        <label class="pv-opt-label">Game pacing</label>
+        <div class="pv-pace-grid">
+          <label for="pv-pool">Numbers in play</label>
+          <select id="pv-pool"></select>
+          <label for="pv-pattern">Win pattern</label>
+          <select id="pv-pattern"></select>
+          <label for="pv-classsize">Students</label>
+          <input id="pv-classsize" type="number" min="2" max="60" step="1" value="24">
+          <label for="pv-pace-speed">Student pace</label>
+          <select id="pv-pace-speed">
+            <option value="10">Fast (~10s/problem)</option>
+            <option value="20" selected>Medium (~20s/problem)</option>
+            <option value="35">Slow (~35s/problem)</option>
+          </select>
+        </div>
+        <div id="pv-pace-readout" aria-live="polite"></div>
+        <p id="pv-pace-nudge" class="pv-pace-hint" hidden></p>
+      </div>
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
         <div id="pv-style-picker">
