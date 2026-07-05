@@ -100,7 +100,12 @@ export function assign(input: AssignInput): AssignResult {
 
   function candidateSeatsFor(student: Student): SeatId[] {
     const open = seatIds.filter((s) => !seatTakenBy.has(s));
-    const constrained = student.needsFrontRow ? open.filter((s) => frontRowSeatIds.has(s)) : open;
+    let constrained = student.needsFrontRow ? open.filter((s) => frontRowSeatIds.has(s)) : open;
+    // Front-row demand can exceed front-row supply. The pre-flight warning
+    // promises "extras get a regular seat", so widen to every open seat
+    // instead of leaving the student with zero candidates (which used to
+    // fail the strict pass AND skip them in the relaxed fallback).
+    if (student.needsFrontRow && constrained.length === 0) constrained = open;
 
     // Score: lower = better. Prefer not-front-row seats for non-front-row students (saves them for who needs them).
     const apart = keepApart.get(student.id) ?? new Set();
