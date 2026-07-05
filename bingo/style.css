@@ -951,7 +951,7 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   text-align: center;
   padding: 10px 20px;
   background: var(--surface2);
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 
@@ -1095,7 +1095,7 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   overflow-x: auto; padding-bottom: 4px;
 }
 .ca-col {
-  border-radius: 8px; overflow: hidden;
+  border-radius: var(--radius); overflow: hidden;
   border: 1px solid var(--border);
 }
 .ca-col-header {
@@ -1129,7 +1129,7 @@ body.is-bingo.has-photoreal-balls #col-ball.is-rolling .cast-shadow {
   padding: 10px 28px;
   font-size: 1rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   cursor: pointer;
   background: var(--surface2);
@@ -1266,7 +1266,7 @@ input[type="checkbox"] { cursor: pointer; width: 16px; height: 16px; }
   background: var(--danger);
   color: var(--danger-fg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 9px 20px;
   font-size: .95rem;
   font-weight: 600;
@@ -1336,7 +1336,7 @@ kbd {
   padding: 10px 20px;
   font-size: .95rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   cursor: pointer;
   background: var(--surface2);
@@ -1391,7 +1391,7 @@ kbd {
   padding: 10px 14px;
   font-size: .95rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   outline: none;
@@ -1412,7 +1412,7 @@ kbd {
 .hp-chip {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 5px 12px;
   font-size: .8rem;
   font-weight: 600;
@@ -1797,7 +1797,7 @@ kbd {
 }
 #pv-count {
   width: 80px; padding: 7px 10px; font-size: .95rem; font-weight: 600;
-  border-radius: 8px; border: 1px solid var(--border);
+  border-radius: var(--radius); border: 1px solid var(--border);
   background: var(--surface2); color: var(--text); text-align: center;
 }
 #pv-style-picker { display: flex; flex-direction: column; gap: 8px; }
@@ -1895,7 +1895,7 @@ kbd {
 #pv-topbar-msg { flex: 1; font-size: .78rem; color: var(--text-muted); line-height: 1.4; }
 .pv-col-count {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 7px 2px 6px; border-radius: 12px;
+  padding: 2px 7px 2px 6px; border-radius: var(--radius);
   color: #fff; font-size: .78rem; font-weight: 700;
   white-space: nowrap; line-height: 1.4;
 }
