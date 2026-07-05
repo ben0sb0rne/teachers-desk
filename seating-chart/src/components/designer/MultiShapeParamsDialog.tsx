@@ -84,7 +84,7 @@ export default function MultiShapeParamsDialog({ open, onOpenChange, kind, dropP
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded bg-paper p-6 shadow-lift focus:outline-none">
           <Dialog.Title className="mb-1 text-lg font-semibold">Configure {title.toLowerCase()}</Dialog.Title>
           <Dialog.Description className="mb-4 text-sm text-ink-muted">
             Pick how many students sit at this table. You can re-place it later if you change your mind.
@@ -162,7 +162,7 @@ export default function MultiShapeParamsDialog({ open, onOpenChange, kind, dropP
 
             <div>
               <label className="label">Preview</label>
-              <div className="mt-1 flex h-56 items-center justify-center rounded-md border border-slate-200 bg-slate-50">
+              <div className="mt-1 flex h-56 items-center justify-center rounded-md border border-ink/15 bg-ink/5">
                 {layout && kind !== "window" && <ShapePreview kind={kind as DeskKind} layout={layout} />}
                 {kind === "window" && <WindowPreview paneCount={paneCount} />}
               </div>

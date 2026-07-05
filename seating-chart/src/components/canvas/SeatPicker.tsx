@@ -53,7 +53,7 @@ export default function SeatPicker({ x, y, students, assignments, seatId, onPick
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-50 max-h-72 w-64 overflow-auto rounded-md border border-slate-200 bg-white p-2 shadow-xl"
+      className="fixed z-50 max-h-72 w-64 overflow-auto rounded-md border border-ink/15 bg-paper p-2 shadow-lift"
       style={{ left: Math.min(x, window.innerWidth - 270), top: Math.min(y, window.innerHeight - 290) }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -81,7 +81,7 @@ export default function SeatPicker({ x, y, students, assignments, seatId, onPick
           return (
             <button
               key={s.id}
-              className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+              className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-ink/5"
               onClick={() => onPick(s.id)}
             >
               <span>{s.name}</span>

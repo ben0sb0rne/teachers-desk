@@ -112,12 +112,12 @@ export default function DeskPalette({
     return (
       <aside
         className={cn(
-          "flex w-10 shrink-0 flex-col items-center bg-white py-2",
-          isInsert ? "border-r border-slate-200" : "border-l border-slate-200",
+          "flex w-10 shrink-0 flex-col items-center bg-paper py-2",
+          isInsert ? "border-r border-ink/15" : "border-l border-ink/15",
         )}
       >
         <button
-          className="rounded p-1.5 text-ink-muted hover:bg-slate-100"
+          className="rounded p-1.5 text-ink-muted hover:bg-ink/10"
           onClick={onToggleCollapsed}
           title={isInsert ? "Expand tools" : "Expand edit panel"}
         >
@@ -130,16 +130,16 @@ export default function DeskPalette({
   return (
     <aside
       className={cn(
-        "flex w-60 shrink-0 flex-col bg-white",
-        isInsert ? "border-r border-slate-200" : "border-l border-slate-200",
+        "flex w-60 shrink-0 flex-col bg-paper",
+        isInsert ? "border-r border-ink/15" : "border-l border-ink/15",
       )}
     >
-      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-1.5">
+      <div className="flex items-center justify-between border-b border-ink/15 px-3 py-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
           {isInsert ? "Tools" : "Edit"}
         </span>
         <button
-          className="rounded p-1 text-ink-muted hover:bg-slate-100"
+          className="rounded p-1 text-ink-muted hover:bg-ink/10"
           onClick={onToggleCollapsed}
           title="Collapse panel"
         >
@@ -315,7 +315,7 @@ export default function DeskPalette({
 
         <div className="mb-4 grid grid-cols-2 gap-1">
           <button
-            className={cn("btn-secondary justify-center", locked && "border-ink bg-ink text-white hover:bg-ink")}
+            className={cn("btn-secondary justify-center", locked && "border-ink bg-ink text-paper hover:bg-ink")}
             onClick={onToggleLocked}
             title={locked ? "Unlock layout" : "Lock layout (prevents accidental drag/resize)"}
           >
@@ -323,7 +323,7 @@ export default function DeskPalette({
             <span className="text-xs">{locked ? "Locked" : "Unlock"}</span>
           </button>
           <button
-            className={cn("btn-secondary justify-center", showGrid && "border-ink bg-ink text-white hover:bg-ink")}
+            className={cn("btn-secondary justify-center", showGrid && "border-ink bg-ink text-paper hover:bg-ink")}
             onClick={onToggleGrid}
             title={showGrid ? "Hide grid overlay" : "Show grid overlay"}
           >
@@ -333,19 +333,19 @@ export default function DeskPalette({
         </div>
 
         <button
-          className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:bg-slate-100"
+          className="flex w-full items-center justify-between rounded-md border border-ink/15 bg-ink/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:bg-ink/10"
           onClick={() => setRoomOptsOpen((o) => !o)}
         >
           <span>Room options</span>
           <Icon name={roomOptsOpen ? "chevron-down" : "chevron-right"} size={14} />
         </button>
         {roomOptsOpen && (
-          <div className="mt-2 space-y-3 rounded-md border border-slate-200 p-3">
+          <div className="mt-2 space-y-3 rounded-md border border-ink/15 p-3">
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="label">Room size</label>
                 <button
-                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-slate-100 disabled:opacity-40"
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-ink/10 disabled:opacity-40"
                   onClick={() => onUpdateRoom({ width: DEFAULT_ROOM_W, height: DEFAULT_ROOM_H })}
                   disabled={isDefaultRoom}
                   title="Reset room size to default"
@@ -369,7 +369,7 @@ export default function DeskPalette({
                 <label className="label">Background</label>
                 {room.background && (
                   <button
-                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-slate-100"
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-ink/10"
                     onClick={() => onUpdateRoom({ background: undefined })}
                     title="Reset background to the default cream"
                   >
@@ -423,7 +423,7 @@ function SectionHeader({
 }) {
   return (
     <button
-      className="mb-2 flex w-full items-center justify-between rounded px-1 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:bg-slate-50"
+      className="mb-2 flex w-full items-center justify-between rounded px-1 py-0.5 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:bg-ink/5"
       onClick={onToggle}
     >
       <span>{label}</span>
@@ -454,7 +454,7 @@ function WallButton({ wall, current, onClick }: { wall: Wall; current: Wall; onC
     <button
       className={cn(
         "rounded-md border px-2 py-1 text-xs capitalize",
-        active ? "border-ink bg-ink text-white" : "border-slate-300 bg-white text-ink hover:bg-slate-50",
+        active ? "border-ink bg-ink text-paper" : "border-ink/30 bg-paper text-ink hover:bg-ink/5",
       )}
       onClick={() => onClick(wall)}
     >
@@ -518,7 +518,7 @@ function ColorPanel({
       {!compact && (
         <button
           type="button"
-          className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-slate-100"
+          className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-ink-muted hover:bg-ink/10"
           onClick={onReset}
           title="Reset to the default color"
         >

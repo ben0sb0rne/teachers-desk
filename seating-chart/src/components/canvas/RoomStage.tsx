@@ -75,7 +75,7 @@ function FrontOfRoomLabel({ frontWall }: { frontWall: Wall }) {
   }[frontWall];
   return (
     <div
-      className={`pointer-events-none absolute ${positionClass} flex items-center gap-1.5 rounded bg-ink/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm`}
+      className={`pointer-events-none absolute ${positionClass} flex items-center gap-1.5 rounded bg-ink/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-paper shadow-sm`}
     >
       <Icon name={arrowIcon} size={12} />
       <span>Front of room</span>
@@ -576,7 +576,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     <div
       ref={containerRef}
       className={
-        "relative min-h-0 flex-1 " + (interactive ? "bg-slate-100 select-none" : "")
+        "relative min-h-0 flex-1 " + (interactive ? "bg-ink/10 select-none" : "")
       }
       style={{ touchAction: "none" }}
       onPointerDownCapture={

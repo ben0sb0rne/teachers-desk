@@ -363,7 +363,7 @@ function ClassCard({
   const accent = classAccent(klass.id);
   return (
     <div className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-[3/2] bg-slate-100">
+      <div className="relative aspect-[3/2] bg-ink/10">
         {preview && preview.desks.length > 0 ? (
           <>
             <div className="absolute inset-0 flex">
@@ -453,7 +453,7 @@ function RoomTile({
 }) {
   return (
     <div className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-[3/2] bg-slate-100">
+      <div className="relative aspect-[3/2] bg-ink/10">
         {room.desks.length > 0 ? (
           <div className="absolute inset-0 flex">
             <RoomStage
@@ -560,7 +560,7 @@ function RoomMenu({
     <Menu>
       <MenuItem onSelect={onRename} icon="edit" label="Rename" />
       <MenuItem onSelect={onDuplicate} icon="copy" label="Duplicate" />
-      <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+      <DropdownMenu.Separator className="my-1 h-px bg-ink/15" />
       <MenuItem onSelect={onDelete} icon="trash" label="Delete" danger />
     </Menu>
   );
@@ -570,7 +570,7 @@ function ClassMenu({ onRename, onDelete }: { onRename: () => void; onDelete: () 
   return (
     <Menu>
       <MenuItem onSelect={onRename} icon="edit" label="Rename" />
-      <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+      <DropdownMenu.Separator className="my-1 h-px bg-ink/15" />
       <MenuItem onSelect={onDelete} icon="trash" label="Delete" danger />
     </Menu>
   );
@@ -581,7 +581,7 @@ function Menu({ children }: { children: React.ReactNode }) {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
-          className="rounded-md border border-slate-300 bg-white p-2 text-ink hover:bg-slate-50"
+          className="rounded-md border border-ink/30 bg-paper p-2 text-ink hover:bg-ink/5"
           title="More actions"
         >
           <Icon name="more-horizontal" size={16} />
@@ -591,7 +591,7 @@ function Menu({ children }: { children: React.ReactNode }) {
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="z-50 w-48 rounded-md border border-slate-200 bg-white p-1 text-sm shadow-lg"
+          className="z-50 w-48 rounded-md border border-ink/15 bg-paper p-1 text-sm shadow-lift"
         >
           {children}
         </DropdownMenu.Content>
@@ -614,7 +614,7 @@ function MenuItem({
   return (
     <DropdownMenu.Item
       className={cn(
-        "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-slate-100",
+        "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-ink/10",
         danger && "text-red-600 data-[highlighted]:bg-red-50",
       )}
       onSelect={onSelect}
@@ -645,7 +645,7 @@ function DeleteRoomDialog({
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded bg-paper p-5 shadow-lift focus:outline-none">
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-base font-semibold">
@@ -658,7 +658,7 @@ function DeleteRoomDialog({
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <button className="rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink" aria-label="Close">
+              <button className="rounded p-1 text-ink-muted hover:bg-ink/10 hover:text-ink" aria-label="Close">
                 <Icon name="x" size={16} />
               </button>
             </Dialog.Close>
@@ -718,7 +718,7 @@ function AddRoomToClassDialog({
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded bg-paper p-5 shadow-lift focus:outline-none">
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-base font-semibold">Add a room</Dialog.Title>
@@ -727,7 +727,7 @@ function AddRoomToClassDialog({
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <button className="rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink" aria-label="Close">
+              <button className="rounded p-1 text-ink-muted hover:bg-ink/10 hover:text-ink" aria-label="Close">
                 <Icon name="x" size={16} />
               </button>
             </Dialog.Close>

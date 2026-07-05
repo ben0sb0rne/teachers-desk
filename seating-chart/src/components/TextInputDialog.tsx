@@ -78,7 +78,7 @@ export default function TextInputDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded bg-paper p-5 shadow-lift focus:outline-none">
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
@@ -90,7 +90,7 @@ export default function TextInputDialog({
             </div>
             <Dialog.Close asChild>
               <button
-                className="rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink"
+                className="rounded p-1 text-ink-muted hover:bg-ink/10 hover:text-ink"
                 aria-label="Close"
               >
                 <Icon name="x" size={16} />

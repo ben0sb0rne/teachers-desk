@@ -693,19 +693,19 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
           nameDisplay={seating ? klass?.nameDisplay : undefined}
         />
         {warning && (
-          <div className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 max-w-md rounded border border-amber-200 bg-amber-50/95 px-3 py-2 text-sm text-amber-900 shadow-md backdrop-blur">
+          <div className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 max-w-md rounded border border-amber-200 bg-amber-50/95 px-3 py-2 text-sm text-amber-900 shadow-paper backdrop-blur">
             <strong>Heads up:</strong> {warning}
             <button className="ml-3 text-xs underline" onClick={() => setWarning(null)}>Dismiss</button>
           </div>
         )}
         {info && !warning && (
-          <div className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 max-w-md rounded border border-sky-200 bg-sky-50/95 px-3 py-2 text-sm text-sky-900 shadow-md backdrop-blur">
+          <div className="absolute inset-x-0 top-0 z-10 mx-auto mt-2 max-w-md rounded border border-sky-200 bg-sky-50/95 px-3 py-2 text-sm text-sky-900 shadow-paper backdrop-blur">
             {info}
             <button className="ml-3 text-xs underline" onClick={() => setInfo(null)}>Dismiss</button>
           </div>
         )}
         {!seating && (
-          <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded bg-white/85 px-2 py-1 text-[10px] text-ink-muted shadow-sm">
+          <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded bg-paper/85 px-2 py-1 text-[10px] text-ink-muted shadow-sm">
             <Icon name="help-circle" size={10} className="mr-1 inline -mt-0.5" />
             Tip: right-click a desk to mark it front row or “don’t seat here”
           </div>
@@ -796,7 +796,7 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
       />
       {paletteDrag?.active && (
         <div
-          className="pointer-events-none fixed z-50 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-ink shadow-md"
+          className="pointer-events-none fixed z-50 rounded-md border border-ink/30 bg-paper px-2.5 py-1 text-xs font-medium text-ink shadow-paper"
           style={{ left: paletteDrag.x + 12, top: paletteDrag.y + 12 }}
         >
           Drop on the canvas to place

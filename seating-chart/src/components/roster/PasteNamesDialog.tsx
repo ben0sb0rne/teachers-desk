@@ -40,7 +40,7 @@ export default function PasteNamesDialog({ open, onOpenChange, classId }: Props)
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded bg-paper p-6 shadow-lift focus:outline-none">
           <Dialog.Title className="mb-1 text-lg font-semibold">Paste student names</Dialog.Title>
           <Dialog.Description className="mb-4 text-sm text-ink-muted">
             One student per line — “First Last” or “Last, First” both work. We auto-split into first
