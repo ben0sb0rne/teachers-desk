@@ -1613,6 +1613,11 @@ kbd {
 }
 .hp-link-btn:hover,
 .hp-link-btn-inline:hover { text-decoration: underline; }
+.hp-link-btn:focus-visible,
+.hp-link-btn-inline:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
+/* Inside the topic-list empty state, give the roadmap link room to
+   breathe below the hint text so it reads as an action, not a caption. */
+.hp-empty .hp-link-btn { margin-top: 10px; }
 .hp-roadmap-foot {
   margin-top: 18px;
   padding-top: 14px;

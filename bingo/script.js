@@ -3244,7 +3244,7 @@ function drawCallerSheet(doc, problems, color, pdfFont = 'helvetica') {
     doc.setTextColor(80, 80, 80);
     doc.setFont(pdfFont,'bold');
     doc.setFontSize(6.5);
-    doc.text('PROBLEM', x + 3, subTop + 3.2);
+    doc.text('Problem', x + 3, subTop + 3.2);
     doc.text('Answer', x + colW - 3, subTop + 3.2, { align: 'right' });
 
     // Rows

@@ -895,7 +895,10 @@ function resetSession() {
 // Tool-specific settings (rendered inside the shared settings dialog)
 // -------------------------------------------------------------
 
-registerToolSettings('picker', 'Name Picker', (host) => {
+// Tool key stays 'picker' — it's the persisted tools.picker storage bucket;
+// renaming it would orphan existing users' settings. Only the label brands
+// as Wheel of Names.
+registerToolSettings('picker', 'Wheel of Names', (host) => {
   host.classList.add('picker-settings');
 
   const repeatsRow = document.createElement('div');
