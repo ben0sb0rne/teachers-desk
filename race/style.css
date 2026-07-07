@@ -79,7 +79,9 @@ body {
   flex: 1;
   min-width: 0;
   height: 100%;
-  background: rgb(var(--paper-cream));
+  /* Physical paper, like the seating canvas: stays light in dark mode.
+     The JS draws fixed ink-dark walls/text to match. */
+  background: rgb(248 238 214);
   border: 1px solid rgb(var(--paper-edge) / 0.18);
   border-radius: var(--radius);
 }

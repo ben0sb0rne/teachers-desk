@@ -238,8 +238,10 @@ function draw() {
   const scale = Math.min(cw / W, ch / H);
   ctx.setTransform(scale, 0, 0, scale, (cw - W * scale) / 2, (ch - H * scale) / 2);
 
-  const ink = getComputedStyle(document.documentElement).getPropertyValue('--paper-edge').trim();
-  const inkCss = `rgb(${ink})`;
+  // Fixed ink on fixed paper — the canvas is a physical object (like the
+  // seating chart's) and doesn't theme, so the themed --paper-edge would
+  // go cream-on-cream in dark mode.
+  const inkCss = 'rgb(26 22 20)';
 
   // Finish line — checkered band.
   for (let x = 0; x < W; x += 24) {
