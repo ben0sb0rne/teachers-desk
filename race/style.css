@@ -6,11 +6,15 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body { min-height: 100%; }
+/* Definite height (not min-height) so the flex chain — main → stage →
+   aspect-ratio canvas — has a real number to fill. With only min-height
+   the stage collapsed to the canvas's intrinsic height. */
+html, body { height: 100%; }
 body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .race-main {
@@ -45,6 +49,17 @@ body {
 }
 .race-class-card:hover { box-shadow: var(--shadow-lift); }
 .race-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
+/* Marble pool preview — the class IS its marbles. Fixed light paper
+   strip (physical object, doesn't theme), same as the course canvas. */
+.race-card-marbles {
+  display: block;
+  width: 100%;
+  height: 72px;
+  margin: var(--space-2) 0;
+  background: rgb(248 238 214);
+  border: 1px solid rgb(var(--paper-edge) / 0.12);
+  border-radius: var(--radius-tight);
+}
 
 /* Race view */
 .view--race:not([hidden]) {
@@ -91,11 +106,14 @@ body {
   min-height: 0;
   display: flex;
   gap: var(--space-3);
+  overflow: hidden;
 }
 #race-canvas {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
+  /* Sized by fitCanvas() in JS to the course aspect within the stage —
+     CSS-only aspect-ratio + height:100% turned circular here. Leftover
+     stage space stays wood, not empty cream. */
+  flex: none;
+  margin: auto;
   /* Physical paper, like the seating canvas: stays light in dark mode.
      The JS draws fixed ink-dark walls/text to match. */
   background: rgb(248 238 214);
