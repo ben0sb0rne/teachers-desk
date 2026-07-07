@@ -23,11 +23,14 @@ const H = 1200;
 const MARBLE_R = 14;
 const PEG_R = 7;
 const FINISH_Y = H - 26;
-const GRAVITY = 900;          // px/s²
+const GRAVITY = 520;          // px/s² — soft gravity stretches the race
+const MAX_FALL = 240;         // px/s terminal velocity: no free-fall blasts
+                              // between obstacles; roughly doubles race
+                              // length and keeps the pack readable
 const WALL_BOUNCE = 0.72;
 const MARBLE_BOUNCE = 0.9;
 const DT = 1 / 120;           // fixed physics step
-const DRAIN_AFTER_S = 45;     // force-finish stragglers past this
+const DRAIN_AFTER_S = 90;     // force-finish stragglers past this
 
 /* Seeded RNG (mulberry32) so a course can be replayed. */
 function mulberry32(seed) {
@@ -65,9 +68,10 @@ function baseCourse() {
     // Outer walls (left, right). Top stays open — marbles drop in.
     { x1: 0, y1: 0, x2: 0, y2: H },
     { x1: W, y1: 0, x2: W, y2: H },
-    // Funnel under the start pool.
-    { x1: 0, y1: 150, x2: W * 0.38, y2: 260 },
-    { x1: W, y1: 150, x2: W * 0.62, y2: 260 },
+    // Funnel under the start pool. The mouth (~112px for 28px marbles)
+    // meters the pour so the field strings out instead of dumping at once.
+    { x1: 0, y1: 150, x2: W * 0.43, y2: 260 },
+    { x1: W, y1: 150, x2: W * 0.57, y2: 260 },
   ];
 }
 
@@ -191,6 +195,7 @@ function step(dt) {
   const alive = state.marbles.filter((m) => !m.finished);
   for (const m of alive) {
     m.vy += GRAVITY * dt;
+    if (m.vy > MAX_FALL) m.vy = MAX_FALL;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
 
