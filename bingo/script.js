@@ -556,6 +556,12 @@ const FONT_OPTIONS = {
   'jetbrains-mono':  { label: 'JetBrains Mono',       pdfName: 'JetBrainsMono', cssStack: '"JetBrains Mono", monospace', pdfUrls: { normal: `${_GFONTS}/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf` } },
 };
 
+// Suite-pref values as of the last load/write. saveSettings only persists
+// keys that actually changed since then — a blanket flush used to write
+// whatever transient default sat in memory (e.g. pinning theme suite-wide
+// from a page that never touched the theme control).
+let _suitePrefBaseline = {};
+
 function loadSettings() {
   const merged = Object.assign({}, DEFAULT_SETTINGS, { cardColors: { ...DEFAULT_SETTINGS.cardColors } });
 
@@ -565,15 +571,21 @@ function loadSettings() {
     if (v !== undefined) merged[k] = v;
   }
 
-  // Bingo-specific settings.
+  // Bingo-specific settings. Suite keys are skipped here: they live in
+  // storage.preferences only — a legacy tools.bingo.settings.theme from an
+  // older build must not resurrect and override the suite preference.
   const tool = sharedStorage.getToolState('bingo') || {};
   if (tool.settings && typeof tool.settings === 'object') {
-    Object.assign(merged, tool.settings);
+    for (const [k, v] of Object.entries(tool.settings)) {
+      if (!SUITE_PREF_KEYS.includes(k)) merged[k] = v;
+    }
     if (tool.settings.cardColors) {
       merged.cardColors = Object.assign({}, DEFAULT_SETTINGS.cardColors, tool.settings.cardColors);
     }
   }
 
+  _suitePrefBaseline = {};
+  for (const k of SUITE_PREF_KEYS) _suitePrefBaseline[k] = merged[k];
   return merged;
 }
 
@@ -689,10 +701,14 @@ function saveSettings() {
   const s = state.settings;
   if (!s) return;
 
-  // Suite-wide preferences (visible to other tools).
+  // Suite-wide preferences (visible to other tools). Only write keys the
+  // user actually changed this session — never flush untouched defaults.
   for (const k of SUITE_PREF_KEYS) {
-    if (s[k] !== undefined) {
-      try { sharedStorage.setPreference(k, s[k]); } catch (e) {
+    if (s[k] !== undefined && s[k] !== _suitePrefBaseline[k]) {
+      try {
+        sharedStorage.setPreference(k, s[k]);
+        _suitePrefBaseline[k] = s[k];
+      } catch (e) {
         if (e && e.name === 'StorageQuotaError') showNotification([e.message], 'error');
       }
     }
