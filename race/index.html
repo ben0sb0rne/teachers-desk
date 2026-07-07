@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Marble Race (prototype) · The Teacher's Desk</title>
+  <meta name="description" content="Greybox prototype: a physics race that picks a full finishing order from a class roster." />
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+      <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+        <span>The Teacher's Desk</span>
+      </a>
+      <a href="#" id="crumb-tool" hidden>Marble Race</a>
+      <span id="crumb-context" class="is-current" hidden></span>
+    </nav>
+    <div class="suite-topstrip-actions">
+      <button type="button" class="settings-button" id="btn-settings-topstrip"
+              aria-label="Settings" title="Settings (S)"></button>
+    </div>
+  </div>
+
+  <main class="race-main">
+
+    <!-- Class-select view -->
+    <section id="class-select-view" class="view">
+      <header class="view-header">
+        <h1>Pick a class</h1>
+        <p class="muted">Greybox prototype — every student races; the leaderboard fills as they finish.</p>
+      </header>
+      <div id="class-grid" class="race-class-grid" aria-live="polite"></div>
+      <div id="class-empty" class="print-paper" hidden>
+        <p>No classes yet.</p>
+        <p class="muted">Create one in the Seating Chart or the Wheel first.</p>
+      </div>
+    </section>
+
+    <!-- Race view -->
+    <section id="race-view" class="view view--race" hidden>
+      <header class="race-header">
+        <h1 id="race-class-name">&nbsp;</h1>
+        <div class="race-controls">
+          <button type="button" id="btn-start" class="desk-button">Start race</button>
+          <button type="button" id="btn-reset" class="desk-button is-ghost">Reset</button>
+        </div>
+      </header>
+      <div class="race-stage">
+        <canvas id="race-canvas" aria-label="Marble race course"></canvas>
+        <aside class="race-board" aria-live="polite">
+          <h2>Finish order</h2>
+          <ol id="race-results"></ol>
+        </aside>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

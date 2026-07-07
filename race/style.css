@@ -1,0 +1,121 @@
+/* =============================================================
+   race/style.css — GREYBOX prototype styling only.
+   Mechanics first; the tool's real world/aesthetic arrives with its
+   brief. Everything here leans on shared/desk.css tokens.
+   ============================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.race-main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-5) var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+}
+
+.view-header { color: rgb(var(--paper-on-wood)); margin-bottom: var(--space-4); }
+.view-header h1 { margin: 0 0 var(--space-1); }
+.view-header p { margin: 0; }
+
+/* Class select — plain placard-ish buttons, greybox. */
+.race-class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+  max-width: 900px;
+}
+.race-class-card {
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-slab);
+  text-align: left;
+  cursor: pointer;
+}
+.race-class-card:hover { box-shadow: var(--shadow-lift); }
+.race-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
+
+/* Race view */
+.view--race:not([hidden]) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.race-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  color: rgb(var(--paper-on-wood));
+}
+.race-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--type-22);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.race-controls { display: flex; gap: var(--space-2); }
+
+.race-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--space-3);
+}
+#race-canvas {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: rgb(var(--paper-cream));
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  border-radius: var(--radius);
+}
+
+/* Leaderboard — fixed-width column; 38 rows must fit or scroll. */
+.race-board {
+  width: 230px;
+  flex-shrink: 0;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  overflow-y: auto;
+  font-family: var(--font-slab);
+}
+.race-board h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+#race-results {
+  margin: 0;
+  padding: 0 0 0 1.6em;
+  font-size: var(--type-13);
+  line-height: 1.5;
+}
+#race-results li { padding: 1px 0; }
+#race-results li .dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+#race-results li.is-winner { font-weight: 700; }
