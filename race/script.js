@@ -20,7 +20,7 @@ mountSettingsButton();
 /* ── Course space (internal units; canvas scales to fit) ────── */
 const W = 800;
 const H = 1200;
-const MARBLE_R = 10;
+const MARBLE_R = 14;
 const PEG_R = 7;
 const FINISH_Y = H - 26;
 const GRAVITY = 900;          // px/s²
@@ -42,6 +42,7 @@ function mulberry32(seed) {
 /* ── State ──────────────────────────────────────────────────── */
 const state = {
   classId: null,
+  trackId: 'pegfield',
   names: [],
   marbles: [],        // { name, color, x, y, vx, vy, finished }
   segments: [],       // static walls: { x1, y1, x2, y2 }
@@ -55,9 +56,12 @@ const state = {
   acc: 0,
 };
 
-/* ── Course generation ──────────────────────────────────────── */
-function buildCourse(rand) {
-  const segs = [
+/* ── Course generation ──────────────────────────────────────────
+   Every track shares the outer walls + start funnel, then fills the
+   body its own way. All gaps stay comfortably wider than a marble
+   diameter (28px); the drain timeout catches freak stalls anyway. */
+function baseCourse() {
+  return [
     // Outer walls (left, right). Top stays open — marbles drop in.
     { x1: 0, y1: 0, x2: 0, y2: H },
     { x1: W, y1: 0, x2: W, y2: H },
@@ -65,30 +69,90 @@ function buildCourse(rand) {
     { x1: 0, y1: 150, x2: W * 0.38, y2: 260 },
     { x1: W, y1: 150, x2: W * 0.62, y2: 260 },
   ];
-  // Three alternating baffles force crossings between peg fields.
+}
+
+function pegBand(pegs, rand, top, bottom, xStep = 62, yStep = 48) {
+  for (let y = top; y < bottom; y += yStep) {
+    const stagger = ((y / yStep) | 0) % 2 === 0 ? 0 : xStep / 2;
+    for (let x = 44 + stagger; x < W - 34; x += xStep) {
+      // Jitter keeps runs from looking gridded; seeded so Reset replays.
+      pegs.push({ x: x + (rand() - 0.5) * 14, y: y + (rand() - 0.5) * 10 });
+    }
+  }
+}
+
+function buildPegField(rand) {
+  const segs = baseCourse();
   const baffleYs = [430, 660, 890];
   baffleYs.forEach((y, i) => {
     if (i % 2 === 0) segs.push({ x1: 0, y1: y, x2: W * 0.68, y2: y + 60 });
     else segs.push({ x1: W, y1: y, x2: W * 0.32, y2: y + 60 });
   });
-  // Staggered peg rows in the gaps between baffles.
   const pegs = [];
-  const bands = [[290, 410], [520, 640], [750, 870], [980, FINISH_Y - 60]];
-  for (const [top, bottom] of bands) {
-    for (let y = top; y < bottom; y += 46) {
-      const stagger = ((y / 46) | 0) % 2 === 0 ? 0 : 30;
-      for (let x = 40 + stagger; x < W - 30; x += 60) {
-        // Jitter keeps runs from looking gridded; seeded so Reset replays.
-        pegs.push({ x: x + (rand() - 0.5) * 14, y: y + (rand() - 0.5) * 10 });
-      }
-    }
+  for (const [top, bottom] of [[290, 410], [520, 640], [750, 870], [980, FINISH_Y - 60]]) {
+    pegBand(pegs, rand, top, bottom);
   }
   return { segs, pegs };
 }
 
+function buildZigzag(rand) {
+  const segs = baseCourse();
+  // Five long alternating ramps; marbles pour off the open end of each.
+  // Steep enough that packs keep rolling — shallow ramps stalled the
+  // field and left the drain timeout to finish half the class.
+  const rampYs = [300, 470, 640, 810, 980];
+  rampYs.forEach((y, i) => {
+    if (i % 2 === 0) segs.push({ x1: 0, y1: y, x2: W * 0.78, y2: y + 120 });
+    else segs.push({ x1: W, y1: y, x2: W * 0.22, y2: y + 120 });
+  });
+  // No pegs: with alternating ramps, any peg "below" one ramp sits ON the
+  // next one and forms a wedge pocket that parks marbles for good. The
+  // pack jostling on the ramps is plenty of chaos by itself.
+  void rand;
+  return { segs, pegs: [] };
+}
+
+function buildPachinko(rand) {
+  // No baffles — one tall dense pin field, pure pachinko chaos.
+  const segs = baseCourse();
+  const pegs = [];
+  pegBand(pegs, rand, 300, FINISH_Y - 60, 56, 44);
+  return { segs, pegs };
+}
+
+function buildSlalom(rand) {
+  // Alternating gate walls leave one open lane per tier; small peg
+  // clusters at each gate mouth scramble the queue.
+  const segs = baseCourse();
+  const pegs = [];
+  const tierYs = [340, 500, 660, 820, 980];
+  tierYs.forEach((y, i) => {
+    if (i % 2 === 0) segs.push({ x1: 0, y1: y, x2: W * 0.72, y2: y + 90 });
+    else segs.push({ x1: W, y1: y, x2: W * 0.28, y2: y + 90 });
+  });
+  // Pegless for the same wedge-pocket reason as the zigzag track.
+  void rand;
+  return { segs, pegs };
+}
+
+const TRACKS = [
+  { id: 'pegfield', label: 'Peg Field', build: buildPegField },
+  { id: 'zigzag',   label: 'Zigzag Ramps', build: buildZigzag },
+  { id: 'pachinko', label: 'Pachinko', build: buildPachinko },
+  { id: 'slalom',   label: 'Slalom Gates', build: buildSlalom },
+];
+
 /* Distinct stable colors — golden-angle hue walk. */
 function marbleColor(i) {
   return `hsl(${(i * 137.508) % 360} 72% 45%)`;
+}
+
+/* "Maya Rodriguez" → "MR", "Cher" → "C". */
+function initialsOf(name) {
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? '?';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase();
 }
 
 function resetRace(newSeed) {
@@ -99,19 +163,21 @@ function resetRace(newSeed) {
   state.results = [];
   if (newSeed) state.seed = (Math.random() * 2 ** 31) | 0;
   const rand = mulberry32(state.seed);
-  const { segs, pegs } = buildCourse(rand);
+  const track = TRACKS.find((t) => t.id === state.trackId) || TRACKS[0];
+  const { segs, pegs } = track.build(rand);
   state.segments = segs;
   state.pegs = pegs;
   // Start pool: pack marbles in rows above the funnel, seeded jitter.
   state.marbles = state.names.map((name, i) => {
-    const perRow = 16;
+    const perRow = 12;
     const row = (i / perRow) | 0;
     const col = i % perRow;
     return {
       name,
+      initials: initialsOf(name),
       color: marbleColor(i),
-      x: W / 2 + (col - perRow / 2 + 0.5) * (MARBLE_R * 2.4) + (rand() - 0.5) * 6,
-      y: 40 + row * (MARBLE_R * 2.4) + (rand() - 0.5) * 6,
+      x: W / 2 + (col - perRow / 2 + 0.5) * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
+      y: 36 + row * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
       vx: 0, vy: 0,
       finished: false,
     };
@@ -260,15 +326,23 @@ function draw() {
   for (const p of state.pegs) {
     ctx.beginPath(); ctx.arc(p.x, p.y, PEG_R, 0, Math.PI * 2); ctx.fill();
   }
-  // Marbles + name tags.
-  ctx.font = '600 11px system-ui, sans-serif';
+  // Marbles with initials — the leaderboard's color dots are the full key.
+  ctx.font = `800 ${Math.round(MARBLE_R * 0.95)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgb(0 0 0 / 0.45)';
   for (const m of state.marbles) {
     if (m.finished) continue;
     ctx.fillStyle = m.color;
     ctx.beginPath(); ctx.arc(m.x, m.y, MARBLE_R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = inkCss;
-    ctx.fillText(m.name.split(' ')[0], m.x + MARBLE_R + 3, m.y + 4);
+    // White glyphs with a soft dark outline read on every hue.
+    ctx.strokeText(m.initials, m.x, m.y + 0.5);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(m.initials, m.x, m.y + 0.5);
   }
+  ctx.textAlign = 'start';
+  ctx.textBaseline = 'alphabetic';
 }
 
 /* ── Leaderboard ────────────────────────────────────────────── */
@@ -328,6 +402,14 @@ document.getElementById('class-grid').addEventListener('click', (e) => {
 });
 document.getElementById('btn-start').addEventListener('click', startRace);
 document.getElementById('btn-reset').addEventListener('click', () => resetRace(true));
+
+// Track picker — switching tracks lays out a fresh course immediately.
+const trackSelect = document.getElementById('track-select');
+trackSelect.innerHTML = TRACKS.map((t) => `<option value="${t.id}">${t.label}</option>`).join('');
+trackSelect.addEventListener('change', () => {
+  state.trackId = trackSelect.value;
+  resetRace(true);
+});
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
   cancelAnimationFrame(state.rafId);
