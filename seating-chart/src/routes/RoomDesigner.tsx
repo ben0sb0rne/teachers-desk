@@ -274,14 +274,43 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     return <div className="p-6 text-ink-muted">Room not found.</div>;
   }
 
+  /** First non-overlapping spot for a w×h item, starting from (x0, y0).
+   *  Repeated palette clicks used to stack every new desk on the exact same
+   *  center point — six clicks looked like one desk. Search outward in rings
+   *  (30px steps) until the candidate clears every existing desk/furniture
+   *  AABB; give up back to the origin only if the room is genuinely full. */
+  function findFreeSpot(x0: number, y0: number, w: number, h: number): { x: number; y: number } {
+    if (!room) return { x: x0, y: y0 };
+    const boxes = [
+      ...room.desks.map((d) => rotatedAABB({ kind: "desk", entity: d })),
+      ...(room.furniture ?? []).map((f) => rotatedAABB({ kind: "furniture", entity: f })),
+    ];
+    const clear = (x: number, y: number) =>
+      !boxes.some((b) => x < b.maxX && x + w > b.minX && y < b.maxY && y + h > b.minY);
+    const snap = (v: number) => Math.round(v / 10) * 10;
+    if (clear(x0, y0)) return { x: x0, y: y0 };
+    const STEP = 30;
+    const DIRS: Array<[number, number]> = [
+      [1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1],
+    ];
+    for (let ring = 1; ring <= 60; ring++) {
+      for (const [dx, dy] of DIRS) {
+        const x = snap(x0 + dx * ring * STEP);
+        const y = snap(y0 + dy * ring * STEP);
+        if (x < 0 || y < 0 || x + w > room.width || y + h > room.height) continue;
+        if (clear(x, y)) return { x, y };
+      }
+    }
+    return { x: x0, y: y0 };
+  }
+
   function placeDeskAtCenter(kind: DeskKind, params: ShapeParams) {
     if (!room) return;
     const layout = layoutDesk(kind, params);
     const cx = room.width / 2 - layout.width / 2;
     const cy = room.height / 2 - layout.height / 2;
-    const x = Math.round(cx / 10) * 10;
-    const y = Math.round(cy / 10) * 10;
-    addDesk(room.id, makeDesk(kind, params, x, y));
+    const spot = findFreeSpot(Math.round(cx / 10) * 10, Math.round(cy / 10) * 10, layout.width, layout.height);
+    addDesk(room.id, makeDesk(kind, params, spot.x, spot.y));
   }
 
   function placeDeskAtPoint(kind: DeskKind, params: ShapeParams, roomX: number, roomY: number) {
@@ -330,8 +359,9 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     } else {
       const cx = room.width / 2 - item.width / 2;
       const cy = room.height / 2 - item.height / 2;
-      item.x = Math.round(cx / 10) * 10;
-      item.y = Math.round(cy / 10) * 10;
+      const spot = findFreeSpot(Math.round(cx / 10) * 10, Math.round(cy / 10) * 10, item.width, item.height);
+      item.x = spot.x;
+      item.y = spot.y;
     }
     addFurniture(room.id, item);
   }
@@ -345,8 +375,9 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
     const item = makeFurniture(kind, 0, 0);
     const cx = room.width / 2 - item.width / 2;
     const cy = room.height / 2 - item.height / 2;
-    item.x = Math.round(cx / 10) * 10;
-    item.y = Math.round(cy / 10) * 10;
+    const spot = findFreeSpot(Math.round(cx / 10) * 10, Math.round(cy / 10) * 10, item.width, item.height);
+    item.x = spot.x;
+    item.y = spot.y;
     addFurniture(room.id, item);
   }
 
@@ -768,7 +799,14 @@ export default function RoomDesigner({ mode }: { mode: "layout" | "seating" }) {
             : "Label drawn inside the shape. Leave blank to clear."
         }
         placeholder={textInput?.kind === "arrangement-label" ? "e.g. October seating chart" : ""}
-        initialValue={textInput?.kind === "furniture-label" ? textInput.initial : ""}
+        initialValue={
+          textInput?.kind === "furniture-label"
+            ? textInput.initial
+            : textInput?.kind === "arrangement-label"
+              // Date-stamped default so a plain Enter saves in one step.
+              ? `Seating ${new Date().toLocaleDateString()}`
+              : ""
+        }
         submitLabel={textInput?.kind === "arrangement-label" ? "Save" : "Update"}
         allowEmpty={textInput?.kind !== "arrangement-label"}
         onSubmit={handleTextInputSubmit}

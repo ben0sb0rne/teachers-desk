@@ -376,6 +376,9 @@ export default function DeskNode({
             }}
             onClick={(e) => {
               e.cancelBubble = true;
+              // Konva fires `click` for every mouse button; right-click must
+              // open ONLY the desk context menu, not the seat picker too.
+              if (e.evt.button !== 0) return;
               const stage = e.target.getStage();
               const pos = stage?.getPointerPosition();
               if (pos) onSeatClick(seat.id, pos.x, pos.y);
