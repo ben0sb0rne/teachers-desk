@@ -522,7 +522,7 @@ function loadProblems(csvText, filename) {
    ============================================================ */
 const SUITE_PREF_KEYS = ['theme', 'soundEnabled', 'soundMuted', 'soundVolume'];
 const DEFAULT_SETTINGS = {
-  theme: 'light',
+  theme: 'auto',   // follow system unless the user explicitly picks light/dark
   showBoard: true,
   boardContent: 'problems',   // 'problems' | 'answers'
   showNavButtons: true,
