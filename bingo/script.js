@@ -2138,9 +2138,14 @@ function computeProblemFontSize() {
   for (let i = 0; i < FONT_SIZE_BINARY_SEARCH_ITERATIONS; i++) {
     const mid = Math.floor((lo + hi) / 2);
     probe.style.fontSize = mid + 'px';
-    // Chip font = 50% of equation font; circle diameter = 0.5 × 1.3 × mid = 0.65 × mid.
-    // +14px safety margin absorbs sub-pixel rounding between the probe and the live element.
-    const maxEquH = Math.max(16, totalH - mid * 0.65 - 16 - 14);
+    // Height budget for the column marker above the equation:
+    //  - classic chip: font 50% of equation, circle 1.3× that = 0.65 × mid
+    //  - photoreal ball: #col-ball is 1.6 × mid (style.css) — budgeting the
+    //    chip factor here let short problems size huge and push the ball off
+    //    the top of the viewport in windowed mode.
+    // +14px safety margin absorbs sub-pixel rounding between probe and live element.
+    const markerH = document.body.classList.contains('has-photoreal-balls') ? mid * 1.6 : mid * 0.65;
+    const maxEquH = Math.max(16, totalH - markerH - 16 - 14);
     if (probe.offsetWidth <= availW && probe.offsetHeight <= maxEquH) {
       best = mid; lo = mid + 1;
     } else {

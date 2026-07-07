@@ -838,9 +838,12 @@ body.is-bingo.has-photoreal-balls #col-ball .ball-letter {
   font-size: calc(var(--problem-font-size, 4rem) * 0.65);
   font-weight: 900;
   letter-spacing: -0.04em;
-  color: rgb(var(--paper-edge));
+  /* Always-dark ink, NOT the themed --paper-edge: the sticker disc behind
+     this glyph is a fixed light gradient (a physical object that doesn't
+     theme), so a themed color goes cream-on-cream in dark mode. */
+  color: rgb(28 22 18);
   line-height: 1;
-  text-shadow: 1px 1px 0 rgb(var(--paper-edge) / 0.15);
+  text-shadow: 1px 1px 0 rgb(28 22 18 / 0.15);
 }
 
 /* Specular gloss — the layer that DOESN'T rotate. Anchored to the
