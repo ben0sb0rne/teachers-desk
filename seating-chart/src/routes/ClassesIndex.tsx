@@ -121,7 +121,7 @@ export default function ClassesIndex() {
       )}
 
       {/* ───────────── Classes (daily use — lead with them) ───────────── */}
-      <div className="mb-1 flex flex-wrap items-center gap-3">
+      <div className="mb-1 flex flex-wrap items-center gap-3 border-b-2 border-ink/40 pb-2">
         <h1 className="text-2xl font-bold tracking-tight text-ink">Classes</h1>
         <button className="btn-secondary" onClick={() => setNewClassOpen(true)}>
           <Icon name="plus" size={14} />
@@ -159,7 +159,7 @@ export default function ClassesIndex() {
       )}
 
       {/* ───────────── Rooms (reusable layouts — secondary) ───────────── */}
-      <div className="mb-1 mt-10 flex flex-wrap items-center gap-3">
+      <div className="mb-1 mt-10 flex flex-wrap items-center gap-3 border-b-2 border-ink/40 pb-2">
         <h2 className="text-xl font-bold tracking-tight text-ink">Rooms</h2>
         <button className="btn-secondary" onClick={() => setAddRoomOpen(true)}>
           <Icon name="plus" size={14} />
@@ -362,8 +362,8 @@ function ClassCard({
   const previewSeating = preview ? klass.seatings.find((se) => se.roomId === preview.id) : undefined;
   const accent = classAccent(klass.id);
   return (
-    <div className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-[3/2] bg-ink/10">
+    <div className="card flex flex-col overflow-hidden border-ink/25 shadow-paper">
+      <div className="relative aspect-[3/2] border-b border-ink/15 bg-wood/40">
         {preview && preview.desks.length > 0 ? (
           <>
             <div className="absolute inset-0 flex">
@@ -452,8 +452,8 @@ function RoomTile({
   onDelete: () => void;
 }) {
   return (
-    <div className="card flex flex-col overflow-hidden">
-      <div className="relative aspect-[3/2] bg-ink/10">
+    <div className="card flex flex-col overflow-hidden border-ink/25 shadow-paper">
+      <div className="relative aspect-[3/2] border-b border-ink/15 bg-wood/40">
         {room.desks.length > 0 ? (
           <div className="absolute inset-0 flex">
             <RoomStage

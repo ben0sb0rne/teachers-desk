@@ -1522,13 +1522,15 @@ kbd {
 .hp-sets-list { display: flex; flex-direction: column; gap: 18px; }
 .hp-grade-group { display: flex; flex-direction: column; gap: 8px; }
 .hp-grade-label {
-  font-size: .75rem;
+  /* Full-ink, heavier rule: the grade bands are the page's skeleton and
+     were reading at the same weight as card metadata. */
+  font-size: .85rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: .07em;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
+  letter-spacing: .09em;
+  color: var(--text);
+  border-bottom: 2px solid rgb(var(--paper-edge) / 0.45);
+  padding-bottom: 5px;
 }
 .hp-set-cards {
   display: grid;
@@ -1542,9 +1544,12 @@ kbd {
      line its own visual line-height of breathing room. */
   gap: 8px;
   padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* Near-white paper on the cream panel — cards were the SAME cream as
+     the tile behind them and disappeared into it. */
+  background: rgb(var(--bingo-paper));
+  border: 1px solid rgb(var(--paper-edge) / 0.28);
   border-radius: 6px;
+  box-shadow: var(--shadow-paper);
   cursor: pointer;
   text-align: left;
   transition: border-color .15s, background .15s, transform .1s, box-shadow .15s;
@@ -1552,9 +1557,8 @@ kbd {
 }
 .hp-set-card:hover {
   border-color: var(--primary);
-  background: rgb(var(--paper-edge) / 0.04);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  box-shadow: var(--shadow-lift);
 }
 .hp-set-card:active { transform: translateY(0); }
 .hp-set-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
