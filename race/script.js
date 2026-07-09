@@ -460,23 +460,46 @@ function showClassSelect() {
       <span class="count">${n} student${n === 1 ? '' : 's'}</span>
     </button>`;
   }).join('');
-  // Paint each card's marble pool — the class IS its marbles.
+  // Paint each card's marble pool — the class IS its marbles, drawn at
+  // race scale with initials so the preview matches the course. Rows are
+  // centered; height fits the whole roster; the buffer is DPR-scaled so
+  // the initials stay crisp.
   grid.querySelectorAll('.race-class-card').forEach((card) => {
     const names = getRoster(card.dataset.id);
     const cv = card.querySelector('.race-card-marbles');
-    // Match the buffer to the displayed box so marbles stay round.
-    cv.width = cv.clientWidth || 300;
-    cv.height = cv.clientHeight || 72;
+    const R = 13;
+    const stepX = R * 2 + 8;
+    const stepY = R * 2 + 10;
+    const cssW = cv.clientWidth || 300;
+    const perRow = Math.max(1, Math.floor((cssW - 16) / stepX));
+    const rows = Math.max(1, Math.ceil(names.length / perRow));
+    const cssH = rows * stepY + 10;
+    const dpr = window.devicePixelRatio || 1;
+    cv.style.height = cssH + 'px';
+    cv.width = Math.round(cssW * dpr);
+    cv.height = Math.round(cssH * dpr);
     const c2 = cv.getContext('2d');
-    const R = 8;
-    const perRow = Math.max(1, Math.floor((cv.width - 16) / (R * 2 + 3)));
-    names.slice(0, perRow * 3).forEach((_, i) => {
+    c2.scale(dpr, dpr);
+    c2.font = `800 ${Math.round(R * 0.85)}px system-ui, sans-serif`;
+    c2.textAlign = 'center';
+    c2.textBaseline = 'middle';
+    c2.lineWidth = 2.5;
+    c2.strokeStyle = 'rgb(0 0 0 / 0.45)';
+    names.forEach((name, i) => {
       const row = (i / perRow) | 0;
+      const inRow = Math.min(perRow, names.length - row * perRow);
+      const rowLeft = (cssW - inRow * stepX) / 2 + stepX / 2;
+      const x = rowLeft + (i % perRow) * stepX;
       const wob = ((i * 7919) % 5) - 2; // deterministic wobble, no RNG needed
+      const y = 5 + stepY / 2 + row * stepY + wob;
       c2.fillStyle = marbleColor(i);
       c2.beginPath();
-      c2.arc(14 + (i % perRow) * (R * 2 + 3), 14 + row * (R * 2 + 5) + wob, R, 0, Math.PI * 2);
+      c2.arc(x, y, R, 0, Math.PI * 2);
       c2.fill();
+      const init = initialsOf(name);
+      c2.strokeText(init, x, y + 0.5);
+      c2.fillStyle = '#fff';
+      c2.fillText(init, x, y + 0.5);
     });
   });
 }
