@@ -2,6 +2,8 @@
 
 A static suite of free classroom tools for K–12 teachers, made by Mr. Osborne. Each tool has its own world (homepage diorama, wheel game-show, noise meter VU/traffic-light/control-panel, timer in four flavors, grade-book call tracker, boxing-match review game), but they all read and write through one shared data layer and share the same type system, interaction grammar, and engineering tokens. Everything is static + localStorage — no backend, no accounts, no analytics.
 
+**Shipped today:** homepage, Math Bingo, Wheel of Names, Seating Chart (which owns the roster editor). The noise meter, timer, Who's Been Called, and Around the World are planned — their briefs live in the `.docx` until each gets a per-tool `.md`.
+
 ## Source of truth
 
 **The `briefs/` folder is authoritative.** Each brief in there describes one tool's purpose, aesthetic, behavior, and constraints.
@@ -17,13 +19,16 @@ Briefs live in `briefs/`. The original consolidated Word document is at `briefs/
 
 ```
 /
-├── index.html                  ← homepage (desk diorama)
-├── about.html                  ← about page
+├── index.html                  ← homepage (placard index today; desk diorama is the target)
+├── about.html                  ← about page (+ sound credits)
 ├── briefs/                     ← AUTHORITATIVE. read these first.
 ├── shared/                     ← cross-tool code (CSS, storage, components)
 │   ├── desk.css                ← single source of truth for visual style
 │   ├── storage.js              ← single source of truth for localStorage
 │   ├── roster-bridge.js        ← canonical-event subscription surface
+│   ├── settings.js             ← suite settings dialog + per-tool section registry
+│   ├── wheel-engine.js         ← STUB: future fairness-weighted picker logic
+│   ├── tip-jar.js              ← STUB: future Stripe payment-link tip jar
 │   └── components/             ← shared vanilla UI components
 ├── bingo/                      ← Math Bingo (vanilla)
 ├── wheel/                      ← Wheel of Names (vanilla)
@@ -59,14 +64,14 @@ These apply suite-wide unless a brief explicitly says otherwise:
 
 ## Per-tool aesthetic
 
-Each tool has its own intentional visual character. Don't fight the impulse to make them look like one product — they aren't:
+Each tool has its own intentional visual character. Don't fight the impulse to make them look like one product — they aren't. (Tools marked *planned* aren't built yet; their aesthetic is the target.)
 
-- **Homepage** — photoreal teacher's-desk diorama, time-of-day-aware.
+- **Homepage** — photoreal teacher's-desk diorama, time-of-day-aware *(target — today it's a placard index on the wood surface)*.
 - **Wheel of Names** — 1970s Price Is Right (mustard, burnt orange, plastic-y wheel, curtain backdrop).
-- **Noise Meter** — three switchable styles: vintage VU meter, traffic light, NASA control panel.
-- **Timer** — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
-- **Who's Been Called** — 1970s grade book / green-bar accountant pad.
-- **Around the World** — boxing-match broadcast.
+- **Noise Meter** *(planned)* — three switchable styles: vintage VU meter, traffic light, NASA control panel.
+- **Timer** *(planned)* — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
+- **Who's Been Called** *(planned)* — 1970s grade book / green-bar accountant pad.
+- **Around the World** *(planned)* — boxing-match broadcast.
 - **Bingo** — church-hall / 1970s bingo night, paper-cream surfaces. See [`briefs/02-bingo.md`](briefs/02-bingo.md).
 - **Seating Chart** — existing aesthetic, no brief yet.
 
@@ -89,7 +94,7 @@ Two cross-tool stores carry most of the suite:
 
 Per-tool state lives under `tools.<toolName>` in the storage envelope.
 
-**`recordCall(periodId, studentName)`** is shared infrastructure: any tool that picks or calls on a student should invoke it, so participation data is consistent regardless of which tool selected the student. The Wheel calls it on each spin. Around the World calls it on each round. Future pickers should too.
+**`incrementCallCount(classId, name)`** (in `shared/storage.js`, re-exported by the roster bridge) is shared infrastructure: any tool that picks or calls on a student should invoke it, so participation data is consistent regardless of which tool selected the student. The Wheel calls it on each spin. Around the World should call it on each round when built. Future pickers should too.
 
 ## Tool navigation — the topstrip pattern
 
@@ -163,7 +168,7 @@ Tools that fetch local files (e.g. Bingo's CSV problem sets) need HTTP, not `fil
 
 ```bash
 cd seating-chart
-npm test           # solver tests + theme-token sync test
+npm test           # solver tests + name-parsing tests + theme-token sync test
 ```
 
 There are no tests for vanilla tools today.

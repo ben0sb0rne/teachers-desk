@@ -9,8 +9,16 @@
 // Konva renders to canvas (not the DOM) and can't read CSS variables, so we mirror
 // the tokens as JS constants there and assert sync via tests/theme-sync.test.ts.
 //
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+// Anchor content globs to this config file, not the process CWD, so
+// `vite <path-to-seating-chart>` from the repo root (or any other cwd)
+// still generates the utility classes.
+const here = path.dirname(fileURLToPath(import.meta.url));
+
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: [path.join(here, 'index.html'), path.join(here, 'src/**/*.{ts,tsx}')],
   theme: {
     extend: {
       fontFamily: {

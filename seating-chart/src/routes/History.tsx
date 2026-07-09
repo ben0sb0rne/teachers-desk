@@ -110,7 +110,7 @@ export default function History() {
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {arrangements.map((arr) => (
             <li key={arr.id} className="card overflow-hidden">
-              <div className="relative aspect-[4/3] bg-slate-50">
+              <div className="relative aspect-[4/3] bg-ink/5">
                 {activeRoom && (
                   <div className="absolute inset-0 flex">
                     <RoomStage

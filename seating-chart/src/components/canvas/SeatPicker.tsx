@@ -53,7 +53,7 @@ export default function SeatPicker({ x, y, students, assignments, seatId, onPick
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-50 max-h-72 w-64 overflow-auto rounded-md border border-slate-200 bg-white p-2 shadow-xl"
+      className="fixed z-50 max-h-72 w-64 overflow-auto rounded-md border border-ink/15 bg-paper p-2 shadow-lift"
       style={{ left: Math.min(x, window.innerWidth - 270), top: Math.min(y, window.innerHeight - 290) }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -75,20 +75,33 @@ export default function SeatPicker({ x, y, students, assignments, seatId, onPick
       {filtered.length === 0 ? (
         <div className="px-2 py-3 text-sm text-ink-muted">No matches.</div>
       ) : (
-        filtered.map((s) => {
+        filtered.map((s, i) => {
           const isHere = currentStudent === s.id;
           const isSeatedElsewhere = !isHere && occupiedBy.has(s.id);
+          // The sort puts every "will move" student after the free ones, so
+          // the first such row marks the cutoff — label it so it's obvious
+          // which picks will pull someone out of another seat.
+          const prev = filtered[i - 1];
+          const isFirstMover =
+            isSeatedElsewhere &&
+            (i === 0 || !(prev && prev.id !== currentStudent && occupiedBy.has(prev.id)));
           return (
-            <button
-              key={s.id}
-              className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
-              onClick={() => onPick(s.id)}
-            >
-              <span>{s.name}</span>
-              <span className="text-xs text-ink-muted">
-                {isHere ? "current" : isSeatedElsewhere ? "(will move)" : ""}
-              </span>
-            </button>
+            <div key={s.id}>
+              {isFirstMover && i > 0 && (
+                <div className="mx-1 mb-1 mt-2 border-t border-ink/15 px-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+                  Seated elsewhere — picking will move them
+                </div>
+              )}
+              <button
+                className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-ink/5"
+                onClick={() => onPick(s.id)}
+              >
+                <span>{s.name}</span>
+                <span className="text-xs text-ink-muted">
+                  {isHere ? "current" : isSeatedElsewhere ? "(will move)" : ""}
+                </span>
+              </button>
+            </div>
           );
         })
       )}

@@ -17,7 +17,7 @@ export default function Toaster() {
           onOpenChange={(o) => {
             if (!o) dismiss(t.id);
           }}
-          className="rounded-md border border-ink/15 bg-white px-3 py-2 text-sm text-ink shadow-md"
+          className="rounded-md border border-ink/15 bg-paper px-3 py-2 text-sm text-ink shadow-paper"
         >
           <Toast.Description>{t.message}</Toast.Description>
         </Toast.Root>

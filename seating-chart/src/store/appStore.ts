@@ -77,6 +77,8 @@ interface AppActions {
   updateStudent: (classId: ClassId, studentId: StudentId, patch: Partial<Student>) => void;
   /** Per-class chart name display mode. */
   setNameDisplay: (classId: ClassId, mode: NameDisplay) => void;
+  /** Toggle live alphabetize-by-last-name + auto-numbering for a class. */
+  setAutoOrder: (classId: ClassId, on: boolean) => void;
   removeStudent: (classId: ClassId, studentId: StudentId) => void;
   toggleKeepApart: (classId: ClassId, a: StudentId, b: StudentId) => void;
 
@@ -146,6 +148,21 @@ function withSeating(c: ClassRoom, roomId: RoomId, mutate: (se: RoomSeating) => 
 
 function withClass(state: AppState, id: ClassId, mutate: (c: ClassRoom) => ClassRoom): AppState {
   return { ...state, classes: state.classes.map((c) => (c.id === id ? mutate(c) : c)) };
+}
+
+/** When the class has autoOrder on, keep the roster sorted by last name
+ *  (then first) and re-assign studentNumber 1..N. Called after every roster
+ *  mutation so the ordering is live, not a one-shot. */
+function enforceAutoOrder(c: ClassRoom): ClassRoom {
+  if (!c.autoOrder) return c;
+  const students = [...c.students]
+    .sort(
+      (a, b) =>
+        (a.lastName ?? a.name).localeCompare(b.lastName ?? b.name) ||
+        (a.firstName ?? "").localeCompare(b.firstName ?? ""),
+    )
+    .map((st, i) => (st.studentNumber === String(i + 1) ? st : { ...st, studentNumber: String(i + 1) }));
+  return { ...c, students };
 }
 
 function withRoom(state: AppState, id: RoomId, mutate: (r: Room) => Room): AppState {
@@ -293,30 +310,38 @@ export const useAppStore = create<AppStore>()(
                   needsFrontRow: false,
                   keepApart: [],
                 }));
-              return { ...c, students: [...c.students, ...fresh] };
+              return enforceAutoOrder({ ...c, students: [...c.students, ...fresh] });
             }),
           ),
 
         updateStudent: (classId, studentId, patch) =>
           set((s) =>
-            withClass(s, classId, (c) => ({
-              ...c,
-              students: c.students.map((st) => {
-                if (st.id !== studentId) return st;
-                const next: Student = { ...st, ...patch };
-                // Keep the canonical `name` in sync when first/last change so
-                // the Wheel/Bingo rosters track the structured edit.
-                if ("firstName" in patch || "lastName" in patch) {
-                  const derived = `${next.firstName ?? ""} ${next.lastName ?? ""}`.trim();
-                  if (derived) next.name = derived;
-                }
-                return next;
-              }),
-            })),
+            withClass(s, classId, (c) => {
+              const next: ClassRoom = {
+                ...c,
+                students: c.students.map((st) => {
+                  if (st.id !== studentId) return st;
+                  const upd: Student = { ...st, ...patch };
+                  // Keep the canonical `name` in sync when first/last change so
+                  // the Wheel/Bingo rosters track the structured edit.
+                  if ("firstName" in patch || "lastName" in patch) {
+                    const derived = `${upd.firstName ?? ""} ${upd.lastName ?? ""}`.trim();
+                    if (derived) upd.name = derived;
+                  }
+                  return upd;
+                }),
+              };
+              // Renaming can change the sort position; re-enforce. Number edits
+              // are excluded — while autoOrder is on the # column is automatic.
+              return "firstName" in patch || "lastName" in patch ? enforceAutoOrder(next) : next;
+            }),
           ),
 
         setNameDisplay: (classId, mode) =>
           set((s) => withClass(s, classId, (c) => ({ ...c, nameDisplay: mode }))),
+
+        setAutoOrder: (classId, on) =>
+          set((s) => withClass(s, classId, (c) => enforceAutoOrder({ ...c, autoOrder: on }))),
 
         removeStudent: (classId, studentId) =>
           set((s) =>
@@ -326,7 +351,7 @@ export const useAppStore = create<AppStore>()(
                 for (const [seat, sid] of Object.entries(m)) if (sid !== studentId) out[seat] = sid;
                 return out;
               };
-              return {
+              return enforceAutoOrder({
                 ...c,
                 students: c.students
                   .filter((st) => st.id !== studentId)
@@ -337,7 +362,7 @@ export const useAppStore = create<AppStore>()(
                   currentAssignments: strip(se.currentAssignments),
                   arrangements: se.arrangements.map((a) => ({ ...a, assignments: strip(a.assignments) })),
                 })),
-              };
+              });
             }),
           ),
 

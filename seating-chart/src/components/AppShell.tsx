@@ -103,6 +103,7 @@ export default function AppShell() {
         {/* Spacer pushes the utility cluster to the far right, so the tabs sit
             with the class context on the left rather than crowding the icons. */}
         <div className="flex-1" aria-hidden />
+        <SaveStatus />
         <div className="suite-topstrip-actions">
           <button
             type="button"
@@ -130,6 +131,48 @@ export default function AppShell() {
       <SuiteSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Toaster />
     </div>
+  );
+}
+
+/**
+ * Quiet persistence status in the topstrip. Writes are synchronous (zustand
+ * persist → shared storage → localStorage on every mutation), so by the time
+ * this flashes "Saving…" the data is already on disk — the indicator exists
+ * to reassure, not to report async progress.
+ */
+function SaveStatus() {
+  const [status, setStatus] = useState<{ phase: "idle" | "saving" | "saved"; at?: string }>({
+    phase: "idle",
+  });
+  useEffect(() => {
+    let timer: number | undefined;
+    const unsub = useAppStore.subscribe((s, prev) => {
+      if (s.rooms === prev.rooms && s.classes === prev.classes) return;
+      setStatus({ phase: "saving" });
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setStatus({
+          phase: "saved",
+          at: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        });
+      }, 500);
+    });
+    return () => {
+      unsub();
+      window.clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <span
+      className="hidden whitespace-nowrap text-[11px] uppercase tracking-wide text-ink-muted sm:inline"
+      aria-live="polite"
+    >
+      {status.phase === "saving"
+        ? "Saving…"
+        : status.phase === "saved"
+          ? `Saved ✓ ${status.at}`
+          : "All changes saved"}
+    </span>
   );
 }
 

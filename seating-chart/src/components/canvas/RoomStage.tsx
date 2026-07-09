@@ -75,7 +75,7 @@ function FrontOfRoomLabel({ frontWall }: { frontWall: Wall }) {
   }[frontWall];
   return (
     <div
-      className={`pointer-events-none absolute ${positionClass} flex items-center gap-1.5 rounded bg-ink/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm`}
+      className={`pointer-events-none absolute ${positionClass} flex items-center gap-1.5 rounded bg-ink/85 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-paper shadow-sm`}
     >
       <Icon name={arrowIcon} size={12} />
       <span>Front of room</span>
@@ -342,12 +342,27 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const cr = entry.contentRect;
-      setSize({ w: cr.width, h: cr.height });
-    });
+    // Measure the container's real border box, ignoring transient zero-size
+    // readings (mid-layout) and no-op updates. The canvas itself lives in an
+    // absolutely-positioned wrapper below so it can never prop the container
+    // open — without that, a too-wide first paint made min-width:auto hold
+    // the flex container at canvas width and the observer never shrank it,
+    // which is how index/history thumbnails ended up cropped to a corner.
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const w = Math.round(r.width);
+      const h = Math.round(r.height);
+      if (w <= 0 || h <= 0) return;
+      setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    // Grid/aspect-ratio card layouts settle after first paint; re-measure once.
+    const raf = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
   }, []);
 
   const padding = framePadding;
@@ -576,7 +591,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     <div
       ref={containerRef}
       className={
-        "relative min-h-0 flex-1 " + (interactive ? "bg-slate-100 select-none" : "")
+        "relative min-h-0 min-w-0 flex-1 overflow-hidden " + (interactive ? "bg-ink/10 select-none" : "")
       }
       style={{ touchAction: "none" }}
       onPointerDownCapture={
@@ -591,6 +606,9 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           : undefined
       }
     >
+      {/* The Stage sits in an absolute layer so the canvas's own box never
+          feeds back into the measured container size (flex min-width:auto). */}
+      <div className="absolute inset-0 overflow-hidden">
       <Stage
         ref={stageRef}
         width={size.w}
@@ -807,6 +825,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
           )}
         </Layer>
       </Stage>
+      </div>
       {showFrontWallLabel && <FrontOfRoomLabel frontWall={rotateWall(room.frontWall ?? "top", viewRotation)} />}
       {interactive && picker && (
         <SeatPicker

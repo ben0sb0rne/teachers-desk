@@ -138,7 +138,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[92vw] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg bg-white p-5 shadow-xl focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[92vh] w-[92vw] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col rounded bg-paper p-5 shadow-lift focus:outline-none">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-base font-semibold">
@@ -152,7 +152,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
             </div>
             <Dialog.Close asChild>
               <button
-                className="rounded p-1 text-ink-muted hover:bg-slate-100 hover:text-ink"
+                className="rounded p-1 text-ink-muted hover:bg-ink/10 hover:text-ink"
                 aria-label="Close"
               >
                 <Icon name="x" size={16} />
@@ -165,7 +165,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
               above a full-width preview canvas. */}
           <div className="grid min-h-[20rem] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-[14rem_1fr]">
             <aside className="space-y-4 overflow-y-auto pr-2">
-              <div className="rounded-md border border-ink/20 bg-slate-50 p-2">
+              <div className="rounded-md border border-ink/20 bg-ink/5 p-2">
                 <Segmented
                   label="Export"
                   options={[
@@ -256,7 +256,7 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                 The B&W toggle is rendered as a CSS grayscale filter so the
                 live preview matches the desaturated PNG output. */}
             <div
-              className="min-h-0 overflow-hidden rounded border border-slate-200"
+              className="min-h-0 overflow-hidden rounded border border-ink/15"
               style={{
                 ...(showBackground
                   ? { backgroundColor: "#fff" }

@@ -22,7 +22,7 @@ export default function KeepApartEditor({ classId, student, students }: Props) {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-ink/30 bg-paper px-2 py-1.5 text-xs font-medium hover:bg-ink/5"
           title={
             count === 0
               ? "Pick students to keep apart from"
@@ -41,7 +41,7 @@ export default function KeepApartEditor({ classId, student, students }: Props) {
       <Popover.Portal>
         <Popover.Content
           align="start"
-          className="z-50 w-72 rounded-md border border-slate-200 bg-white p-2 shadow-lg"
+          className="z-50 w-72 rounded-md border border-ink/15 bg-paper p-2 shadow-lift"
         >
           <div className="mb-2 px-1 text-xs font-semibold text-ink">
             Keep <span className="text-accent-blue">{student.name}</span> apart from…
@@ -62,7 +62,7 @@ export default function KeepApartEditor({ classId, student, students }: Props) {
                 return (
                   <label
                     key={s.id}
-                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50"
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-ink/5"
                   >
                     <input
                       type="checkbox"

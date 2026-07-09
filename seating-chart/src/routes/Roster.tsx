@@ -13,6 +13,7 @@ export default function Roster() {
   const updateStudent = useAppStore((s) => s.updateStudent);
   const removeStudent = useAppStore((s) => s.removeStudent);
   const addStudents = useAppStore((s) => s.addStudents);
+  const setAutoOrder = useAppStore((s) => s.setAutoOrder);
 
   const [pasteOpen, setPasteOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -69,6 +70,17 @@ export default function Roster() {
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
+          <label
+            className="flex cursor-pointer select-none items-center gap-1.5 whitespace-nowrap text-sm text-ink"
+            title="Keep the roster sorted by last name and number students 1–N automatically. Manual numbers are overwritten while this is on."
+          >
+            <input
+              type="checkbox"
+              checked={!!klass.autoOrder}
+              onChange={(e) => setAutoOrder(klass.id, e.target.checked)}
+            />
+            A–Z + auto-number
+          </label>
           <button className="btn-secondary" onClick={() => setPasteOpen(true)}>Paste names</button>
         </div>
       </div>
@@ -84,7 +96,7 @@ export default function Roster() {
             <col className="w-[10%]" />
             <col className="w-[16%]" />
           </colgroup>
-          <thead className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-ink-muted">
+          <thead className="border-b border-ink/15 text-left text-xs uppercase tracking-wide text-ink-muted">
             <tr>
               <th className="px-3 py-2">First</th>
               <th className="px-3 py-2">Last</th>
@@ -110,7 +122,7 @@ export default function Roster() {
               </tr>
             ) : (
               filtered.map((st) => (
-                <tr key={st.id} className="border-b border-slate-100 last:border-0">
+                <tr key={st.id} className="border-b border-ink/10 last:border-0">
                   <td className="px-3 py-2">
                     <input
                       className="input"
@@ -129,9 +141,11 @@ export default function Roster() {
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      className="input"
+                      className="input disabled:opacity-60"
                       value={st.studentNumber ?? ""}
                       placeholder="—"
+                      disabled={!!klass.autoOrder}
+                      title={klass.autoOrder ? "Numbers are automatic while A–Z + auto-number is on" : undefined}
                       onChange={(e) =>
                         updateStudent(klass.id, st.id, { studentNumber: e.target.value || undefined })
                       }
@@ -170,7 +184,7 @@ export default function Roster() {
               ))
             )}
           </tbody>
-          <tfoot className="border-t border-slate-200 bg-slate-50/50">
+          <tfoot className="border-t border-ink/15 bg-ink/5">
             <tr>
               <td className="px-3 py-2">
                 <input
@@ -248,7 +262,7 @@ function NotesEditor({
             "inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium " +
             (hasNotes
               ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
-              : "border-slate-300 bg-white text-ink-muted hover:bg-slate-50")
+              : "border-ink/30 bg-paper text-ink-muted hover:bg-ink/5")
           }
           title={hasNotes ? `Notes for ${studentName}` : "Add a note"}
         >
@@ -259,7 +273,7 @@ function NotesEditor({
       <Popover.Portal>
         <Popover.Content
           align="start"
-          className="z-50 w-72 rounded-md border border-slate-200 bg-white p-3 shadow-lg"
+          className="z-50 w-72 rounded-md border border-ink/15 bg-paper p-3 shadow-lift"
         >
           <div className="mb-2 text-xs font-semibold text-ink">
             Notes — <span className="text-accent-blue">{studentName}</span>

@@ -5,6 +5,11 @@
    under .is-wheel-stage for the 1970s Price Is Right aesthetic.
    ============================================================= */
 
+/* Border-box sizing so width:100% + padding can't exceed the viewport —
+   without this .picker-main overflowed and clipped the "FROM SEATING
+   CHART" tag at the right edge (overflow-x:hidden masked the scrollbar). */
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body { min-height: 100%; }
 body {
   display: flex;

@@ -5,6 +5,7 @@ import type { RoomId, Furniture } from "@/types";
 import { FURNITURE_DEFAULTS, furnitureLabel } from "@/lib/furniture";
 import { snapToGrid } from "@/lib/snap";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
+import { compensateStrokes, restoreStrokes } from "@/lib/strokeComp";
 import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
 
@@ -138,9 +139,15 @@ export default function FurnitureNode({
         updateFurniture(roomId, furniture.id, { x: e.target.x(), y: e.target.y() });
         onDragEnd();
       }}
+      onTransform={() => {
+        // Keep outline strokes at their natural width during the drag.
+        const node = groupRef.current;
+        if (node) compensateStrokes(node);
+      }}
       onTransformEnd={() => {
         const node = groupRef.current;
         if (!node) return;
+        restoreStrokes(node);
         const sx = node.scaleX();
         const sy = node.scaleY();
         // Snap furniture to the grid on resize so pieces land on whole cells —

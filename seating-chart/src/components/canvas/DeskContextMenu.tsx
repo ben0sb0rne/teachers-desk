@@ -47,13 +47,13 @@ export default function DeskContextMenu({
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-50 w-52 rounded-md border border-slate-200 bg-white p-1 text-sm shadow-xl"
+      className="fixed z-50 w-52 rounded-md border border-ink/15 bg-paper p-1 text-sm shadow-lift"
       style={{ left: Math.min(x, window.innerWidth - 220), top: Math.min(y, window.innerHeight - 110) }}
       onMouseDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
     >
       <button
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink/5"
         onClick={() => {
           onToggleFront();
           onClose();
@@ -64,7 +64,7 @@ export default function DeskContextMenu({
         {isFront && <Icon name="check" size={14} />}
       </button>
       <button
-        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-slate-50"
+        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-ink/5"
         onClick={() => {
           onToggleExcluded();
           onClose();

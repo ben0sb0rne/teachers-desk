@@ -67,9 +67,9 @@ export default function AssignmentPanel({
 
   if (collapsed) {
     return (
-      <aside className="flex w-10 shrink-0 flex-col items-center border-r border-slate-200 bg-white py-2">
+      <aside className="flex w-10 shrink-0 flex-col items-center border-r border-ink/15 bg-paper py-2">
         <button
-          className="rounded p-1.5 text-ink-muted hover:bg-slate-100"
+          className="rounded p-1.5 text-ink-muted hover:bg-ink/10"
           onClick={onToggleCollapsed}
           title="Expand assignments panel"
         >
@@ -80,13 +80,13 @@ export default function AssignmentPanel({
   }
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-1.5">
+    <aside className="flex w-72 shrink-0 flex-col border-r border-ink/15 bg-paper">
+      <div className="flex items-center justify-between border-b border-ink/15 px-3 py-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
           Assignments
         </span>
         <button
-          className="rounded p-1 text-ink-muted hover:bg-slate-100"
+          className="rounded p-1 text-ink-muted hover:bg-ink/10"
           onClick={onToggleCollapsed}
           title="Collapse panel"
         >
@@ -94,13 +94,13 @@ export default function AssignmentPanel({
         </button>
       </div>
 
-      <div className="border-b border-slate-200 p-3">
+      <div className="border-b border-ink/15 p-3">
         <UndoRedoButtons />
       </div>
 
       {/* Room switcher (only when the class uses more than one room) + the
           prominent "Edit <room>" jump to the layout editor. */}
-      <div className="space-y-2 border-b border-slate-200 p-3">
+      <div className="space-y-2 border-b border-ink/15 p-3">
         {classRooms.length > 1 && onChangeRoom && (
           <label className="block">
             <span className="label mb-1 block">Room</span>
@@ -122,7 +122,7 @@ export default function AssignmentPanel({
         {onChangeNameDisplay && (
           <div>
             <span className="label mb-1 block">Names on chart</span>
-            <div className="space-y-1 rounded-md border border-slate-200 p-2">
+            <div className="space-y-1 rounded-md border border-ink/15 p-2">
               {NAME_TOGGLES.map((t) => {
                 const nd = nameDisplay ?? DEFAULT_NAME_DISPLAY;
                 return (
@@ -141,7 +141,7 @@ export default function AssignmentPanel({
         )}
       </div>
 
-      <div className="space-y-2 border-b border-slate-200 p-3">
+      <div className="space-y-2 border-b border-ink/15 p-3">
         <button className="btn-primary w-full" onClick={onRandomize}>
           <Icon name="shuffle" size={14} />
           Randomize seating
@@ -192,7 +192,7 @@ export default function AssignmentPanel({
                     e.dataTransfer.effectAllowed = "move";
                   }}
                   className={
-                    "flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-slate-50" +
+                    "flex items-center justify-between gap-2 rounded px-1 py-1 hover:bg-ink/5" +
                     (selectable ? " cursor-pointer" : "")
                   }
                   onClick={() => onSelectDesk?.(s.deskId)}
@@ -243,7 +243,7 @@ export default function AssignmentPanel({
                     e.dataTransfer.setData(DND_STUDENT, s.id);
                     e.dataTransfer.effectAllowed = "move";
                   }}
-                  className="flex cursor-grab items-center gap-2 rounded px-1 py-0.5 hover:bg-slate-50 active:cursor-grabbing"
+                  className="flex cursor-grab items-center gap-2 rounded px-1 py-0.5 hover:bg-ink/5 active:cursor-grabbing"
                 >
                   <span className="truncate">{s.name}</span>
                   {s.needsFrontRow && <span className="text-xs text-amber-700">front</span>}
