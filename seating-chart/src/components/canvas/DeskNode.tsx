@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/appStore";
 import { lightTokens } from "@/lib/theme-tokens";
 import { deriveStroke, deriveTextColor } from "@/lib/color";
 import { displayName } from "@/lib/displayName";
+import { compensateStrokes, restoreStrokes } from "@/lib/strokeComp";
 
 // DeskNode reads theme values statically because the desk's own slate fill
 // (STROKE/FILL below) is hardcoded slate that doesn't flip — flipping the
@@ -327,10 +328,13 @@ export default function DeskNode({
           seatGroup.scaleX(inverseX);
           seatGroup.scaleY(inverseY);
         }
+        // Keep outline strokes at their natural width during the drag.
+        compensateStrokes(node);
       }}
       onTransformEnd={() => {
         const node = groupRef.current;
         if (!node) return;
+        restoreStrokes(node);
         const sx = node.scaleX();
         const sy = node.scaleY();
         const newWidth = Math.max(MIN_DESK_DIM, desk.width * sx);
@@ -493,7 +497,9 @@ function DeskShapeRenderer({
         <Circle
           x={desk.width / 2}
           y={desk.height / 2}
-          radius={desk.width / 2}
+          // min() so a non-square box (legacy data / odd resize) never draws
+          // a circle poking outside its own selection bounds.
+          radius={Math.min(desk.width, desk.height) / 2}
           fill={fill}
           stroke={stroke}
           strokeWidth={strokeWidth}

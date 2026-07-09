@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { migrateV9toV10, migrateV10toV11 } from "@/lib/migrations";
+import { migrateV9toV10, migrateV10toV11, runMigrations } from "@/lib/migrations";
 import { collisionFirstNames, displayName } from "@/lib/displayName";
-import { DEFAULT_NAME_DISPLAY } from "@/types";
+import { DEFAULT_NAME_DISPLAY, SCHEMA_VERSION } from "@/types";
 import type { NameDisplay, Student } from "@/types";
 
 function student(partial: Partial<Student> & { name: string }): Student {
@@ -63,10 +63,18 @@ describe("migrateV10toV11", () => {
 
   it("maps the old enum to toggles and leaves unset modes unset", () => {
     const out = migrateV10toV11(v10);
-    expect(out.schemaVersion).toBe(11);
+    // Migration steps stamp the CURRENT schema version, not their own.
+    expect(out.schemaVersion).toBe(SCHEMA_VERSION);
     expect(out.classes[0].nameDisplay).toEqual(nd({ firstName: true, lastName: true }));
     expect(out.classes[1].nameDisplay).toBeUndefined();
     expect(out.classes[2].nameDisplay).toEqual(nd({ studentNumber: true }));
+  });
+
+  it("v11 → v12 is a pass-through (autoOrder stays unset)", () => {
+    const v11 = { rooms: [], classes: [{ id: "c1", name: "P1", students: [], seatings: [] }], activeClassId: null, schemaVersion: 11 };
+    const out = runMigrations(v11, 11);
+    expect(out.classes[0].autoOrder).toBeUndefined();
+    expect(out.classes[0].name).toBe("P1");
   });
 });
 

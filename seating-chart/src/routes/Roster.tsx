@@ -13,6 +13,7 @@ export default function Roster() {
   const updateStudent = useAppStore((s) => s.updateStudent);
   const removeStudent = useAppStore((s) => s.removeStudent);
   const addStudents = useAppStore((s) => s.addStudents);
+  const setAutoOrder = useAppStore((s) => s.setAutoOrder);
 
   const [pasteOpen, setPasteOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -69,6 +70,17 @@ export default function Roster() {
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
+          <label
+            className="flex cursor-pointer select-none items-center gap-1.5 whitespace-nowrap text-sm text-ink"
+            title="Keep the roster sorted by last name and number students 1–N automatically. Manual numbers are overwritten while this is on."
+          >
+            <input
+              type="checkbox"
+              checked={!!klass.autoOrder}
+              onChange={(e) => setAutoOrder(klass.id, e.target.checked)}
+            />
+            A–Z + auto-number
+          </label>
           <button className="btn-secondary" onClick={() => setPasteOpen(true)}>Paste names</button>
         </div>
       </div>
@@ -129,9 +141,11 @@ export default function Roster() {
                   </td>
                   <td className="px-3 py-2">
                     <input
-                      className="input"
+                      className="input disabled:opacity-60"
                       value={st.studentNumber ?? ""}
                       placeholder="—"
+                      disabled={!!klass.autoOrder}
+                      title={klass.autoOrder ? "Numbers are automatic while A–Z + auto-number is on" : undefined}
                       onChange={(e) =>
                         updateStudent(klass.id, st.id, { studentNumber: e.target.value || undefined })
                       }

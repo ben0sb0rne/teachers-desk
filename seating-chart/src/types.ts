@@ -170,9 +170,12 @@ export interface ClassRoom {
   seatings: RoomSeating[];
   /** Per-class chart name display. Unset = DEFAULT_NAME_DISPLAY. */
   nameDisplay?: NameDisplay;
+  /** When true the roster is kept sorted by last name and studentNumber is
+   *  auto-assigned 1..N on every roster mutation. Unset = off. */
+  autoOrder?: boolean;
 }
 
-export const SCHEMA_VERSION = 11 as const;
+export const SCHEMA_VERSION = 12 as const;
 
 export interface AppState {
   /** Top-level, reusable room layouts. Referenced by ClassRoom.seatings[].roomId. */
