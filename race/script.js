@@ -1,10 +1,16 @@
 // =============================================================
-// THE TEACHER'S DESK — Marble Race (GREYBOX PROTOTYPE)
+// THE TEACHER'S DESK — Marble Race: the Pinball Parlor
 //
 // A physics race that produces a full finishing order for a class:
 // every student is a marble; the leaderboard fills 1st → last as
-// marbles cross the finish line. Mechanics-first prototype — the
-// tool's real name/world lands with its brief.
+// marbles cross the finish line. The course renders as a pinball
+// playfield — cream field with printed art, chrome rails, brass
+// posts, pop bumpers that flash on hit.
+//
+// TEXTURE-READY: each material has exactly ONE paint* function
+// (rail, post, bumper, marble, playfield art). Hand-drawn textures
+// replace the placeholder fills inside that function and nowhere
+// else. PALETTE mirrors the --pin-* tokens in style.css: change both.
 //
 // Suite conventions honored: roster via the roster bridge, winner
 // recorded through incrementCallCount, no direct localStorage.
@@ -48,8 +54,9 @@ const state = {
   names: [],
   marbles: [],        // { name, initials, color, x, y, vx, vy, finished }
   segments: [],       // static walls: { x1, y1, x2, y2 }
-  pegs: [],           // static circles: { x, y, r, b? }
+  pegs: [],           // static circles: { x, y, r, b?, hitT? }
   spinners: [],       // rotating bars: { cx, cy, len, speed, phase }
+  art: null,          // printed playfield art: { stars, arrows }
   results: [],
   running: false,
   simTime: 0,         // advances with physics substeps (drives spinners + drain)
@@ -193,6 +200,40 @@ const TRACKS = [
   { id: 'bumpers',  label: 'Bumpers', build: buildBumpers },
 ];
 
+/* Small course glyphs for the playfield cards (stroke/fill follow the
+   card's currentColor — teal at rest, orange when active). */
+const TRACK_GLYPHS = {
+  pegfield: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="6" cy="9" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="9" cy="15" r="2"/><circle cx="15" cy="15" r="2"/></g></svg>',
+  pachinko: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="7" r="1.7"/><circle cx="12" cy="7" r="1.7"/><circle cx="19" cy="7" r="1.7"/><circle cx="8.5" cy="12" r="1.7"/><circle cx="15.5" cy="12" r="1.7"/><circle cx="5" cy="17" r="1.7"/><circle cx="12" cy="17" r="1.7"/><circle cx="19" cy="17" r="1.7"/></g></svg>',
+  zigzag: '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 21 10 3 14 21 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+  spinners: '<svg viewBox="0 0 24 24" aria-hidden="true"><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="7" x2="19" y2="17"/><line x1="19" y1="7" x2="5" y2="17"/></g><circle cx="12" cy="12" r="2.6" fill="currentColor"/></svg>',
+  floors: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 7 10 11"/><polyline points="21 7 14 11"/><polyline points="3 15 12 19"/><polyline points="21 15 16 17.2"/></g></svg>',
+  bumpers: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.8" fill="currentColor"/></svg>',
+};
+
+/* Printed playfield art — rollover stars and lane chevrons scattered
+   from the course seed. Pure decoration in the pinball-print sense:
+   drawn UNDER the hardware, never touched by physics. */
+function buildArt(rand) {
+  const stars = [];
+  for (let i = 0; i < 7; i++) {
+    stars.push({
+      x: 70 + rand() * (W - 140),
+      y: 290 + rand() * (FINISH_Y - 420),
+      r: 11 + rand() * 8,
+    });
+  }
+  const arrows = [];
+  for (let i = 0; i < 4; i++) {
+    arrows.push({
+      x: 110 + rand() * (W - 220),
+      y: 320 + rand() * (FINISH_Y - 470),
+      s: 0.85 + rand() * 0.5,
+    });
+  }
+  return { stars, arrows };
+}
+
 /* Distinct stable colors — golden-angle hue walk. */
 function marbleColor(i) {
   return `hsl(${(i * 137.508) % 360} 72% 45%)`;
@@ -219,6 +260,7 @@ function resetRace(newSeed) {
   state.segments = segs;
   state.pegs = pegs;
   state.spinners = spinners;
+  state.art = buildArt(rand);
   // Start pool: pack marbles in rows above the funnel, seeded jitter.
   state.marbles = state.names.map((name, i) => {
     const perRow = 19;
@@ -280,7 +322,13 @@ function step(dt) {
         m.y = p.y + ny * rr;
         const vn = m.vx * nx + m.vy * ny;
         const bounce = p.b ?? WALL_BOUNCE;
-        if (vn < 0) { m.vx -= (1 + bounce) * vn * nx; m.vy -= (1 + bounce) * vn * ny; }
+        if (vn < 0) {
+          m.vx -= (1 + bounce) * vn * nx;
+          m.vy -= (1 + bounce) * vn * ny;
+          // Real impacts light the hardware (grazing contact doesn't,
+          // or resting marbles would strobe the field).
+          if (vn < -60) p.hitT = state.simTime;
+        }
       }
     }
   }
@@ -364,10 +412,12 @@ const ctx = canvas.getContext('2d');
 
 function fitCanvas() {
   // Fit the course aspect inside the stage, next to the leaderboard.
+  // The 24px allowance keeps the cabinet bezel (box-shadow rings in
+  // style.css) from clipping against the stage edges.
   const stage = canvas.parentElement;
   const board = stage.querySelector('.race-board');
-  const availW = Math.max(100, stage.clientWidth - (board?.offsetWidth ?? 0) - 14);
-  const availH = Math.max(100, stage.clientHeight);
+  const availW = Math.max(100, stage.clientWidth - (board?.offsetWidth ?? 0) - 14 - 24);
+  const availH = Math.max(100, stage.clientHeight - 24);
   const s = Math.min(availW / W, availH / H);
   const cssW = Math.floor(W * s);
   const cssH = Math.floor(H * s);
@@ -378,9 +428,161 @@ function fitCanvas() {
   canvas.height = Math.round(cssH * dpr);
 }
 
-// Fixed ink on fixed paper — the canvas is a physical object (like the
-// seating chart's) and doesn't theme.
-const INK = 'rgb(26 22 20)';
+// Parlor palette for the canvas — mirrors the --pin-* tokens in
+// style.css (canvas can't read CSS variables). Change both together.
+// Fixed values: the machine is a physical object and doesn't theme.
+const PALETTE = {
+  cream:      'rgb(246 238 216)',
+  ink:        'rgb(30 34 56)',
+  chrome:     'rgb(205 211 222)',
+  chromeDark: 'rgb(122 130 146)',
+  brass:      'rgb(214 168 74)',
+  brassDark:  'rgb(140 104 36)',
+  orange:     'rgb(240 84 28)',
+  teal:       'rgb(28 168 172)',
+};
+
+// How long hardware stays lit after an impact (seconds of sim time).
+const FLASH_S = 0.18;
+
+/* MATERIAL: playfield print — cream base, pinstripe border, rollover
+   stars, lane chevrons, checkered finish. A drawn playfield texture
+   would replace this function wholesale. */
+function paintPlayfield() {
+  ctx.fillStyle = PALETTE.cream;
+  ctx.fillRect(0, 0, W, H);
+
+  // Pinstripe border — navy rule inside a hot-orange hairline.
+  ctx.strokeStyle = 'rgb(30 34 56 / 0.5)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(14, 14, W - 28, H - 28);
+  ctx.strokeStyle = 'rgb(240 84 28 / 0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(24, 24, W - 48, H - 48);
+
+  const art = state.art;
+  if (art) {
+    // Rollover stars — teal four-point print.
+    ctx.fillStyle = 'rgb(28 168 172 / 0.4)';
+    for (const st of art.stars) {
+      ctx.beginPath();
+      ctx.moveTo(st.x, st.y - st.r);
+      ctx.quadraticCurveTo(st.x, st.y, st.x + st.r, st.y);
+      ctx.quadraticCurveTo(st.x, st.y, st.x, st.y + st.r);
+      ctx.quadraticCurveTo(st.x, st.y, st.x - st.r, st.y);
+      ctx.quadraticCurveTo(st.x, st.y, st.x, st.y - st.r);
+      ctx.fill();
+    }
+    // Lane chevrons — orange, pointing at the finish.
+    ctx.strokeStyle = 'rgb(240 84 28 / 0.4)';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const a of art.arrows) {
+      for (let k = 0; k < 3; k++) {
+        const y = a.y + k * 20 * a.s;
+        ctx.beginPath();
+        ctx.moveTo(a.x - 14 * a.s, y);
+        ctx.lineTo(a.x, y + 12 * a.s);
+        ctx.lineTo(a.x + 14 * a.s, y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Finish band — navy-on-cream checkers.
+  for (let x = 0; x < W; x += 24) {
+    ctx.fillStyle = ((x / 24) | 0) % 2 === 0 ? PALETTE.ink : 'rgb(214 202 172)';
+    ctx.fillRect(x, FINISH_Y, 24, 10);
+  }
+}
+
+/* MATERIAL: chrome rail — every wall, ramp, and spinner bar. Concentric
+   dark/light strokes read as a polished tube; a metal texture would
+   swap in here. */
+function paintRail(seg) {
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = PALETTE.chromeDark;
+  ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); ctx.stroke();
+  ctx.strokeStyle = PALETTE.chrome;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); ctx.stroke();
+}
+
+/* MATERIAL: brass post (small pegs). Flashes teal for FLASH_S after a
+   real impact. */
+function paintPost(p, now) {
+  const flash = now - (p.hitT ?? -9) < FLASH_S;
+  if (flash) {
+    const t = (now - p.hitT) / FLASH_S;
+    ctx.strokeStyle = `rgb(28 168 172 / ${(0.9 * (1 - t)).toFixed(2)})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 4, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = PALETTE.brassDark;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = flash ? PALETTE.teal : PALETTE.brass;
+  ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(1.5, p.r - 2.2), 0, Math.PI * 2); ctx.fill();
+}
+
+/* MATERIAL: pop bumper (big lively circles). Chrome skirt, cream body,
+   orange cap; the whole cap burns bright while lit. */
+function paintBumper(p, now) {
+  const flash = now - (p.hitT ?? -9) < FLASH_S;
+  if (flash) {
+    const t = (now - p.hitT) / FLASH_S;
+    ctx.strokeStyle = `rgb(240 84 28 / ${(0.85 * (1 - t)).toFixed(2)})`;
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 6, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = PALETTE.chromeDark;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PALETTE.chrome;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r - 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PALETTE.cream;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r - 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = flash ? 'rgb(255 128 60)' : PALETTE.orange;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2); ctx.fill();
+}
+
+/* MATERIAL: spinner hub — brass bearing the bar swings on. */
+function paintHub(s) {
+  ctx.fillStyle = PALETTE.brassDark;
+  ctx.beginPath(); ctx.arc(s.cx, s.cy, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = PALETTE.brass;
+  ctx.beginPath(); ctx.arc(s.cx, s.cy, 6.5, 0, Math.PI * 2); ctx.fill();
+}
+
+/* MATERIAL: glass marble — color body, shared gloss highlight,
+   initials. A glass/plastic texture would swap in here. */
+let marbleGloss = null;
+function ensureMarbleGloss() {
+  if (marbleGloss) return;
+  marbleGloss = ctx.createRadialGradient(
+    -MARBLE_R * 0.35, -MARBLE_R * 0.4, MARBLE_R * 0.1,
+    0, 0, MARBLE_R,
+  );
+  marbleGloss.addColorStop(0, 'rgb(255 255 255 / 0.75)');
+  marbleGloss.addColorStop(0.35, 'rgb(255 255 255 / 0.15)');
+  marbleGloss.addColorStop(1, 'rgb(0 0 0 / 0.18)');
+}
+
+function paintMarble(m) {
+  ensureMarbleGloss();
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  ctx.fillStyle = m.color;
+  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = marbleGloss;
+  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgb(0 0 0 / 0.45)';
+  ctx.strokeText(m.initials, 0, 0.5);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(m.initials, 0, 0.5);
+  ctx.restore();
+}
 
 function draw() {
   const cw = canvas.width, ch = canvas.height;
@@ -388,42 +590,26 @@ function draw() {
   ctx.clearRect(0, 0, cw, ch);
   const scale = Math.min(cw / W, ch / H);
   ctx.setTransform(scale, 0, 0, scale, (cw - W * scale) / 2, (ch - H * scale) / 2);
+  const now = state.simTime;
 
-  // Finish line — checkered band.
-  for (let x = 0; x < W; x += 24) {
-    ctx.fillStyle = ((x / 24) | 0) % 2 === 0 ? INK : 'rgb(200 190 165)';
-    ctx.fillRect(x, FINISH_Y, 24, 10);
-  }
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 6;
-  ctx.lineCap = 'round';
-  for (const s of state.segments) {
-    ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
-  }
-  // Spinners — bar + hub dot.
+  paintPlayfield();
+  for (const s of state.segments) paintRail(s);
   for (const s of state.spinners) {
-    const seg = spinnerSegment(s, state.simTime);
-    ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2); ctx.stroke();
-    ctx.fillStyle = INK;
-    ctx.beginPath(); ctx.arc(s.cx, s.cy, 9, 0, Math.PI * 2); ctx.fill();
+    paintRail(spinnerSegment(s, now));
+    paintHub(s);
   }
-  ctx.fillStyle = 'rgb(140 120 90)';
   for (const p of state.pegs) {
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    if (p.r >= 20) paintBumper(p, now);
+    else paintPost(p, now);
   }
+
   // Marbles with initials — the leaderboard's color dots are the full key.
   ctx.font = `800 ${Math.round(MARBLE_R * 0.95)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgb(0 0 0 / 0.45)';
   for (const m of state.marbles) {
     if (m.finished) continue;
-    ctx.fillStyle = m.color;
-    ctx.beginPath(); ctx.arc(m.x, m.y, MARBLE_R, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeText(m.initials, m.x, m.y + 0.5);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(m.initials, m.x, m.y + 0.5);
+    paintMarble(m);
   }
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
@@ -444,7 +630,7 @@ function escHtml(s) {
 
 /* ── Views ──────────────────────────────────────────────────── */
 function showClassSelect() {
-  document.body.classList.remove('app-view');
+  document.body.classList.remove('app-view', 'is-parlor');
   document.getElementById('race-view').hidden = true;
   document.getElementById('class-select-view').hidden = false;
   document.getElementById('crumb-tool').hidden = true;
@@ -508,7 +694,9 @@ function openRace(classId) {
   state.classId = classId;
   state.names = getRoster(classId);
   if (state.names.length === 0) return;
-  document.body.classList.add('app-view');
+  // app-view creams the topstrip (suite pattern); is-parlor kills the
+  // wood desk and turns the room lights off for the machine.
+  document.body.classList.add('app-view', 'is-parlor');
   document.getElementById('class-select-view').hidden = true;
   document.getElementById('race-view').hidden = false;
   const label = getClassName(classId) || '';
@@ -552,13 +740,29 @@ document.getElementById('crumb-tool').addEventListener('click', (e) => {
   showClassSelect();
 });
 
-// Track picker — switching tracks lays out a fresh course immediately.
-const trackSelect = document.getElementById('track-select');
-trackSelect.innerHTML = TRACKS.map((t) => `<option value="${t.id}">${t.label}</option>`).join('');
-trackSelect.addEventListener('change', () => {
-  state.trackId = trackSelect.value;
+// Track picker — named playfield cards; switching lays out a fresh
+// course immediately.
+const trackCardsHost = document.getElementById('track-cards');
+
+function renderTrackCards() {
+  trackCardsHost.innerHTML = TRACKS.map((t) => {
+    const active = t.id === state.trackId;
+    return `<button type="button" class="track-card${active ? ' is-active' : ''}"
+      data-id="${t.id}" aria-pressed="${active}">
+      ${TRACK_GLYPHS[t.id] ?? ''}<span>${t.label}</span>
+    </button>`;
+  }).join('');
+}
+
+trackCardsHost.addEventListener('click', (e) => {
+  const card = e.target.closest('.track-card');
+  if (!card || card.dataset.id === state.trackId) return;
+  state.trackId = card.dataset.id;
+  renderTrackCards();
   resetRace(true);
 });
+
+renderTrackCards();
 
 function startRace() {
   if (state.running) return;

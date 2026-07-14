@@ -1,10 +1,38 @@
 /* =============================================================
-   race/style.css — GREYBOX prototype styling only.
-   Mechanics first; the tool's real world/aesthetic arrives with its
-   brief. Everything here leans on shared/desk.css tokens.
+   race/style.css — Marble Race: the Pinball Parlor.
+
+   The race view is a pinball machine at night: midnight cabinet,
+   burgundy bezel, chrome rails, a cream playfield the JS paints
+   like printed pinball art. The parlor does NOT theme with dark
+   mode — it's a physical machine, lit the same way day or night.
+   The class-select screen stays on the suite's wood desk (teacher
+   chrome); the parlor begins when a class is opened.
+
+   TEXTURE-READY: every material gets exactly one styling entry
+   point (one rule here, or one paint* function in script.js) so
+   hand-drawn textures can replace placeholder gradients later
+   without a hunt. Don't smear a material's look across rules.
    ============================================================= */
 
 *, *::before, *::after { box-sizing: border-box; }
+
+body {
+  /* Parlor palette (channel-form RGB so opacity modifiers compose
+     like suite tokens). Fixed values — the machine doesn't theme.
+     Mirrored in script.js PALETTE for the canvas: change both. */
+  --pin-midnight:       15  17  32;   /* #0F1120  cabinet night */
+  --pin-midnight-lift:  27  31  54;   /* #1B1F36  raised panel */
+  --pin-burgundy:       96  26  38;   /* #601A26  cabinet body */
+  --pin-burgundy-deep:  58  15  24;   /* #3A0F18  cabinet shadow */
+  --pin-cream:         246 238 216;   /* #F6EED8  playfield */
+  --pin-ink:            30  34  56;   /* #1E2238  printed navy ink */
+  --pin-chrome:        205 211 222;   /* #CDD3DE  rail highlight */
+  --pin-chrome-dark:   122 130 146;   /* #7A8292  rail shadow */
+  --pin-brass:         214 168  74;   /* #D6A84A  posts, rank lamps */
+  --pin-brass-dark:    140 104  36;   /* #8C6824  post shadow */
+  --pin-orange:        240  84  28;   /* #F0541C  hot orange */
+  --pin-teal:           28 168 172;   /* #1CA8AC  electric teal */
+}
 
 /* Definite height (not min-height) so the flex chain — main → stage →
    aspect-ratio canvas — has a real number to fill. With only min-height
@@ -17,6 +45,12 @@ body {
   overflow-y: auto;
 }
 
+/* Lights out: the parlor swallows the wood desk while a race is open. */
+body.is-parlor {
+  background-image: none;
+  background-color: rgb(var(--pin-midnight));
+}
+
 .race-main {
   flex: 1;
   width: 100%;
@@ -25,7 +59,7 @@ body {
   flex-direction: column;
 }
 
-/* Class select — centered like the other tools' home screens. */
+/* ── Class select — suite wood-desk chrome, unchanged world ──── */
 #class-select-view {
   width: 100%;
   max-width: 1100px;
@@ -66,17 +100,17 @@ body {
 .race-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
 /* Marble pool preview — the class IS its marbles, drawn at race scale
    with initials. Fixed light paper (physical object, doesn't theme),
-   same as the course canvas; height is set by the painter to fit. */
+   same as the playfield; height is set by the painter to fit. */
 .race-card-marbles {
   display: block;
   width: 100%;
   margin: var(--space-3) 0;
-  background: rgb(248 238 214);
+  background: rgb(var(--pin-cream));
   border: 1px solid rgb(var(--paper-edge) / 0.15);
   border-radius: var(--radius-tight);
 }
 
-/* Race view */
+/* ── Race view — the machine ─────────────────────────────────── */
 .view--race:not([hidden]) {
   flex: 1;
   display: flex;
@@ -87,33 +121,115 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
-  color: rgb(var(--paper-on-wood));
+  margin-bottom: var(--space-2);
+  color: rgb(var(--pin-cream));
 }
 .race-header h1 {
   flex: 1;
   margin: 0;
   font-size: var(--type-22);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 .race-controls { display: flex; gap: var(--space-2); align-items: center; }
-.race-track {
+
+/* Plunger — the start control is the machine's launcher, not a form
+   button: label, coil spring, orange knob. :active compresses the
+   spring (state-communicating: you're pulling the plunger). */
+#btn-start {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-slab);
-  font-size: var(--type-13);
-  color: rgb(var(--paper-on-wood));
-}
-.race-track select {
-  font-family: var(--font-slab);
-  font-size: var(--type-13);
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgb(var(--pin-midnight-lift));
+  color: rgb(var(--pin-cream));
+  border: 1px solid rgb(var(--pin-chrome) / 0.45);
   border-radius: var(--radius-tight);
-  padding: 6px 8px;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#btn-start::before {
+  /* MATERIAL: coil spring (chrome). Placeholder stripes — swap for a
+     drawn spring texture here and nowhere else. */
+  content: '';
+  order: 2;
+  width: 34px;
+  height: 10px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgb(var(--pin-chrome)) 0 3px,
+    rgb(var(--pin-chrome-dark)) 3px 6px
+  );
+  transition: width 90ms ease-in;
+}
+#btn-start::after {
+  /* MATERIAL: plunger knob (plastic). Placeholder gradient — future
+     plastic texture swaps in here. */
+  content: '';
+  order: 3;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgb(255 150 100),
+    rgb(var(--pin-orange)) 55%,
+    rgb(126 38 8)
+  );
+}
+#btn-start:hover { border-color: rgb(var(--pin-orange) / 0.7); }
+#btn-start:active::before { width: 16px; }
+
+/* Reset — quiet ghost, re-inked for the midnight cabinet. */
+.race-controls .desk-button.is-ghost {
+  color: rgb(var(--pin-cream));
+  border-color: rgb(var(--pin-cream) / 0.4);
+}
+.race-controls .desk-button.is-ghost:hover { background: rgb(var(--pin-cream) / 0.08); }
+
+/* Track picker — named playfield cards, one per course. */
+.track-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.track-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  background: rgb(var(--pin-midnight-lift));
+  color: rgb(var(--pin-cream));
+  border: 1px solid rgb(var(--pin-chrome) / 0.25);
+  border-radius: var(--radius-tight);
+  font-family: var(--font-slab);
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.track-card svg {
+  width: 18px;
+  height: 18px;
+  color: rgb(var(--pin-teal));
+}
+.track-card:hover { border-color: rgb(var(--pin-chrome) / 0.6); }
+.track-card.is-active {
+  border-color: rgb(var(--pin-orange));
+  color: rgb(var(--pin-orange));
+  box-shadow: inset 0 0 0 1px rgb(var(--pin-orange) / 0.45);
+}
+.track-card.is-active svg { color: rgb(var(--pin-orange)); }
+.track-card:focus-visible {
+  outline: 2px solid rgb(var(--pin-brass));
+  outline-offset: 2px;
 }
 
 .race-stage {
@@ -124,25 +240,30 @@ body {
   overflow: hidden;
 }
 #race-canvas {
-  /* Sized by fitCanvas() in JS to the course aspect within the stage —
-     CSS-only aspect-ratio + height:100% turned circular here. Leftover
-     stage space stays wood, not empty cream. */
+  /* Sized by fitCanvas() in JS to the course aspect within the stage
+     (which also reserves room for the bezel rings below). */
   flex: none;
   margin: auto;
-  /* Physical paper, like the seating canvas: stays light in dark mode.
-     The JS draws fixed ink-dark walls/text to match. */
-  background: rgb(248 238 214);
-  border: 1px solid rgb(var(--paper-edge) / 0.18);
-  border-radius: var(--radius);
+  /* MATERIAL: playfield base (cream). The JS paints the art on top. */
+  background: rgb(var(--pin-cream));
+  border-radius: 4px;
+  /* MATERIAL: cabinet frame — chrome side rails inside a burgundy
+     bezel. Flat rings, not depth decoration: this is the machine's
+     body. A wood/metal cabinet texture would replace these rings. */
+  border: 2px solid rgb(var(--pin-chrome) / 0.6);
+  box-shadow:
+    0 0 0 8px rgb(var(--pin-burgundy)),
+    0 0 0 10px rgb(var(--pin-burgundy-deep));
 }
 
-/* Leaderboard — fixed-width column; 38 rows must fit or scroll. */
+/* Leaderboard — drop-target score column: each finisher lights a
+   target chip; first place burns hot orange. */
 .race-board {
   width: 230px;
   flex-shrink: 0;
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  background: rgb(var(--pin-midnight-lift));
+  color: rgb(var(--pin-cream));
+  border: 1px solid rgb(var(--pin-chrome) / 0.3);
   border-radius: var(--radius);
   padding: var(--space-3);
   overflow-y: auto;
@@ -153,21 +274,47 @@ body {
   font-size: var(--type-11);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-muted);
+  letter-spacing: 0.14em;
+  color: rgb(var(--pin-brass));
+  border-bottom: 2px solid rgb(var(--pin-brass) / 0.45);
+  padding-bottom: 4px;
 }
 #race-results {
   margin: 0;
-  padding: 0 0 0 1.6em;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
   font-size: var(--type-13);
-  line-height: 1.5;
+  line-height: 1.4;
 }
-#race-results li { padding: 1px 0; }
+#race-results li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 7px;
+  margin-bottom: 4px;
+  background: rgb(var(--pin-midnight));
+  border: 1px solid rgb(var(--pin-chrome) / 0.18);
+  border-radius: 3px;
+}
+#race-results li::before {
+  counter-increment: rank;
+  content: counter(rank);
+  min-width: 1.5em;
+  text-align: right;
+  font-size: var(--type-11);
+  font-weight: 800;
+  color: rgb(var(--pin-brass));
+}
 #race-results li .dot {
   display: inline-block;
   width: 9px; height: 9px;
   border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: baseline;
+  flex-shrink: 0;
 }
-#race-results li.is-winner { font-weight: 700; }
+#race-results li.is-winner {
+  font-weight: 700;
+  border-color: rgb(var(--pin-orange));
+  color: rgb(var(--pin-orange));
+}
+#race-results li.is-winner::before { color: rgb(var(--pin-orange)); }

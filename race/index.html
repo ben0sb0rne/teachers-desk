@@ -15,8 +15,8 @@
       } catch (e) {}
     })();
   </script>
-  <title>Marble Race (prototype) · The Teacher's Desk</title>
-  <meta name="description" content="Greybox prototype: a physics race that picks a full finishing order from a class roster." />
+  <title>Marble Race · The Teacher's Desk</title>
+  <meta name="description" content="Marble Race — a pinball-parlor physics race that picks a full finishing order from your class roster. Part of The Teacher's Desk." />
   <link rel="stylesheet" href="../shared/desk.css" />
   <link rel="stylesheet" href="style.css" />
   <script type="module" src="script.js"></script>
@@ -53,7 +53,7 @@
     <section id="class-select-view" class="view">
       <header class="view-header">
         <h1>Pick a class</h1>
-        <p class="muted">Greybox prototype — every student races; the leaderboard fills as they finish.</p>
+        <p class="muted">Every student races. The board fills as they finish.</p>
       </header>
       <div id="class-grid" class="race-class-grid" aria-live="polite"></div>
       <div id="class-empty" class="print-paper" hidden>
@@ -67,13 +67,12 @@
       <header class="race-header">
         <h1 id="race-class-name">&nbsp;</h1>
         <div class="race-controls">
-          <label class="race-track" for="track-select">Track
-            <select id="track-select"></select>
-          </label>
-          <button type="button" id="btn-start" class="desk-button">Start race</button>
+          <button type="button" id="btn-start">Launch</button>
           <button type="button" id="btn-reset" class="desk-button is-ghost">Reset</button>
         </div>
       </header>
+      <!-- Track picker — one named playfield card per course. -->
+      <div id="track-cards" class="track-cards" role="group" aria-label="Track"></div>
       <div class="race-stage">
         <canvas id="race-canvas" aria-label="Marble race course"></canvas>
         <aside class="race-board" aria-live="polite">
