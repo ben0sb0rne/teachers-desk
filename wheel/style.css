@@ -233,11 +233,15 @@ body.is-wheel-stage #wheel-class-source.tag {
   overflow: hidden;
 }
 
-/* ── Side column: session controls + called list ──────────── */
+/* ── Side column: session controls + called list ──────────────
+   Content-sized card, NOT a full-height column — with repeats on it's
+   just the toggle + reset chip; it only grows when the called list has
+   names to show. */
 .wheel-side {
   width: 212px;
   flex-shrink: 0;
-  align-self: stretch;
+  align-self: flex-start;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -257,6 +261,35 @@ body.is-wheel-stage #wheel-class-source.tag {
   font-weight: 700;
   cursor: pointer;
   user-select: none;
+}
+/* Hand-drawn paper checkbox — the native control looked like a form. */
+.wheel-side-toggle input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-content: center;
+  border: 2px solid rgb(var(--wheel-chocolate));
+  border-radius: 3px;
+  background: rgb(var(--wheel-cream));
+  cursor: pointer;
+}
+.wheel-side-toggle input::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  transform: scale(0);
+  transition: transform 110ms ease-out;
+  background: rgb(var(--wheel-orange));
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+.wheel-side-toggle input:checked::before { transform: scale(1.15); }
+.wheel-side-toggle input:focus-visible {
+  outline: 2px solid rgb(var(--wheel-brass));
+  outline-offset: 2px;
 }
 .wheel-called h2 {
   margin: 0 0 var(--space-2);
@@ -284,8 +317,8 @@ body.is-wheel-stage #wheel-class-source.tag {
   vertical-align: baseline;
 }
 .wheel-side-reset {
-  margin-top: auto;
   font-size: var(--type-11);
+  align-self: stretch;
 }
 
 /* The side column only earns its space on screens wide enough for the
@@ -570,7 +603,15 @@ body.view-spin.is-fullscreen .suite-topstrip {
   border-bottom: none;
   box-shadow: none;
   padding: 0;
+  /* Collapse entirely — the only surviving control (#btn-fullscreen) is
+     position:fixed, so the strip itself contributes zero height. */
+  min-height: 0;
+  height: 0;
+  overflow: visible;
 }
+/* Projector purity: the class-name header goes too — fullscreen is the
+   wheel, the side card, and one floating minimize icon. */
+body.view-spin.is-fullscreen .wheel-header { display: none; }
 body.view-spin.is-fullscreen .suite-breadcrumb { display: none; }
 body.view-spin.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
 body.view-spin.is-fullscreen .suite-topstrip-actions {

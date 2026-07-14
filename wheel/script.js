@@ -697,19 +697,11 @@ function confirmReset() {
 
 function updateMessage() {
   syncSessionUI();
+  // The called list carries the session story now — no running "x / y
+  // picked" line under the spin button. Only the truly-empty roster
+  // state gets a message.
   const msg = document.getElementById('wheel-msg');
-  const remaining = visibleNames().length;
-  if (state.activeRoster.length === 0) {
-    msg.textContent = 'Add students to start picking.';
-  } else if (remaining === 0) {
-    msg.textContent = 'Everyone has been picked — reset to start a new round.';
-  } else if (state.options.allowRepeats) {
-    msg.textContent = '';
-  } else {
-    const total = state.activeRoster.length;
-    const picked = total - remaining;
-    msg.textContent = `${picked} / ${total} picked`;
-  }
+  msg.textContent = state.activeRoster.length === 0 ? 'Add students to start picking.' : '';
 }
 
 // -------------------------------------------------------------
