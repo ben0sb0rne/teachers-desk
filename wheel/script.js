@@ -23,6 +23,11 @@
 
 import * as storage from '../shared/storage.js';
 import * as bridge from '../shared/roster-bridge.js';
+import {
+  DEFAULT_NAME_DISPLAY,
+  displayName,
+  collisionFirstNames,
+} from '../shared/display-name.js';
 import { mountSettingsButton, registerToolSettings } from '../shared/settings.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { openOverlay } from '../shared/components/overlay.js';
@@ -94,14 +99,48 @@ const state = {
   activeClassId: null,
   activeClassName: '',
   activeRoster: [],
+  /** Canonical name → display label (per the name-display prefs). All
+   *  session logic stays keyed on canonical names; only rendering maps
+   *  through this. */
+  labelByName: new Map(),
   pickedThisSession: new Set(),
   lastPickedName: null,
   currentRotation: 0,
   isSpinning: false,
   options: {
     allowRepeats: storage.getPreference('picker.allowRepeats', true),
+    nameDisplay: normalizeNameDisplay(storage.getPreference('picker.nameDisplay', null)),
   },
 };
+
+/** Merge a saved pref over the defaults; first name is always on (same
+ *  rule as the seating chart's panel — there's no checkbox for it). */
+function normalizeNameDisplay(saved) {
+  const nd = { ...DEFAULT_NAME_DISPLAY };
+  if (saved && typeof saved === 'object') {
+    for (const k of Object.keys(nd)) if (typeof saved[k] === 'boolean') nd[k] = saved[k];
+  }
+  nd.firstName = true;
+  return nd;
+}
+
+/** Rebuild the canonical-name → label map from storage. Called on class
+ *  open, roster change, and whenever the name-display prefs change. */
+function rebuildLabels() {
+  if (!state.activeClassId) {
+    state.labelByName = new Map();
+    return;
+  }
+  const students = storage.getRosterDetailed(state.activeClassId);
+  const collisions = collisionFirstNames(students);
+  state.labelByName = new Map(
+    students.map((s) => [s.name, displayName(s, state.options.nameDisplay, collisions)]),
+  );
+}
+
+function labelFor(name) {
+  return state.labelByName.get(name) || name;
+}
 
 function showView(name) {
   for (const [k, el] of Object.entries(VIEW)) el.hidden = k !== name;
@@ -153,6 +192,7 @@ function openClass(classId) {
   state.activeClassId = classId;
   state.activeClassName = storage.getClassName(classId) || '(unnamed)';
   state.activeRoster = storage.getRoster(classId).slice();
+  rebuildLabels();
   state.pickedThisSession.clear();
   state.lastPickedName = null;
   state.currentRotation = 0;
@@ -160,6 +200,7 @@ function openClass(classId) {
   if (activeClassUnsubscribe) activeClassUnsubscribe();
   activeClassUnsubscribe = bridge.onRosterChange(classId, ({ names }) => {
     state.activeRoster = names.slice();
+    rebuildLabels();
     renderWheel();
     updateMessage();
   });
@@ -512,10 +553,11 @@ function renderWheel() {
       'letter-spacing': '0.005em',
       fill: labelInk(i),
     });
-    txt.textContent = visible[i];
+    const label = labelFor(visible[i]);
+    txt.textContent = label;
 
     // Fit the label: shrink font, then truncate with ellipsis if needed.
-    fitLabel(txt, visible[i], outerR - innerR, baseFontSize);
+    fitLabel(txt, label, outerR - innerR, baseFontSize);
   }
 
   // Pegs around the rim — one per sector boundary, brass.
@@ -633,6 +675,22 @@ function setAllowRepeats(on) {
   updateMessage();
 }
 
+/** The three last-name treatments are mutually exclusive — same rule as the
+ *  seating chart's "Names on chart" panel. Student number composes freely. */
+const LAST_NAME_KEYS = ['lastInitial', 'lastName', 'autoInitial'];
+
+function setNameDisplayKey(key, on) {
+  const nd = { ...state.options.nameDisplay, firstName: true, [key]: on };
+  if (on && LAST_NAME_KEYS.includes(key)) {
+    for (const k of LAST_NAME_KEYS) if (k !== key) nd[k] = false;
+  }
+  state.options.nameDisplay = nd;
+  storage.setPreference('picker.nameDisplay', nd);
+  rebuildLabels();
+  renderWheel();
+  updateMessage();
+}
+
 function syncSessionUI() {
   const toggle = document.getElementById('repeats-toggle');
   if (toggle) toggle.checked = state.options.allowRepeats;
@@ -650,7 +708,7 @@ function syncSessionUI() {
     dot.className = 'called-dot';
     dot.style.background = wedgeFill(rosterIndex.get(name) ?? 0);
     li.appendChild(dot);
-    li.appendChild(document.createTextNode(name));
+    li.appendChild(document.createTextNode(labelFor(name)));
     list.appendChild(li);
   }
 }
@@ -875,7 +933,7 @@ function showReveal(name) {
   const reveal = document.getElementById('wheel-reveal');
   const nameEl = document.getElementById('wheel-reveal-name');
   if (!reveal || !nameEl) return;
-  nameEl.textContent = name;
+  nameEl.textContent = labelFor(name);
   reveal.hidden = false;
   // Force a reflow before adding .is-active so the fade-in transition fires.
   void reveal.getBoundingClientRect();
@@ -1006,6 +1064,51 @@ registerToolSettings('picker', 'Wheel of Names', (host) => {
   repeatsRow.appendChild(repeatsLabel);
   repeatsRow.appendChild(repeatsInput);
   host.appendChild(repeatsRow);
+
+  // Names on the wheel — mirrors the seating chart's "Names on chart"
+  // checkboxes. First names always show; the three last-name treatments
+  // are mutually exclusive; student number is independent.
+  const namesHeading = document.createElement('p');
+  namesHeading.textContent = 'Names on the wheel';
+  namesHeading.style.margin = '12px 0 2px';
+  namesHeading.style.fontWeight = '700';
+  host.appendChild(namesHeading);
+  const namesHint = document.createElement('p');
+  namesHint.className = 'muted';
+  namesHint.style.fontSize = 'var(--type-11)';
+  namesHint.style.margin = '0 0 4px';
+  namesHint.textContent = 'First names always show.';
+  host.appendChild(namesHint);
+
+  const NAME_OPTIONS = [
+    ['lastInitial', 'Last initial'],
+    ['lastName', 'Full last name'],
+    ['autoInitial', 'Last initial for duplicates only'],
+    ['studentNumber', 'Student number'],
+  ];
+  const nameInputs = new Map();
+  const syncNameInputs = () => {
+    for (const [k, input] of nameInputs) input.checked = !!state.options.nameDisplay[k];
+  };
+  for (const [key, labelText] of NAME_OPTIONS) {
+    const row = document.createElement('div');
+    row.className = 'suite-settings-row';
+    const label = document.createElement('label');
+    label.htmlFor = `picker-nd-${key}`;
+    label.textContent = labelText;
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = `picker-nd-${key}`;
+    input.checked = !!state.options.nameDisplay[key];
+    input.addEventListener('change', () => {
+      setNameDisplayKey(key, input.checked);
+      syncNameInputs(); // exclusivity may have cleared a sibling
+    });
+    nameInputs.set(key, input);
+    row.appendChild(label);
+    row.appendChild(input);
+    host.appendChild(row);
+  }
 
   const resetRow = document.createElement('div');
   resetRow.className = 'suite-settings-row';

@@ -392,6 +392,42 @@ export function getRoster(classId) {
   return [];
 }
 
+/** Canonical roster with structured name fields where known. Same names and
+ *  order as `getRoster`, but each entry is enriched with the seating chart's
+ *  firstName/lastName/studentNumber when that class exists in its blob
+ *  (matched by canonical name). Wheel-created students carry only `name` —
+ *  consumers fall back to parsing (see shared/display-name.js).
+ *  @param {string} classId
+ *  @returns {Array<{ name: string, firstName?: string, lastName?: string, studentNumber?: string }>} */
+export function getRosterDetailed(classId) {
+  const state = load();
+  const byName = new Map();
+  const sc = state.tools && state.tools['seating-chart'];
+  const inner = sc && sc.state ? sc.state : sc;
+  if (inner && Array.isArray(inner.classes)) {
+    const cls = inner.classes.find((c) => c && c.id === classId);
+    if (cls && Array.isArray(cls.students)) {
+      for (const s of cls.students) {
+        if (s && typeof s.name === 'string') byName.set(s.name, s);
+      }
+    }
+  }
+  // Canonical roster wins for names + order; the blob is the fallback,
+  // mirroring getRoster exactly.
+  const names = state.rosters[classId]
+    ? state.rosters[classId].slice()
+    : [...byName.keys()];
+  return names.map((name) => {
+    const s = byName.get(name);
+    return {
+      name,
+      firstName: s && typeof s.firstName === 'string' ? s.firstName : undefined,
+      lastName: s && typeof s.lastName === 'string' ? s.lastName : undefined,
+      studentNumber: s && typeof s.studentNumber === 'string' ? s.studentNumber : undefined,
+    };
+  });
+}
+
 /** Replace the canonical roster for a class. Idempotent — skipped when nothing
  *  changed. Drops tool metadata for any names that were removed. Dispatches
  *  `rosterchange` window event with `{ classId, names, added, removed }`.
@@ -1061,6 +1097,7 @@ export default {
   setTheme,
   applyTheme,
   getRoster,
+  getRosterDetailed,
   setRoster,
   renameStudent,
   listPeriods,
