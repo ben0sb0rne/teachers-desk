@@ -320,6 +320,16 @@ body.is-wheel-stage #wheel-class-source.tag {
   font-size: var(--type-11);
   align-self: stretch;
 }
+/* The shared ghost button inks in cream (--paper-edge) for dark backdrops —
+   invisible on this cream card. Re-ink in chocolate. Doubled class beats
+   .desk-button.is-ghost's specificity. */
+.wheel-side .desk-button.wheel-side-reset {
+  color: rgb(var(--wheel-chocolate));
+  border-color: rgb(var(--wheel-chocolate) / 0.55);
+}
+.wheel-side .desk-button.wheel-side-reset:hover {
+  background: rgb(var(--wheel-chocolate) / 0.08);
+}
 
 /* The side column only earns its space on screens wide enough for the
    wheel to stay big; below that it tucks under the stage. */
