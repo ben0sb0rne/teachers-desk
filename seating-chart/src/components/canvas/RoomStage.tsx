@@ -357,10 +357,20 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
     };
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    // Grid/aspect-ratio card layouts settle after first paint; re-measure once.
-    const raf = requestAnimationFrame(measure);
+    // Layouts inside portals/dialogs and aspect-ratio grids settle a few
+    // frames after mount, and the observer's initial delivery can land at
+    // 0×0 there — retry on animation frames for ~half a second until a
+    // stable size lands (measure() no-ops once sized; RO owns later
+    // resizes).
+    let rafId = 0;
+    let tries = 0;
+    const tick = () => {
+      measure();
+      if (++tries < 30) rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafId);
       ro.disconnect();
     };
   }, []);

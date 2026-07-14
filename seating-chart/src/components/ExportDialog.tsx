@@ -256,7 +256,10 @@ export default function ExportDialog({ open, onOpenChange, klass, room, assignme
                 The B&W toggle is rendered as a CSS grayscale filter so the
                 live preview matches the desaturated PNG output. */}
             <div
-              className="min-h-0 overflow-hidden rounded border border-ink/15"
+              // `flex` is load-bearing: RoomStage sizes itself with flex-1 in
+              // an absolute canvas wrapper, so a plain block parent collapses
+              // to zero height and the preview renders blank.
+              className="flex min-h-0 overflow-hidden rounded border border-ink/15"
               style={{
                 ...(showBackground
                   ? { backgroundColor: "#fff" }

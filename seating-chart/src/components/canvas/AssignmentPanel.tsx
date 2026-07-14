@@ -6,13 +6,16 @@ import Icon from "@/components/Icon";
 import UndoRedoButtons from "@/components/canvas/UndoRedoButtons";
 import { DND_STUDENT } from "@/lib/dnd";
 
-/** The composable name pieces shown as checkboxes on the seating screen. */
+/** Name pieces shown as checkboxes on the seating screen. First name is
+ *  always on (no toggle). The three last-name treatments are mutually
+ *  exclusive — checking one clears the other two; all off = first names
+ *  only. Student number composes independently. */
+const LAST_NAME_KEYS = ["lastInitial", "lastName", "autoInitial"] as const;
 const NAME_TOGGLES: { key: keyof NameDisplay; label: string }[] = [
-  { key: "firstName", label: "First name" },
   { key: "lastInitial", label: "Last initial" },
   { key: "lastName", label: "Full last name" },
+  { key: "autoInitial", label: "Last initial for duplicates only" },
   { key: "studentNumber", label: "Student number" },
-  { key: "autoInitial", label: "Add last initial for duplicates" },
 ];
 
 interface Props {
@@ -125,12 +128,20 @@ export default function AssignmentPanel({
             <div className="space-y-1 rounded-md border border-ink/15 p-2">
               {NAME_TOGGLES.map((t) => {
                 const nd = nameDisplay ?? DEFAULT_NAME_DISPLAY;
+                const isLastNameKey = (LAST_NAME_KEYS as readonly string[]).includes(t.key);
                 return (
                   <label key={t.key} className="flex cursor-pointer items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={nd[t.key]}
-                      onChange={(e) => onChangeNameDisplay({ ...nd, [t.key]: e.target.checked })}
+                      onChange={(e) => {
+                        const next: NameDisplay = { ...nd, firstName: true, [t.key]: e.target.checked };
+                        // Last-name treatments are mutually exclusive.
+                        if (isLastNameKey && e.target.checked) {
+                          for (const k of LAST_NAME_KEYS) if (k !== t.key) next[k] = false;
+                        }
+                        onChangeNameDisplay(next);
+                      }}
                     />
                     <span>{t.label}</span>
                   </label>
