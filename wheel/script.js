@@ -165,7 +165,6 @@ function openClass(classId) {
   });
 
   const cls = storage.listClasses().find((c) => c.id === classId);
-  document.getElementById('wheel-class-source').hidden = !cls || cls.source !== 'seating-chart';
   document.getElementById('wheel-class-name').textContent = state.activeClassName;
   // Surface the class name as the breadcrumb's current-context label.
   document.getElementById('crumb-context').textContent = state.activeClassName;
@@ -621,13 +620,89 @@ function visibleNames() {
   return state.activeRoster.filter((n) => !state.pickedThisSession.has(n));
 }
 
+// -------------------------------------------------------------
+// Side column — repeats toggle, called list, confirmed reset.
+// updateMessage() doubles as the session-UI sync point: every code
+// path that changes session state already calls it.
+// -------------------------------------------------------------
+
+function setAllowRepeats(on) {
+  state.options.allowRepeats = on;
+  storage.setPreference('picker.allowRepeats', on);
+  renderWheel();
+  updateMessage();
+}
+
+function syncSessionUI() {
+  const toggle = document.getElementById('repeats-toggle');
+  if (toggle) toggle.checked = state.options.allowRepeats;
+  const panel = document.getElementById('called-panel');
+  const list = document.getElementById('called-list');
+  if (!panel || !list) return;
+  const show = !state.options.allowRepeats && state.pickedThisSession.size > 0;
+  panel.hidden = !show;
+  list.replaceChildren();
+  if (!show) return;
+  const rosterIndex = new Map(state.activeRoster.map((n, i) => [n, i]));
+  for (const name of state.pickedThisSession) {
+    const li = document.createElement('li');
+    const dot = document.createElement('span');
+    dot.className = 'called-dot';
+    dot.style.background = wedgeFill(rosterIndex.get(name) ?? 0);
+    li.appendChild(dot);
+    li.appendChild(document.createTextNode(name));
+    list.appendChild(li);
+  }
+}
+
+/** Reset with a confirmation when there's session state worth keeping. */
+function confirmReset() {
+  if (state.pickedThisSession.size === 0) {
+    resetSession();
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'suite-overlay';
+  overlay.innerHTML =
+    '<div class="suite-panel" role="dialog" aria-modal="true" aria-label="Reset session">' +
+    '<div class="suite-panel-header"><h2>Reset session</h2>' +
+    '<button type="button" class="suite-panel-close" aria-label="Close">&times;</button></div>' +
+    '<div class="suite-panel-body">' +
+    '<p style="margin:0 0 var(--space-4)">Clear the called list and put every name back on the wheel? Call counts are kept.</p>' +
+    '<div style="display:flex; gap:var(--space-2); justify-content:flex-end">' +
+    '<button type="button" class="desk-button is-ghost" data-act="cancel">Cancel</button>' +
+    '<button type="button" class="desk-button" data-act="reset">Reset</button>' +
+    '</div></div></div>';
+  const onKey = (e) => {
+    if (e.key === 'Escape') close();
+  };
+  const close = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  };
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) return close();
+    const btn = e.target.closest('.suite-panel-close, [data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'reset') {
+      resetSession();
+      close();
+    } else {
+      close();
+    }
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+}
+
 function updateMessage() {
+  syncSessionUI();
   const msg = document.getElementById('wheel-msg');
   const remaining = visibleNames().length;
   if (state.activeRoster.length === 0) {
     msg.textContent = 'Add students to start picking.';
   } else if (remaining === 0) {
-    msg.textContent = 'Everyone has been picked. Reset session in settings (S).';
+    msg.textContent = 'Everyone has been picked — reset to start a new round.';
   } else if (state.options.allowRepeats) {
     msg.textContent = '';
   } else {
@@ -658,35 +733,41 @@ function updateMessage() {
 // Distances scale so total = 1 and velocities match exactly at every
 // phase boundary. No discontinuity, no snap, no front-loading.
 //
-// Brief calls for "spin-up 1–2s, cruise 2–4s, slow-down 3–5s." With
-// SPIN_DURATION 11s and the constants below: 1.1s / 4.4s / 5.5s.
+// The decel phase is CUBIC, not quadratic: a quadratic tail keeps a
+// constant (nonzero) deceleration all the way to t=1, so the wheel is
+// still shedding real speed at the instant it stops — it reads as
+// hitting a wall ("snapping onto a peg"). A cubic tail's deceleration
+// itself decays to zero: the last wedge or two crawl past the pointer
+// over the final couple of seconds. ~9.5s total: 1.1s up, 2.7s cruise,
+// 5.7s of crawl.
 // -------------------------------------------------------------
 
-const SPIN_DURATION_MS = 11000;
-const T_ACCEL = 0.10;     // accel covers 0–10% of duration
-const T_CRUISE = 0.50;    // cruise runs from 10–50%; decel from 50–100%
+const SPIN_DURATION_MS = 9500;
+const T_ACCEL = 0.12;     // accel covers 0–12% of duration
+const T_CRUISE = 0.40;    // cruise runs from 12–40%; decel from 40–100%
 
 // Distance fractions derived from velocity-continuity constraints:
 //   V_cruise = D_cruise / (T_CRUISE - T_ACCEL)
 //   V at accel-end  = 2*D_accel / T_ACCEL          (quadratic ease-in)
-//   V at decel-start = 2*D_decel / (1 - T_CRUISE)  (quadratic ease-out)
+//   V at decel-start = 3*D_decel / (1 - T_CRUISE)  (cubic ease-out)
 // All three must equal V; D_accel + D_cruise + D_decel = 1.
-// Solving yields V ≈ 1.143 with the values below.
-const D_ACCEL  = 0.0714;
-const D_CRUISE = 0.5714;
-const D_DECEL  = 0.3571;
+// Solving yields V ≈ 1.852 with the values below.
+const D_ACCEL  = 0.1111;
+const D_CRUISE = 0.5185;
+const D_DECEL  = 0.3704;
 
 /** Single-piece cumulative distance function on [0, 1]. */
 function spinEase(t) {
   if (t <= T_ACCEL) {
     const x = t / T_ACCEL;
-    return D_ACCEL * x * x;                                        // quad ease-in
+    return D_ACCEL * x * x;                                            // quad ease-in
   } else if (t <= T_CRUISE) {
     const x = (t - T_ACCEL) / (T_CRUISE - T_ACCEL);
-    return D_ACCEL + D_CRUISE * x;                                 // linear cruise
+    return D_ACCEL + D_CRUISE * x;                                     // linear cruise
   } else {
     const x = (t - T_CRUISE) / (1 - T_CRUISE);
-    return D_ACCEL + D_CRUISE + D_DECEL * (1 - (1 - x) * (1 - x)); // quad ease-out
+    const inv = 1 - x;
+    return D_ACCEL + D_CRUISE + D_DECEL * (1 - inv * inv * inv);       // cubic ease-out
   }
 }
 
@@ -707,7 +788,7 @@ function spin() {
   // ±35% of half-sectorDeg keeps it inside the wedge.
   const jitter = (Math.random() - 0.5) * sectorDeg * 0.7;
   const finalOffset = POINTER_DEG - (visibleIndex * sectorDeg) + jitter;
-  const turns = 7 + Math.floor(Math.random() * 4); // 7–10 full rotations
+  const turns = 5 + Math.floor(Math.random() * 3); // 5–7 full rotations (9.5s spin)
 
   const startRot = state.currentRotation;
   const target = startRot + turns * 360 + (finalOffset - (startRot % 360));
@@ -785,7 +866,10 @@ function spin() {
     storage.incrementCallCount(state.activeClassId, pickedName);
     audio.stopRumble();
     audio.playThud();
-    renderWheel();
+    // Deliberately NO renderWheel() here: with repeats off a re-render
+    // removes the winning wedge the instant the pointer lands on it —
+    // the second half of the old "snap". The wedge disappears quietly
+    // when the reveal is dismissed (hideReveal) or the next spin starts.
     updateMessage();
     showReveal(pickedName);
   }
@@ -811,9 +895,16 @@ function showReveal(name) {
 function hideReveal() {
   const reveal = document.getElementById('wheel-reveal');
   if (!reveal) return;
+  const wasActive = !reveal.hidden;
   reveal.classList.remove('is-active');
   reveal.hidden = true;
   document.querySelectorAll('.confetti-piece').forEach((el) => el.remove());
+  // With repeats off, the just-called wedge leaves the wheel HERE — after
+  // the ceremony, not at the landing instant (that read as a snap).
+  if (wasActive && !state.options.allowRepeats && state.lastPickedName && !state.isSpinning) {
+    renderWheel();
+    updateMessage();
+  }
 }
 
 function spawnConfetti() {
@@ -844,6 +935,13 @@ function spawnConfetti() {
 
 const spinButton = document.getElementById('btn-spin');
 if (spinButton) spinButton.addEventListener('click', spin);
+
+const repeatsToggleEl = document.getElementById('repeats-toggle');
+if (repeatsToggleEl) {
+  repeatsToggleEl.addEventListener('change', () => setAllowRepeats(repeatsToggleEl.checked));
+}
+const resetSessionBtn = document.getElementById('btn-reset-session');
+if (resetSessionBtn) resetSessionBtn.addEventListener('click', confirmReset);
 
 wheelSvg.addEventListener('click', spin);
 wheelSvg.addEventListener('keydown', (e) => {
@@ -876,7 +974,7 @@ document.addEventListener('keydown', (e) => {
     spin();
   } else if (e.key === 'r' || e.key === 'R') {
     e.preventDefault();
-    resetSession();
+    confirmReset();
   } else if (e.key === 'm' || e.key === 'M') {
     e.preventDefault();
     if (audioToggleBtn) audioToggleBtn.click();
@@ -911,10 +1009,7 @@ registerToolSettings('picker', 'Wheel of Names', (host) => {
   repeatsInput.id = 'picker-allow-repeats';
   repeatsInput.checked = state.options.allowRepeats;
   repeatsInput.addEventListener('change', () => {
-    state.options.allowRepeats = repeatsInput.checked;
-    storage.setPreference('picker.allowRepeats', repeatsInput.checked);
-    renderWheel();
-    updateMessage();
+    setAllowRepeats(repeatsInput.checked);
   });
   repeatsRow.appendChild(repeatsLabel);
   repeatsRow.appendChild(repeatsInput);
@@ -929,7 +1024,7 @@ registerToolSettings('picker', 'Wheel of Names', (host) => {
   resetBtn.textContent = 'Reset session';
   resetBtn.title = 'Clears the picked-this-session set (call counts persist). Shortcut: R';
   resetBtn.addEventListener('click', () => {
-    resetSession();
+    confirmReset();
   });
   resetRow.appendChild(resetBtn);
   host.appendChild(resetRow);

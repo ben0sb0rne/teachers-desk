@@ -82,9 +82,9 @@
     <section id="wheel-view" class="view view--wheel" hidden>
       <header class="wheel-header">
         <h1 id="wheel-class-name">&nbsp;</h1>
-        <span id="wheel-class-source" class="tag" hidden>From Seating Chart</span>
       </header>
 
+      <div class="wheel-layout">
       <div class="wheel-stage">
         <div id="wheel-frame" class="wheel-frame">
           <svg id="wheel-svg" viewBox="-100 -100 200 200" class="wheel" role="button" tabindex="0" aria-label="Spin the wheel"></svg>
@@ -109,6 +109,22 @@
             <span id="wheel-reveal-name" class="wheel-reveal-name"></span>
           </div>
         </div>
+      </div>
+
+      <!-- Side column: session controls + the called list (repeats off). -->
+      <aside class="wheel-side" aria-label="Session">
+        <label class="wheel-side-toggle" for="repeats-toggle">
+          <input type="checkbox" id="repeats-toggle" />
+          Allow repeats
+        </label>
+        <div id="called-panel" class="wheel-called" hidden>
+          <h2>Called</h2>
+          <ol id="called-list"></ol>
+        </div>
+        <button type="button" id="btn-reset-session" class="desk-button is-ghost wheel-side-reset">
+          Reset session
+        </button>
+      </aside>
       </div>
     </section>
 

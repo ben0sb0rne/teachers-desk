@@ -212,6 +212,14 @@ body.is-wheel-stage #wheel-class-source.tag {
 
 /* ── wheel stage layout ────────────────────────────────────── */
 
+/* Wheel + side column share the stage row. */
+.wheel-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  gap: var(--space-3);
+}
+
 .wheel-stage {
   flex: 1;
   display: flex;
@@ -223,6 +231,70 @@ body.is-wheel-stage #wheel-class-source.tag {
   min-height: 0;
   /* Confetti pieces are positioned within this container. */
   overflow: hidden;
+}
+
+/* ── Side column: session controls + called list ──────────── */
+.wheel-side {
+  width: 212px;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: rgb(var(--wheel-cream) / 0.94);
+  color: rgb(var(--wheel-chocolate));
+  border: 1px solid rgb(var(--wheel-chocolate) / 0.35);
+  border-radius: var(--radius);
+  font-family: var(--font-slab);
+  overflow-y: auto;
+}
+.wheel-side-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-13);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+.wheel-called h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgb(var(--wheel-chocolate) / 0.7);
+  border-bottom: 2px solid rgb(var(--wheel-chocolate) / 0.35);
+  padding-bottom: 4px;
+}
+.wheel-called ol {
+  margin: 0;
+  padding: 0 0 0 1.5em;
+  font-size: var(--type-13);
+  line-height: 1.6;
+}
+.called-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--wheel-chocolate) / 0.4);
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+.wheel-side-reset {
+  margin-top: auto;
+  font-size: var(--type-11);
+}
+
+/* The side column only earns its space on screens wide enough for the
+   wheel to stay big; below that it tucks under the stage. */
+@media (max-width: 900px) {
+  .wheel-layout { flex-direction: column; }
+  .wheel-side { width: 100%; flex-direction: row; align-items: center; }
+  .wheel-side-reset { margin-top: 0; margin-left: auto; }
+  .wheel-called ol { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
 }
 
 .wheel-frame {
