@@ -41,6 +41,7 @@ const state = {
   assignments: [],         // [{ name, label, initials, color, binIndex }] reveal order
   bins: [],                // [{ label, size }]
   reveal: null,            // active reveal instance { start, destroy }
+  activeSkin: null,        // reveal-view class from the module's skinClass
   revealRan: false,
 };
 
@@ -104,6 +105,8 @@ const VIEWS = ['class-select-view', 'setup-view', 'reveal-view'];
 function showView(id) {
   for (const v of VIEWS) document.getElementById(v).hidden = v !== id;
   document.body.classList.toggle('app-view', id !== 'class-select-view');
+  // Drives the fullscreen chrome-hide (borderless projector mode).
+  document.body.classList.toggle('view-reveal', id === 'reveal-view');
   document.getElementById('crumb-tool').hidden = id === 'class-select-view';
   const crumbCtx = document.getElementById('crumb-context');
   crumbCtx.hidden = id === 'class-select-view';
@@ -333,6 +336,10 @@ function destroyReveal() {
     state.reveal.destroy();
     state.reveal = null;
   }
+  if (state.activeSkin) {
+    document.getElementById('reveal-view').classList.remove(state.activeSkin);
+    state.activeSkin = null;
+  }
   state.revealRan = false;
 }
 
@@ -342,6 +349,12 @@ function mountReveal() {
   stage.innerHTML = '';
   renderColumns();
   const module = REVEALS.find((r) => r.id === state.revealId) || REVEALS[0];
+  // Diegetic skin: some ceremonies (the terminal) restyle the whole
+  // reveal view — board, buttons, header — to be part of their world.
+  if (module.skinClass) {
+    document.getElementById('reveal-view').classList.add(module.skinClass);
+    state.activeSkin = module.skinClass;
+  }
   const reducedMotion =
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -404,8 +417,10 @@ function toggleFullscreen() {
 }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.addEventListener('fullscreenchange', () => {
+  const inFs = !!document.fullscreenElement;
+  document.body.classList.toggle('is-fullscreen', inFs);
   const use = document.getElementById('btn-fullscreen')?.querySelector('use');
-  if (use) use.setAttribute('href', document.fullscreenElement ? '#icon-fullscreen-exit' : '#icon-fullscreen');
+  if (use) use.setAttribute('href', inFs ? '#icon-fullscreen-exit' : '#icon-fullscreen');
 });
 
 document.addEventListener('keydown', (e) => {

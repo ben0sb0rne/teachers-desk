@@ -296,3 +296,27 @@ body {
   flex-shrink: 0;
   border: 1px solid rgb(var(--paper-edge) / 0.3);
 }
+
+/* ── Borderless fullscreen on the reveal view ─────────────────
+   Projector purity: the topstrip collapses; the only surviving
+   chrome is the floating minimize icon. (Header stays — Run and
+   Re-roll are the show's controls, and reveal skins restyle them.) */
+body.view-reveal.is-fullscreen .suite-topstrip {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  height: 0;
+  overflow: visible;
+}
+body.view-reveal.is-fullscreen .suite-breadcrumb { display: none; }
+body.view-reveal.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
+body.view-reveal.is-fullscreen .suite-topstrip-actions {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 100;
+  padding: 0;
+}
+body.view-reveal.is-fullscreen #btn-fullscreen { color: rgb(var(--paper-on-wood)); }

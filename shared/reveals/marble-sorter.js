@@ -73,22 +73,7 @@ export default {
     let landed = 0;
     let destroyed = false;
 
-    // Per-bin stacking: landed marbles pack bottom-up, 4 per row.
-    const binCounts = new Array(t).fill(0);
-    function slotFor(binIndex, countInBin) {
-      const perRow = Math.max(3, Math.floor((binW - 20) / (R * 2 + 4)));
-      const row = (countInBin / perRow) | 0;
-      const col = countInBin % perRow;
-      const inRowW = Math.min(perRow, 99) * (R * 2 + 4);
-      const left = binIndex * binW + (binW - Math.min(perRow, ctx.bins[binIndex].size) * (R * 2 + 4)) / 2 + R + 2;
-      void inRowW;
-      return {
-        x: left + col * (R * 2 + 4),
-        y: H - 14 - R - row * (R * 2 + 2),
-      };
-    }
-
-    const marbles = []; // { a: assignment index, x, y, vx, vy, rot, mode: 'fall'|'settle'|'done', sx, sy }
+    const marbles = []; // { a: assignment index, x, y, vx, vy, rot, calm, born, mode: 'fall'|'done' }
 
     function fitCanvas() {
       const availW = Math.max(200, host.clientWidth - 8);
@@ -120,6 +105,8 @@ export default {
         vx: (Math.random() - 0.5) * 200,
         vy: 40,
         rot: 0,
+        calm: 0,
+        born: simT,
         mode: 'fall',
       });
     }
@@ -129,28 +116,17 @@ export default {
       while (spawned < ctx.assignments.length && simT > spawned * SPAWN_EVERY_S) spawn();
       for (const m of marbles) {
         if (m.mode === 'done') continue;
-        if (m.mode === 'settle') {
-          // Ease onto the assigned stack slot, then lock + report.
-          m.x += (m.sx - m.x) * Math.min(1, dt * 10);
-          m.y += (m.sy - m.y) * Math.min(1, dt * 10);
-          m.rot *= 1 - Math.min(1, dt * 4);
-          if (Math.abs(m.x - m.sx) < 0.8 && Math.abs(m.y - m.sy) < 0.8) {
-            m.x = m.sx; m.y = m.sy; m.mode = 'done';
-            landed++;
-            ctx.onAssign(m.a);
-            if (landed === ctx.assignments.length) {
-              timers.after(350, () => ctx.onDone());
-            }
-          }
-          continue;
-        }
         // Falling: gravity everywhere; steering ramps in only BELOW
         // the peg field so pegs own the chaos up top but every marble
-        // still funnels into its assigned bin at the bottom.
+        // still funnels into its assigned bin at the bottom. Once a
+        // marble is INSIDE its bin the steering lets go entirely —
+        // the landing is pure physics, piling where it piles.
         const targetX = m.binIndex * binW + binW / 2;
         // Ramp from mid peg-field: pegs rule the top, the pull firms
         // up through the lower rows, and it's decisive by the mouths.
-        const depth = Math.max(0, Math.min(1, (m.y - 320) / (BIN_TOP - 320)));
+        const depth = m.y > BIN_TOP
+          ? 0
+          : Math.max(0, Math.min(1, (m.y - 320) / (BIN_TOP - 320)));
         let ax = (targetX - m.x) * STEER * depth;
         if (ax > STEER_MAX) ax = STEER_MAX;
         if (ax < -STEER_MAX) ax = -STEER_MAX;
@@ -181,19 +157,72 @@ export default {
         // Side walls.
         if (m.x < R) { m.x = R; m.vx = Math.abs(m.vx) * WALL_BOUNCE; }
         if (m.x > W - R) { m.x = W - R; m.vx = -Math.abs(m.vx) * WALL_BOUNCE; }
-        // Divider bounce while above the bin mouth.
-        if (m.y > BIN_TOP - R && m.y < H - 60) {
-          const relX = m.x - m.binIndex * binW;
-          if (relX < R + 4) m.x = m.binIndex * binW + R + 4;
-          if (relX > binW - R - 4) m.x = m.binIndex * binW + binW - R - 4;
+        // Divider caps — rounded tops so edge hits deflect naturally.
+        if (m.y > BIN_TOP - R * 2 && m.y < BIN_TOP + R) {
+          for (let k = 1; k < t; k++) {
+            const dx = m.x - k * binW, dy = m.y - BIN_TOP;
+            const rr = R + 5;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > 0 && d2 < rr * rr) {
+              const d = Math.sqrt(d2);
+              const nx = dx / d, ny = dy / d;
+              m.x = k * binW + nx * rr;
+              m.y = BIN_TOP + ny * rr;
+              const vn = m.vx * nx + m.vy * ny;
+              if (vn < 0) {
+                m.vx -= (1 + WALL_BOUNCE) * vn * nx;
+                m.vy -= (1 + WALL_BOUNCE) * vn * ny;
+              }
+            }
+          }
         }
-        // Hand off to settle once deep inside the bin.
-        const slot = slotFor(m.binIndex, binCounts[m.binIndex]);
-        if (m.y >= slot.y - R * 2.4) {
-          m.mode = 'settle';
-          m.sx = slot.x;
-          m.sy = slot.y;
-          binCounts[m.binIndex]++;
+        // Inside the bins the dividers are real walls (of whichever
+        // bin the marble is actually over — no teleporting).
+        if (m.y > BIN_TOP + R * 0.4) {
+          const k = Math.max(0, Math.min(t - 1, Math.floor(m.x / binW)));
+          const lo = k * binW + R + 4, hi = (k + 1) * binW - R - 4;
+          if (m.x < lo) { m.x = lo; m.vx = Math.abs(m.vx) * WALL_BOUNCE; }
+          if (m.x > hi) { m.x = hi; m.vx = -Math.abs(m.vx) * WALL_BOUNCE; }
+        }
+        // Floor.
+        const floorY = H - 6 - R;
+        let contact = false;
+        if (m.y >= floorY) {
+          m.y = floorY;
+          if (m.vy > 0) m.vy = -m.vy * 0.3;
+          m.vx *= 0.9; // felt friction
+          contact = true;
+        }
+        // The pile — settled marbles are static bodies to land on.
+        for (const s of marbles) {
+          if (s.mode !== 'done') continue;
+          const dx = m.x - s.x, dy = m.y - s.y;
+          const rr = R * 2;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > 0 && d2 < rr * rr) {
+            const d = Math.sqrt(d2);
+            const nx = dx / d, ny = dy / d;
+            m.x = s.x + nx * rr;
+            m.y = s.y + ny * rr;
+            const vn = m.vx * nx + m.vy * ny;
+            if (vn < 0) { m.vx -= 1.3 * vn * nx; m.vy -= 1.3 * vn * ny; }
+            m.vx *= 0.96;
+            contact = true;
+          }
+        }
+        // Rest: calm on a support for a beat → lock into the pile
+        // wherever physics left it. (Timeout guards a rare wedge.)
+        const speed = Math.hypot(m.vx, m.vy);
+        if (contact && speed < 34 && m.y > BIN_TOP) m.calm += dt;
+        else m.calm = 0;
+        if ((m.calm > 0.3) || simT - m.born > 14) {
+          m.mode = 'done';
+          m.rot = 0;
+          landed++;
+          ctx.onAssign(m.a);
+          if (landed === ctx.assignments.length) {
+            timers.after(350, () => ctx.onDone());
+          }
         }
       }
     }
