@@ -106,7 +106,7 @@ Every tool uses the same `.suite-topstrip` shell (defined in [`shared/desk.css`]
 
 Additional conventions:
 
-- **Fullscreen-hides-others** is opt-in per view. Bingo enables it on the caller; wheel on the spin view. Other screens keep their full strip in fullscreen.
+- **Borderless fullscreen is the suite standard** (decided 2026-07-15): in fullscreen, EVERY page sheds its chrome — the topstrip collapses to zero height and only the floating minimize button survives (fixed top-right; `body.is-fullscreen` rules in `shared/desk.css`). Tools toggle `body.is-fullscreen` from their `fullscreenchange` handler. The seating chart (its own React shell) is exempt. Dark worlds recolor `#btn-fullscreen` cream; nothing else overrides.
 - **No cross-tool navigation.** Tools never link to each other. The breadcrumb only walks to suite root or within the current tool.
 - **No footer, no sidebar.** Discovery happens at the desk.
 - Tool homepages still keep the same widget set as app-views — just transparent background — so the user can hit Settings or Fullscreen from any screen.

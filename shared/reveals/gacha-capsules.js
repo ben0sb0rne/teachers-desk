@@ -144,12 +144,48 @@ const CSS = `
   color: rgb(96 26 38);
 }
 .rv-gacha-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgb(30 34 56 / 0.35); }
+
+/* ── Diegetic skin: the whole reveal view joins the toy shop ──
+   Deep plum walls, enamel-red buttons like the machine body, the
+   team board as a shop price card. MATERIAL: enamel metal (flat
+   placeholder — a painted-metal texture swaps in here). */
+body.rv-skin-gacha {
+  background-image: none;
+  background-color: rgb(23 18 31);
+}
+.rv-skin-gacha .reveal-header { color: rgb(246 238 216); }
+.rv-skin-gacha .reveal-controls button {
+  font-family: var(--font-slab, serif);
+  background: rgb(96 26 38);
+  color: rgb(246 238 216);
+  border: 1px solid rgb(58 15 24);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: none;
+}
+.rv-skin-gacha .reveal-controls button:hover { background: rgb(114 34 48); }
+.rv-skin-gacha .reveal-controls button[disabled] { opacity: 0.4; }
+.rv-skin-gacha .reveal-stage { border-color: rgb(205 211 222 / 0.35); }
+.rv-skin-gacha .team-board {
+  background: rgb(36 28 46);
+  border-color: rgb(205 211 222 / 0.3);
+  color: rgb(246 238 216);
+}
+.rv-skin-gacha .team-board h2 {
+  color: rgb(240 84 28);
+  border-color: rgb(240 84 28 / 0.45);
+}
+.rv-skin-gacha .team-col li.is-empty { color: rgb(246 238 216 / 0.4); }
+.rv-skin-gacha .team-col li.is-new { background: rgb(240 84 28 / 0.16); }
+.rv-skin-gacha .team-col .dot { border-color: rgb(246 238 216 / 0.4); }
 `;
 
 export default {
   id: 'gacha',
   label: 'Gacha Capsules',
   order: 'sequential',
+  skinClass: 'rv-skin-gacha',
   glyph: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 9h12" stroke="currentColor" stroke-width="2"/><rect x="8" y="16" width="8" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
 
   create(host, ctx) {

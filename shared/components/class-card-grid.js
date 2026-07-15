@@ -19,6 +19,7 @@
 // =============================================================
 
 import * as bridge from '../roster-bridge.js';
+import { paintPool } from './marbles.js';
 
 /**
  * @typedef {object} ClassCardGridController
@@ -33,6 +34,8 @@ import * as bridge from '../roster-bridge.js';
  * @param {(classId: string, name: string) => void} [opts.onDelete]
  * @param {boolean} [opts.showCount=true]
  * @param {boolean} [opts.showSource=true]
+ * @param {boolean} [opts.marblePool=false] — paint the roster as a marble
+ *   pool on each card (the class IS its marbles; suite select pattern)
  * @param {string} [opts.emptyMessage='No classes yet.']
  * @returns {ClassCardGridController}
  */
@@ -42,6 +45,7 @@ export function mountClassCardGrid(host, opts = {}) {
     onDelete,
     showCount = true,
     showSource = true,
+    marblePool = false,
     emptyMessage = 'No classes yet.',
   } = opts;
 
@@ -73,6 +77,19 @@ export function mountClassCardGrid(host, opts = {}) {
       nameEl.className = 'class-card-name';
       nameEl.textContent = c.name;
       card.appendChild(nameEl);
+
+      if (marblePool) {
+        const cv = document.createElement('canvas');
+        cv.className = 'class-card-marbles';
+        cv.width = 400;
+        cv.height = 72;
+        cv.setAttribute('aria-hidden', 'true');
+        card.appendChild(cv);
+        // Paint after the card is in the DOM so clientWidth is real.
+        queueMicrotask(() => {
+          if (cv.isConnected) paintPool(cv, bridge.getRoster(c.id));
+        });
+      }
 
       if (showCount || (showSource && c.source === 'seating-chart')) {
         const meta = document.createElement('div');

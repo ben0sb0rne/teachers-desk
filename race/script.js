@@ -17,10 +17,11 @@
 // =============================================================
 
 import {
-  getClasses, getRoster, getClassName, incrementCallCount,
+  getRoster, getClassName, incrementCallCount,
 } from '../shared/roster-bridge.js';
 import { mountSettingsButton } from '../shared/settings.js';
-import { marbleColor, initialsOf, paintMarble, paintPool } from '../shared/components/marbles.js';
+import { marbleColor, initialsOf, paintMarble } from '../shared/components/marbles.js';
+import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 
 mountSettingsButton();
 
@@ -642,28 +643,24 @@ function escHtml(s) {
 }
 
 /* ── Views ──────────────────────────────────────────────────── */
+let classGridCtl = null;
+
 function showClassSelect() {
   document.body.classList.remove('app-view', 'is-parlor');
   document.getElementById('race-view').hidden = true;
   document.getElementById('class-select-view').hidden = false;
   document.getElementById('crumb-tool').hidden = true;
   document.getElementById('crumb-context').hidden = true;
-  const classes = getClasses();
-  const grid = document.getElementById('class-grid');
-  document.getElementById('class-empty').hidden = classes.length > 0;
-  grid.innerHTML = classes.map((c) => {
-    const n = getRoster(c.id).length;
-    return `<button type="button" class="race-class-card" data-id="${escHtml(c.id)}">
-      <strong>${escHtml(getClassName(c.id) || 'Untitled class')}</strong>
-      <canvas class="race-card-marbles" width="400" height="72" aria-hidden="true"></canvas>
-      <span class="count">${n} student${n === 1 ? '' : 's'}</span>
-    </button>`;
-  }).join('');
-  // Paint each card's marble pool — the class IS its marbles (shared
-  // suite pattern; see shared/components/marbles.js paintPool).
-  grid.querySelectorAll('.race-class-card').forEach((card) => {
-    paintPool(card.querySelector('.race-card-marbles'), getRoster(card.dataset.id));
-  });
+  // Shared suite class-select (marble-pool cards, live refresh).
+  if (!classGridCtl) {
+    classGridCtl = mountClassCardGrid(document.getElementById('class-grid'), {
+      marblePool: true,
+      onSelect: (classId) => openRace(classId),
+      emptyMessage: 'No classes yet. Create one in the Seating Chart or the Wheel first.',
+    });
+  } else {
+    classGridCtl.refresh();
+  }
 }
 
 function openRace(classId) {
@@ -695,18 +692,18 @@ function toggleFullscreen() {
   }
 }
 document.addEventListener('fullscreenchange', () => {
+  const inFs = !!document.fullscreenElement;
+  // Suite standard: body.is-fullscreen collapses the topstrip
+  // (shared/desk.css) so the projector shows only the machine.
+  document.body.classList.toggle('is-fullscreen', inFs);
   const btn = document.getElementById('btn-fullscreen');
   const use = btn?.querySelector('use');
-  if (use) use.setAttribute('href', document.fullscreenElement ? '#icon-fullscreen-exit' : '#icon-fullscreen');
+  if (use) use.setAttribute('href', inFs ? '#icon-fullscreen-exit' : '#icon-fullscreen');
   if (!document.getElementById('race-view').hidden) { fitCanvas(); draw(); }
 });
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 
 /* ── Wiring ─────────────────────────────────────────────────── */
-document.getElementById('class-grid').addEventListener('click', (e) => {
-  const card = e.target.closest('.race-class-card');
-  if (card) openRace(card.dataset.id);
-});
 document.getElementById('btn-start').addEventListener('click', startRace);
 document.getElementById('btn-reset').addEventListener('click', () => resetRace(true));
 document.getElementById('crumb-tool').addEventListener('click', (e) => {

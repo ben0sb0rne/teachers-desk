@@ -50,5 +50,8 @@ TODO.txt
 NOTES.md
 notes.md
 
+# --- Local audit rig (screenshots, findings, asset drafts) ---
+audit/
+
 # --- Misc / unrelated work kept locally ---
 lego-analysis/

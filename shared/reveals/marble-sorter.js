@@ -30,12 +30,48 @@ const PEG_BOTTOM = BIN_TOP - 150; // sorting lane runs from here to BIN_TOP
 const CSS = `
 .rv-sorter { position: absolute; inset: 0; display: flex; }
 .rv-sorter canvas { margin: auto; background: rgb(24 27 44); border-radius: 4px; }
+
+/* ── Diegetic skin: the whole reveal view joins the parlor ──
+   Midnight walls, chrome-edged buttons, the team board as a brass
+   drop-target column (same family as the Marble Race leaderboard).
+   MATERIAL: cabinet midnight + chrome trim (flat placeholders). */
+body.rv-skin-sorter {
+  background-image: none;
+  background-color: rgb(15 17 32);
+}
+.rv-skin-sorter .reveal-header { color: rgb(246 238 216); }
+.rv-skin-sorter .reveal-controls button {
+  font-family: var(--font-slab, serif);
+  background: rgb(27 31 54);
+  color: rgb(246 238 216);
+  border: 1px solid rgb(205 211 222 / 0.45);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: none;
+}
+.rv-skin-sorter .reveal-controls button:hover { border-color: rgb(240 84 28 / 0.7); }
+.rv-skin-sorter .reveal-controls button[disabled] { opacity: 0.4; }
+.rv-skin-sorter .reveal-stage { border-color: rgb(205 211 222 / 0.35); }
+.rv-skin-sorter .team-board {
+  background: rgb(27 31 54);
+  border-color: rgb(205 211 222 / 0.3);
+  color: rgb(246 238 216);
+}
+.rv-skin-sorter .team-board h2 {
+  color: rgb(214 168 74);
+  border-color: rgb(214 168 74 / 0.45);
+}
+.rv-skin-sorter .team-col li.is-empty { color: rgb(246 238 216 / 0.4); }
+.rv-skin-sorter .team-col li.is-new { background: rgb(214 168 74 / 0.16); }
+.rv-skin-sorter .team-col .dot { border-color: rgb(246 238 216 / 0.4); }
 `;
 
 export default {
   id: 'sorter',
   label: 'Marble Sorter',
   order: 'roundRobin',
+  skinClass: 'rv-skin-sorter',
   glyph: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l6 6M20 4l-6 6"/><line x1="9" y1="20" x2="9" y2="15"/><line x1="15" y1="20" x2="15" y2="15"/></g><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>',
 
   create(host, ctx) {

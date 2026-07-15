@@ -39,39 +39,8 @@ body {
   max-width: 1100px;
   margin: 0 auto;
 }
-.teams-class-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
-}
-.teams-class-card {
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.25);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-paper);
-  padding: var(--space-4);
-  font-family: var(--font-slab);
-  text-align: left;
-  cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.teams-class-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
-.teams-class-card strong {
-  display: block;
-  font-size: var(--type-17);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-.teams-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
-.teams-card-marbles {
-  display: block;
-  width: 100%;
-  margin: var(--space-3) 0;
-  background: rgb(246 238 216);
-  border: 1px solid rgb(var(--paper-edge) / 0.15);
-  border-radius: var(--radius-tight);
-}
+/* Class-select cards come from the shared suite pattern
+   (shared/components/class-card-grid.js + desk.css .class-card). */
 
 /* ── Setup — the math panel ──────────────────────────────────── */
 .setup-panel {
@@ -297,26 +266,8 @@ body {
   border: 1px solid rgb(var(--paper-edge) / 0.3);
 }
 
-/* ── Borderless fullscreen on the reveal view ─────────────────
-   Projector purity: the topstrip collapses; the only surviving
-   chrome is the floating minimize icon. (Header stays — Run and
-   Re-roll are the show's controls, and reveal skins restyle them.) */
-body.view-reveal.is-fullscreen .suite-topstrip {
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
-  padding: 0;
-  min-height: 0;
-  height: 0;
-  overflow: visible;
-}
-body.view-reveal.is-fullscreen .suite-breadcrumb { display: none; }
-body.view-reveal.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
-body.view-reveal.is-fullscreen .suite-topstrip-actions {
-  position: fixed;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 100;
-  padding: 0;
-}
+/* Chrome collapse comes from the suite-wide body.is-fullscreen standard
+   in shared/desk.css. (Header stays — Run and Re-roll are the show's
+   controls, and reveal skins restyle them.) The icon inks cream: the
+   reveal shell is always a dark world. */
 body.view-reveal.is-fullscreen #btn-fullscreen { color: rgb(var(--paper-on-wood)); }

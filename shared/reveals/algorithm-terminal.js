@@ -129,6 +129,10 @@ const CSS = `
 @media (max-width: 760px) { .rv-term-side { display: none; } }
 
 /* ── Diegetic skin: the tool's board + controls join the CRT ── */
+body.rv-skin-terminal {
+  background-image: none;
+  background-color: rgb(5 8 5);
+}
 .rv-skin-terminal .team-board {
   background: rgb(8 12 8);
   border-color: rgb(112 232 120 / 0.4);

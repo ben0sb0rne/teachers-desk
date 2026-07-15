@@ -321,21 +321,8 @@ body {
 /* Fullscreen-hides-others applies ONLY in caller view — the user
    wants the immersive cleanup specifically while playing the game.
    Print-view and homepage keep their full strip in fullscreen. */
-body.view-caller.is-fullscreen .suite-topstrip {
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
-  padding: 0;
-}
-body.view-caller.is-fullscreen .suite-breadcrumb { display: none; }
-body.view-caller.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
-body.view-caller.is-fullscreen .suite-topstrip-actions {
-  position: fixed;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 100;
-  padding: 0;
-}
+/* (Chrome collapse now comes from the suite-wide body.is-fullscreen
+   standard in shared/desk.css — every view, every tool.) */
 
 /* ── Inline SVG icons ── */
 .icon {

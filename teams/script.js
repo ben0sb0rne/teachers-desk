@@ -13,10 +13,11 @@
 // on anyone, so call counts are NOT incremented here.
 // =============================================================
 
-import { getClasses, getRoster, getClassName } from '../shared/roster-bridge.js';
+import { getRoster, getClassName } from '../shared/roster-bridge.js';
 import { getPreference, setPreference } from '../shared/storage.js';
 import { mountSettingsButton } from '../shared/settings.js';
-import { marbleColor, initialsOf, paintPool } from '../shared/components/marbles.js';
+import { marbleColor, initialsOf } from '../shared/components/marbles.js';
+import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { displayName, collisionFirstNames } from '../shared/display-name.js';
 import marbleSorter from '../shared/reveals/marble-sorter.js';
 import draftCards from '../shared/reveals/draft-cards.js';
@@ -114,29 +115,22 @@ function showView(id) {
 }
 
 /* ── Class select ───────────────────────────────────────────── */
+let classGridCtl = null;
+
 function showClassSelect() {
   destroyReveal();
   showView('class-select-view');
-  const classes = getClasses();
-  const grid = document.getElementById('class-grid');
-  document.getElementById('class-empty').hidden = classes.length > 0;
-  grid.innerHTML = classes.map((c) => {
-    const n = getRoster(c.id).length;
-    return `<button type="button" class="teams-class-card" data-id="${escHtml(c.id)}">
-      <strong>${escHtml(getClassName(c.id) || 'Untitled class')}</strong>
-      <canvas class="teams-card-marbles" width="400" height="72" aria-hidden="true"></canvas>
-      <span class="count">${n} student${n === 1 ? '' : 's'}</span>
-    </button>`;
-  }).join('');
-  grid.querySelectorAll('.teams-class-card').forEach((card) => {
-    paintPool(card.querySelector('.teams-card-marbles'), getRoster(card.dataset.id));
-  });
+  // Shared suite class-select (marble-pool cards, live refresh).
+  if (!classGridCtl) {
+    classGridCtl = mountClassCardGrid(document.getElementById('class-grid'), {
+      marblePool: true,
+      onSelect: (classId) => openSetup(classId),
+      emptyMessage: 'No classes yet. Create one in the Seating Chart or the Wheel first.',
+    });
+  } else {
+    classGridCtl.refresh();
+  }
 }
-
-document.getElementById('class-grid').addEventListener('click', (e) => {
-  const card = e.target.closest('.teams-class-card');
-  if (card) openSetup(card.dataset.id);
-});
 
 /* ── Setup (math panel) ─────────────────────────────────────── */
 function openSetup(classId) {
@@ -338,6 +332,7 @@ function destroyReveal() {
   }
   if (state.activeSkin) {
     document.getElementById('reveal-view').classList.remove(state.activeSkin);
+    document.body.classList.remove(state.activeSkin);
     state.activeSkin = null;
   }
   state.revealRan = false;
@@ -349,10 +344,12 @@ function mountReveal() {
   stage.innerHTML = '';
   renderColumns();
   const module = REVEALS.find((r) => r.id === state.revealId) || REVEALS[0];
-  // Diegetic skin: some ceremonies (the terminal) restyle the whole
-  // reveal view — board, buttons, header — to be part of their world.
+  // Diegetic skin: every ceremony restyles the whole reveal view —
+  // body backdrop, board, buttons, header — to be part of its world.
+  // No homepage wood or beige survives inside a reveal.
   if (module.skinClass) {
     document.getElementById('reveal-view').classList.add(module.skinClass);
+    document.body.classList.add(module.skinClass);
     state.activeSkin = module.skinClass;
   }
   const reducedMotion =

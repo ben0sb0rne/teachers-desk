@@ -109,6 +109,41 @@ const CSS = `
   width: 16px; height: 16px; border-radius: 50%;
   border: 2px solid rgb(30 34 56 / 0.4);
 }
+
+/* ── Diegetic skin: the whole reveal view joins the card room ──
+   Deep felt walls, the team board as the scorekeeper's pad, felt
+   buttons. MATERIAL: felt (flat placeholder color — a cloth texture
+   swaps in here). */
+body.rv-skin-draft {
+  background-image: none;
+  background-color: rgb(15 28 20);
+}
+.rv-skin-draft .reveal-header { color: rgb(246 238 216); }
+.rv-skin-draft .reveal-controls button {
+  font-family: var(--font-slab, serif);
+  background: rgb(24 44 32);
+  color: rgb(246 238 216);
+  border: 1px solid rgb(246 238 216 / 0.45);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: none;
+}
+.rv-skin-draft .reveal-controls button:hover { background: rgb(34 58 43); }
+.rv-skin-draft .reveal-controls button[disabled] { opacity: 0.4; }
+.rv-skin-draft .reveal-stage { border-color: rgb(246 238 216 / 0.3); }
+.rv-skin-draft .team-board {
+  background: rgb(20 36 27);
+  border-color: rgb(246 238 216 / 0.3);
+  color: rgb(246 238 216);
+}
+.rv-skin-draft .team-board h2 {
+  color: rgb(246 238 216 / 0.75);
+  border-color: rgb(246 238 216 / 0.3);
+}
+.rv-skin-draft .team-col li.is-empty { color: rgb(246 238 216 / 0.4); }
+.rv-skin-draft .team-col li.is-new { background: rgb(246 238 216 / 0.12); }
+.rv-skin-draft .team-col .dot { border-color: rgb(246 238 216 / 0.4); }
 `;
 
 // Card front content width: card minus border (2×2) minus padding (2×6).
@@ -120,6 +155,7 @@ export default {
   id: 'draft',
   label: 'Draft Cards',
   order: 'roundRobin',
+  skinClass: 'rv-skin-draft',
   glyph: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="3" width="11" height="15" rx="1.5" transform="rotate(-8 4 3)"/><rect x="9" y="6" width="11" height="15" rx="1.5"/></g></svg>',
 
   create(host, ctx) {

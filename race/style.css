@@ -50,6 +50,9 @@ body.is-parlor {
   background-image: none;
   background-color: rgb(var(--pin-midnight));
 }
+/* Fullscreen: the minimize icon inks cream against the midnight cabinet
+   (chrome collapse itself comes from shared/desk.css). */
+body.is-parlor.is-fullscreen #btn-fullscreen { color: rgb(var(--pin-cream)); }
 
 .race-main {
   flex: 1;
@@ -73,42 +76,8 @@ body.is-parlor {
 .view-header h1 { margin: 0 0 var(--space-1); }
 .view-header p { margin: 0; }
 
-.race-class-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
-}
-.race-class-card {
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.25);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-paper);
-  padding: var(--space-4);
-  font-family: var(--font-slab);
-  text-align: left;
-  cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.race-class-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
-.race-class-card strong {
-  display: block;
-  font-size: var(--type-17);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-.race-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
-/* Marble pool preview — the class IS its marbles, drawn at race scale
-   with initials. Fixed light paper (physical object, doesn't theme),
-   same as the playfield; height is set by the painter to fit. */
-.race-card-marbles {
-  display: block;
-  width: 100%;
-  margin: var(--space-3) 0;
-  background: rgb(var(--pin-cream));
-  border: 1px solid rgb(var(--paper-edge) / 0.15);
-  border-radius: var(--radius-tight);
-}
+/* Class-select cards come from the shared suite pattern
+   (shared/components/class-card-grid.js + desk.css .class-card). */
 
 /* ── Race view — the machine ─────────────────────────────────── */
 .view--race:not([hidden]) {

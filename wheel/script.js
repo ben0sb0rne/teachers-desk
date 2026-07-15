@@ -162,11 +162,12 @@ function showView(name) {
 let classGridCtl = null;
 
 function mountClassSelect() {
-  if (classGridCtl) return;
+  if (classGridCtl) { classGridCtl.refresh(); return; }
   const grid = document.getElementById('class-grid');
   const empty = document.getElementById('class-empty');
   empty.hidden = true;
   classGridCtl = mountClassCardGrid(grid, {
+    marblePool: true,
     onSelect: (classId) => openClass(classId),
     onDelete: (classId, name) => {
       if (confirm(`Delete class "${name}"? Its roster and call counts will be removed.`)) {
@@ -330,6 +331,9 @@ document.getElementById('crumb-tool').addEventListener('click', (e) => {
   abortPendingSpin();
   hideReveal();
   showView('classSelect');
+  // Repaint the marble pools — they may have been painted while the
+  // view was hidden (zero-width canvases fall back to a guess).
+  mountClassSelect();
   if (activeClassUnsubscribe) {
     activeClassUnsubscribe();
     activeClassUnsubscribe = null;

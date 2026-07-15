@@ -883,6 +883,121 @@ a.suite-tool-name:focus-visible {
 }
 
 /* =============================================================
+   .class-grid / .class-card — the suite's class-select pattern
+   (rendered by shared/components/class-card-grid.js). Paper cards
+   on the wood desk: teacher chrome, deliberately world-neutral.
+   With the marblePool option each card shows the roster as glass
+   marbles — the class IS its marbles, and the preview matches what
+   the pickers animate.
+   ============================================================= */
+
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.class-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.18);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-slab);
+  box-shadow: var(--shadow-paper);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.class-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+.class-card:focus-visible {
+  outline: 2px solid rgb(var(--accent-blue) / 0.5);
+  outline-offset: 2px;
+}
+.class-card-name {
+  font-size: var(--type-17);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+/* Marble-pool preview window — fixed light paper (a physical object;
+   doesn't theme), same surface the pickers race/sort on. */
+.class-card-marbles {
+  display: block;
+  width: 100%;
+  background: rgb(246 238 216);
+  border: 1px solid rgb(var(--paper-edge) / 0.15);
+  border-radius: var(--radius-tight);
+}
+.class-card-meta {
+  font-size: var(--type-13);
+  color: var(--ink-muted);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.class-card-actions {
+  margin-top: var(--space-1);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+.class-card-actions button {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font: 700 var(--type-11) var(--font-slab);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-tight);
+}
+.class-card-actions button:hover {
+  background: rgb(var(--paper-edge) / 0.06);
+  color: rgb(var(--paper-edge));
+}
+.class-card-actions button.is-danger:hover {
+  color: #b71c1c;
+}
+
+/* =============================================================
+   Borderless fullscreen — suite standard.
+   In fullscreen every page sheds its chrome: the topstrip collapses
+   to zero height and the only surviving control is the floating
+   minimize button, fixed top-right. (Projector purity — students
+   never see the plumbing.) Tools toggle body.is-fullscreen from
+   their fullscreenchange handler. The seating chart has its own
+   React shell and is unaffected. Per-tool CSS may recolor
+   #btn-fullscreen for dark worlds; nothing else should override.
+   ============================================================= */
+
+body.is-fullscreen .suite-topstrip {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  height: 0;
+  overflow: visible;
+}
+body.is-fullscreen .suite-breadcrumb { display: none; }
+body.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
+body.is-fullscreen .suite-topstrip-actions {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 100;
+  padding: 0;
+}
+
+/* =============================================================
    Responsive type — keep the suite legible at projector & phone widths
    ============================================================= */
 

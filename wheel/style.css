@@ -48,96 +48,30 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── view header (class select) ───────────────────────────── */
+/* ── view header (class select) — suite pattern: centered ──── */
 
 .view-header {
   margin-bottom: var(--space-5);
   color: rgb(var(--paper-on-wood));
+  text-align: center;
 }
 .view-header h1 {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-1);
   color: rgb(var(--paper-on-wood));
 }
 .view-header p {
   margin: 0;
   color: rgb(var(--paper-on-wood) / 0.78);
-  font-style: italic;
 }
 
 .picker-actions {
   display: flex;
+  justify-content: center;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
-/* ── class grid ───────────────────────────────────────────── */
-
-.class-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-3);
-}
-
-.class-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  background: rgb(var(--paper-cream));
-  color: rgb(var(--paper-edge));
-  border: 1px solid rgb(var(--paper-edge) / 0.18);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-slab);
-  box-shadow: var(--shadow-paper);
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.class-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lift);
-}
-.class-card:focus-visible {
-  outline: 2px solid rgb(var(--accent-blue) / 0.5);
-  outline-offset: 2px;
-}
-.class-card-name {
-  font-size: var(--type-17);
-  font-weight: 700;
-  letter-spacing: 0.005em;
-}
-.class-card-meta {
-  font-size: var(--type-13);
-  color: var(--ink-muted);
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
-}
-.class-card-actions {
-  margin-top: var(--space-1);
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
-}
-.class-card-actions button {
-  background: none;
-  border: none;
-  color: var(--ink-muted);
-  font: 700 var(--type-11) var(--font-slab);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: var(--radius-tight);
-}
-.class-card-actions button:hover {
-  background: rgb(var(--paper-edge) / 0.06);
-  color: rgb(var(--paper-edge));
-}
-.class-card-actions button.is-danger:hover {
-  color: #b71c1c;
-}
+/* ── class grid — shared styles live in shared/desk.css now ── */
 
 /* =============================================================
    THE WHEEL STAGE — 1970s Price Is Right
@@ -606,31 +540,14 @@ body.is-wheel-stage #wheel-class-source.tag {
 #btn-audio-toggle.is-muted { opacity: 0.35; }
 #btn-audio-toggle.is-muted:hover { opacity: 0.75; }
 
-/* Fullscreen-hides-others — only on the spin view, per user direction.
-   Class-select view keeps its full strip when fullscreened. */
-body.view-spin.is-fullscreen .suite-topstrip {
-  background: transparent;
-  border-bottom: none;
-  box-shadow: none;
-  padding: 0;
-  /* Collapse entirely — the only surviving control (#btn-fullscreen) is
-     position:fixed, so the strip itself contributes zero height. */
-  min-height: 0;
-  height: 0;
-  overflow: visible;
-}
-/* Projector purity: the class-name header goes too — fullscreen is the
-   wheel, the side card, and one floating minimize icon. */
+/* Chrome collapse comes from the suite-wide body.is-fullscreen standard
+   in shared/desk.css. Wheel-specific extras: the class-name header goes
+   too (fullscreen is the wheel, the side card, one minimize icon), the
+   icon inks cream against the curtain, and the side card steps down so
+   the icon doesn't sit on its corner. */
 body.view-spin.is-fullscreen .wheel-header { display: none; }
-body.view-spin.is-fullscreen .suite-breadcrumb { display: none; }
-body.view-spin.is-fullscreen .suite-topstrip-actions > *:not(#btn-fullscreen) { display: none; }
-body.view-spin.is-fullscreen .suite-topstrip-actions {
-  position: fixed;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 100;
-  padding: 0;
-}
+body.view-spin.is-fullscreen #btn-fullscreen { color: rgb(var(--wheel-cream)); }
+body.view-spin.is-fullscreen .wheel-side { margin-top: 34px; }
 
 /* ── picker-specific settings rows in the shared dialog ─────── */
 
