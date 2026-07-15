@@ -56,7 +56,8 @@ const state = {
   segments: [],       // static walls: { x1, y1, x2, y2 }
   pegs: [],           // static circles: { x, y, r, b?, hitT? }
   spinners: [],       // rotating bars: { cx, cy, len, speed, phase }
-  art: null,          // printed playfield art: { stars, arrows }
+  sparks: [],         // impact particles: { x, y, vx, vy, t, life }
+  lastFinishT: 0,     // sim time of the latest finish (drives the sink fade)
   results: [],
   running: false,
   simTime: 0,         // advances with physics substeps (drives spinners + drain)
@@ -211,29 +212,6 @@ const TRACK_GLYPHS = {
   bumpers: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.8" fill="currentColor"/></svg>',
 };
 
-/* Printed playfield art — rollover stars and lane chevrons scattered
-   from the course seed. Pure decoration in the pinball-print sense:
-   drawn UNDER the hardware, never touched by physics. */
-function buildArt(rand) {
-  const stars = [];
-  for (let i = 0; i < 7; i++) {
-    stars.push({
-      x: 70 + rand() * (W - 140),
-      y: 290 + rand() * (FINISH_Y - 420),
-      r: 11 + rand() * 8,
-    });
-  }
-  const arrows = [];
-  for (let i = 0; i < 4; i++) {
-    arrows.push({
-      x: 110 + rand() * (W - 220),
-      y: 320 + rand() * (FINISH_Y - 470),
-      s: 0.85 + rand() * 0.5,
-    });
-  }
-  return { stars, arrows };
-}
-
 /* Distinct stable colors — golden-angle hue walk. */
 function marbleColor(i) {
   return `hsl(${(i * 137.508) % 360} 72% 45%)`;
@@ -260,20 +238,30 @@ function resetRace(newSeed) {
   state.segments = segs;
   state.pegs = pegs;
   state.spinners = spinners;
-  state.art = buildArt(rand);
+  state.sparks = [];
+  state.lastFinishT = 0;
   // Start pool: pack marbles in rows above the funnel, seeded jitter.
-  state.marbles = state.names.map((name, i) => {
+  // Pool SLOTS are shuffled (seeded Fisher-Yates) so roster order gives
+  // no positional edge; color/initials stay keyed to the student.
+  const order = state.names.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = (rand() * (i + 1)) | 0;
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  state.marbles = order.map((nameIdx, slot) => {
     const perRow = 19;
-    const row = (i / perRow) | 0;
-    const col = i % perRow;
+    const row = (slot / perRow) | 0;
+    const col = slot % perRow;
     return {
-      name,
-      initials: initialsOf(name),
-      color: marbleColor(i),
+      name: state.names[nameIdx],
+      initials: initialsOf(state.names[nameIdx]),
+      color: marbleColor(nameIdx),
       x: W / 2 + (col - perRow / 2 + 0.5) * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
       y: 34 + row * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
       vx: 0, vy: 0,
+      rot: 0,
       finished: false,
+      finishT: 0,
     };
   });
   renderResults();
@@ -288,6 +276,27 @@ function spinnerSegment(s, t) {
   return { x1: s.cx - dx, y1: s.cy - dy, x2: s.cx + dx, y2: s.cy + dy };
 }
 
+/* Impact sparks — a hard hit throws 2–3 short-lived particles off the
+   contact normal. Math.random is fine here: sparks are visual only and
+   never touch the physics, so the race stays seed-reproducible. */
+const SPARK_MIN_VN = 260;   // impact speed that earns sparks
+function emitSparks(x, y, nx, ny, strength) {
+  if (state.sparks.length > 140) return; // cap: pileups can't spark-storm
+  const n = 2 + (Math.random() * 2) | 0;
+  for (let i = 0; i < n; i++) {
+    const spread = (Math.random() - 0.5) * 1.6;
+    const cos = Math.cos(spread), sin = Math.sin(spread);
+    const sx = nx * cos - ny * sin, sy = nx * sin + ny * cos;
+    const v = 120 + Math.random() * 0.4 * strength;
+    state.sparks.push({
+      x, y,
+      vx: sx * v, vy: sy * v,
+      t: 0,
+      life: 0.14 + Math.random() * 0.12,
+    });
+  }
+}
+
 function step(dt) {
   state.simTime += dt;
   const spinnerSegs = state.spinners.map((s) => spinnerSegment(s, state.simTime));
@@ -297,6 +306,9 @@ function step(dt) {
     if (m.vy > MAX_FALL) m.vy = MAX_FALL;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
+    // Rolling rotation — drives the glass swirl so marbles visibly
+    // roll rather than slide. Simple v/r approximation.
+    m.rot += (m.vx / MARBLE_R) * dt;
 
     for (const s of state.segments) collideSegment(m, s);
     for (let si = 0; si < spinnerSegs.length; si++) {
@@ -328,6 +340,9 @@ function step(dt) {
           // Real impacts light the hardware (grazing contact doesn't,
           // or resting marbles would strobe the field).
           if (vn < -60) p.hitT = state.simTime;
+          if (vn < -SPARK_MIN_VN) {
+            emitSparks(p.x + nx * p.r, p.y + ny * p.r, nx, ny, -vn);
+          }
         }
       }
     }
@@ -350,12 +365,24 @@ function step(dt) {
           const imp = (-(1 + MARBLE_BOUNCE) * rvn) / 2;
           a.vx -= imp * nx; a.vy -= imp * ny;
           b.vx += imp * nx; b.vy += imp * ny;
+          if (rvn < -SPARK_MIN_VN) {
+            emitSparks(a.x + nx * MARBLE_R, a.y + ny * MARBLE_R, nx, ny, -rvn);
+          }
         }
       }
     }
   }
   for (const m of alive) {
     if (m.y + MARBLE_R >= FINISH_Y) finishMarble(m);
+  }
+  // Spark particles — light, short, slightly gravity-bent.
+  for (let i = state.sparks.length - 1; i >= 0; i--) {
+    const sp = state.sparks[i];
+    sp.t += dt;
+    if (sp.t >= sp.life) { state.sparks.splice(i, 1); continue; }
+    sp.x += sp.vx * dt;
+    sp.y += sp.vy * dt;
+    sp.vy += 700 * dt;
   }
 }
 
@@ -373,19 +400,25 @@ function collideSegment(m, s) {
   m.x = cx + nx * MARBLE_R;
   m.y = cy + ny * MARBLE_R;
   const vn = m.vx * nx + m.vy * ny;
-  if (vn < 0) { m.vx -= (1 + WALL_BOUNCE) * vn * nx; m.vy -= (1 + WALL_BOUNCE) * vn * ny; }
+  if (vn < 0) {
+    m.vx -= (1 + WALL_BOUNCE) * vn * nx;
+    m.vy -= (1 + WALL_BOUNCE) * vn * ny;
+    if (vn < -SPARK_MIN_VN) emitSparks(cx, cy, nx, ny, -vn);
+  }
   return true;
 }
 
 function finishMarble(m) {
   m.finished = true;
+  m.finishT = state.simTime;
+  state.lastFinishT = state.simTime;
   state.results.push(m.name);
   if (state.results.length === 1 && state.classId) {
     // Suite convention: any tool that picks a student records the call.
     incrementCallCount(state.classId, m.name);
   }
   renderResults();
-  if (state.results.length === state.marbles.length) state.running = false;
+  // The loop stops in frame(), after the last sink-through fade plays out.
 }
 
 /* ── Loop ───────────────────────────────────────────────────── */
@@ -403,6 +436,15 @@ function frame(ts) {
       .forEach(finishMarble);
   }
   draw();
+  // Stop only after the last finisher's sink-through fade has played.
+  if (
+    state.marbles.length > 0 &&
+    state.results.length === state.marbles.length &&
+    state.simTime - state.lastFinishT > SINK_S + 0.1
+  ) {
+    state.running = false;
+    return;
+  }
   state.rafId = requestAnimationFrame(frame);
 }
 
@@ -444,6 +486,8 @@ const PALETTE = {
 
 // How long hardware stays lit after an impact (seconds of sim time).
 const FLASH_S = 0.18;
+// How long a finisher takes to sink through the finish slot.
+const SINK_S = 0.45;
 
 /* MATERIAL: playfield print — cream base, pinstripe border, rollover
    stars, lane chevrons, checkered finish. A drawn playfield texture
@@ -460,35 +504,8 @@ function paintPlayfield() {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
-  const art = state.art;
-  if (art) {
-    // Rollover stars — teal four-point print.
-    ctx.fillStyle = 'rgb(28 168 172 / 0.4)';
-    for (const st of art.stars) {
-      ctx.beginPath();
-      ctx.moveTo(st.x, st.y - st.r);
-      ctx.quadraticCurveTo(st.x, st.y, st.x + st.r, st.y);
-      ctx.quadraticCurveTo(st.x, st.y, st.x, st.y + st.r);
-      ctx.quadraticCurveTo(st.x, st.y, st.x - st.r, st.y);
-      ctx.quadraticCurveTo(st.x, st.y, st.x, st.y - st.r);
-      ctx.fill();
-    }
-    // Lane chevrons — orange, pointing at the finish.
-    ctx.strokeStyle = 'rgb(240 84 28 / 0.4)';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const a of art.arrows) {
-      for (let k = 0; k < 3; k++) {
-        const y = a.y + k * 20 * a.s;
-        ctx.beginPath();
-        ctx.moveTo(a.x - 14 * a.s, y);
-        ctx.lineTo(a.x, y + 12 * a.s);
-        ctx.lineTo(a.x + 14 * a.s, y);
-        ctx.stroke();
-      }
-    }
-  }
+  // (No printed symbols — the field stays open for a hand-drawn
+  // playfield texture, which will replace this function wholesale.)
 
   // Finish band — navy-on-cream checkers.
   for (let x = 0; x < W; x += 24) {
@@ -568,12 +585,21 @@ function ensureMarbleGloss() {
   marbleGloss.addColorStop(1, 'rgb(0 0 0 / 0.18)');
 }
 
-function paintMarble(m) {
+/* Draws at the ORIGIN — callers translate (and optionally scale/fade)
+   first, so the same body serves live marbles and the finish sink. */
+function paintMarbleBody(m) {
   ensureMarbleGloss();
-  ctx.save();
-  ctx.translate(m.x, m.y);
   ctx.fillStyle = m.color;
   ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
+  // Internal glass swirl — rotates with the roll (m.rot), under the
+  // gloss; the initials decal stays upright for readability.
+  ctx.save();
+  ctx.rotate(m.rot);
+  ctx.strokeStyle = 'rgb(255 255 255 / 0.3)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R * 0.52, 0.3, 1.8); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R * 0.52, Math.PI + 0.3, Math.PI + 1.8); ctx.stroke();
+  ctx.restore();
   ctx.fillStyle = marbleGloss;
   ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
   ctx.lineWidth = 3;
@@ -581,7 +607,6 @@ function paintMarble(m) {
   ctx.strokeText(m.initials, 0, 0.5);
   ctx.fillStyle = '#fff';
   ctx.fillText(m.initials, 0, 0.5);
-  ctx.restore();
 }
 
 function draw() {
@@ -603,16 +628,57 @@ function draw() {
     else paintPost(p, now);
   }
 
+  // Shadow pass — one soft navy print under every live marble, cast
+  // slightly down-right by the parlor's overhead light.
+  ctx.fillStyle = 'rgb(30 34 56 / 0.14)';
+  for (const m of state.marbles) {
+    if (m.finished) continue;
+    ctx.beginPath();
+    ctx.ellipse(m.x + 3, m.y + 5, MARBLE_R * 0.92, MARBLE_R * 0.78, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Marbles with initials — the leaderboard's color dots are the full key.
   ctx.font = `800 ${Math.round(MARBLE_R * 0.95)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  // Finishers sink through the slot: shrink + fade at the crossing point.
+  for (const m of state.marbles) {
+    if (!m.finished) continue;
+    const t = (now - m.finishT) / SINK_S;
+    if (t < 0 || t >= 1) continue;
+    const s = 1 - 0.45 * t;
+    ctx.save();
+    ctx.globalAlpha = 1 - t;
+    ctx.translate(m.x, m.y + 9 * t);
+    ctx.scale(s, s);
+    paintMarbleBody(m);
+    ctx.restore();
+  }
+
   for (const m of state.marbles) {
     if (m.finished) continue;
-    paintMarble(m);
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    paintMarbleBody(m);
+    ctx.restore();
   }
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
+
+  // Impact sparks — white-hot core over an orange streak.
+  ctx.lineCap = 'round';
+  for (const sp of state.sparks) {
+    const a = 1 - sp.t / sp.life;
+    const tx = sp.x - sp.vx * 0.03, ty = sp.y - sp.vy * 0.03;
+    ctx.strokeStyle = `rgb(240 84 28 / ${(0.8 * a).toFixed(2)})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.strokeStyle = `rgb(255 235 200 / ${(0.9 * a).toFixed(2)})`;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(tx, ty); ctx.stroke();
+  }
 }
 
 /* ── Leaderboard ────────────────────────────────────────────── */
