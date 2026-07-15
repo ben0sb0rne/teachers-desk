@@ -99,31 +99,72 @@ body {
   border-bottom: 2px solid rgb(var(--paper-edge) / 0.2);
   padding-bottom: 4px;
 }
-.setup-mode { display: flex; gap: var(--space-2); align-items: center; }
-.mode-btn {
+/* Absences — a picker that grows removable chips. Session-only. */
+.absent-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+#absent-select {
   font-family: var(--font-slab);
   font-size: var(--type-13);
-  font-weight: 700;
-  padding: 7px 14px;
-  background: transparent;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 0.6);
   color: rgb(var(--paper-edge));
   border: 1px solid rgb(var(--paper-edge) / 0.35);
   border-radius: var(--radius-tight);
+}
+.absent-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.absent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  padding: 4px 6px 4px 10px;
+  background: rgb(var(--paper-edge) / 0.08);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius-tight);
+  text-decoration: line-through;
+}
+.absent-chip button {
+  border: none;
+  background: none;
+  color: rgb(var(--paper-edge) / 0.6);
+  font-size: var(--type-15);
+  line-height: 1;
+  padding: 0 2px;
   cursor: pointer;
 }
-.mode-btn.is-active {
-  background: rgb(var(--paper-edge));
-  color: rgb(var(--paper-cream));
-  border-color: rgb(var(--paper-edge));
+.absent-chip button:hover { color: rgb(var(--paper-edge)); }
+
+/* Split control — two radio rows, each owning its own number, so it
+   reads as a sentence: "Teams of [4]" / "[4] teams". */
+.split-modes { display: flex; flex-direction: column; gap: var(--space-2); }
+.split-mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-slab);
+  font-size: var(--type-15);
+  font-weight: 700;
+  cursor: pointer;
+  width: fit-content;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-tight);
 }
-#split-value {
-  width: 76px;
+.split-mode:not(.is-active) { opacity: 0.5; }
+.split-mode.is-active {
+  border-color: rgb(var(--paper-edge) / 0.35);
+  background: rgb(255 255 255 / 0.45);
+}
+.split-mode input[type="radio"] { accent-color: rgb(var(--paper-edge)); margin: 0 2px 0 6px; }
+.split-mode input[type="number"] {
+  width: 64px;
   font-family: var(--font-slab);
   font-size: var(--type-17);
   font-weight: 700;
   text-align: center;
-  padding: 5px 6px;
-  background: rgb(255 255 255 / 0.6);
+  padding: 4px 6px;
+  background: rgb(255 255 255 / 0.7);
   color: rgb(var(--paper-edge));
   border: 1px solid rgb(var(--paper-edge) / 0.35);
   border-radius: var(--radius-tight);

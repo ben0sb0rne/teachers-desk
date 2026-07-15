@@ -17,6 +17,7 @@ import { getClasses, getRoster, getClassName } from '../shared/roster-bridge.js'
 import { getPreference, setPreference } from '../shared/storage.js';
 import { mountSettingsButton } from '../shared/settings.js';
 import { marbleColor, initialsOf, paintPool } from '../shared/components/marbles.js';
+import { displayName, collisionFirstNames } from '../shared/display-name.js';
 import marbleSorter from '../shared/reveals/marble-sorter.js';
 import draftCards from '../shared/reveals/draft-cards.js';
 import gachaCapsules from '../shared/reveals/gacha-capsules.js';
@@ -30,16 +31,23 @@ const state = {
   classId: null,
   className: '',
   names: [],
+  absent: new Set(),       // session-only — absences change daily
   mode: 'size',            // 'size' | 'count'
-  value: 4,
+  sizeValue: 4,            // each mode keeps its own number
+  countValue: 4,
   options: [],             // enumerated partitions: arrays of team sizes
   partitionIndex: 0,
   revealId: getPreference('teams.reveal', 'sorter'),
-  assignments: [],         // [{ name, initials, color, binIndex }] reveal order
+  assignments: [],         // [{ name, label, initials, color, binIndex }] reveal order
   bins: [],                // [{ label, size }]
   reveal: null,            // active reveal instance { start, destroy }
   revealRan: false,
 };
+
+/** Students actually here today, in roster order. */
+function presentNames() {
+  return state.names.filter((n) => !state.absent.has(n));
+}
 
 /* ── Partition math ─────────────────────────────────────────────
    "Sensible" options only: teams within one of each other, plus the
@@ -80,7 +88,7 @@ function partitionOptions(n, mode, value) {
   return [...seen.values()];
 }
 
-/** "2 teams of 4 + 2 teams of 3" from [4,4,3,3]. */
+/** "2 of 4 + 2 of 3" from [4,4,3,3] — the split itself, kept short. */
 function describePartition(sizes) {
   const runs = [];
   for (const s of sizes) {
@@ -88,9 +96,7 @@ function describePartition(sizes) {
     if (last && last.size === s) last.count++;
     else runs.push({ size: s, count: 1 });
   }
-  return runs
-    .map((r) => `${r.count} team${r.count === 1 ? '' : 's'} of ${r.size}`)
-    .join(' + ');
+  return runs.map((r) => `${r.count} of ${r.size}`).join(' + ');
 }
 
 /* ── Views ──────────────────────────────────────────────────── */
@@ -135,27 +141,76 @@ function openSetup(classId) {
   state.classId = classId;
   state.className = getClassName(classId) || '(unnamed)';
   state.names = getRoster(classId);
+  state.absent = new Set(); // session-only: fresh every class open
   if (state.names.length < 2) return;
   document.getElementById('setup-class-name').textContent = state.className;
-  document.getElementById('setup-count-line').textContent =
-    `${state.names.length} students to split.`;
   showView('setup-view');
+  renderAbsent();
   refreshPartitions();
   renderRevealStyles();
 }
 
+/* ── Absences ───────────────────────────────────────────────── */
+function renderAbsent() {
+  const select = document.getElementById('absent-select');
+  select.innerHTML =
+    '<option value="">Mark absent…</option>' +
+    presentNames().map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  const chips = document.getElementById('absent-chips');
+  chips.innerHTML = [...state.absent].map((n) => `
+    <span class="absent-chip">${escHtml(n)}
+      <button type="button" data-name="${escHtml(n)}" aria-label="Mark ${escHtml(n)} present">&times;</button>
+    </span>`).join('');
+  const present = presentNames().length;
+  const total = state.names.length;
+  document.getElementById('setup-count-line').textContent =
+    state.absent.size === 0
+      ? `${total} students to split.`
+      : `${present} of ${total} students to split — ${state.absent.size} absent.`;
+}
+
+document.getElementById('absent-select').addEventListener('change', (e) => {
+  const name = e.target.value;
+  if (!name) return;
+  state.absent.add(name);
+  state.partitionIndex = 0;
+  renderAbsent();
+  refreshPartitions();
+});
+document.getElementById('absent-chips').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-name]');
+  if (!btn) return;
+  state.absent.delete(btn.dataset.name);
+  state.partitionIndex = 0;
+  renderAbsent();
+  refreshPartitions();
+});
+
+/* ── Split control + partitions ─────────────────────────────── */
+function currentValue() {
+  return state.mode === 'size' ? state.sizeValue : state.countValue;
+}
+
 function refreshPartitions() {
-  state.options = partitionOptions(state.names.length, state.mode, state.value);
-  if (state.partitionIndex >= state.options.length) state.partitionIndex = 0;
+  const n = presentNames().length;
+  const v = currentValue();
   const host = document.getElementById('partition-options');
+  const makeBtn = document.getElementById('btn-make');
+  state.options = (Number.isFinite(v) && v >= 2 && n >= 2)
+    ? partitionOptions(n, state.mode, v)
+    : [];
+  if (state.partitionIndex >= state.options.length) state.partitionIndex = 0;
+  makeBtn.disabled = state.options.length === 0;
   if (state.options.length === 0) {
-    host.innerHTML = '<p class="partition-note">That doesn\'t split — try another number.</p>';
+    host.innerHTML = n < 2
+      ? '<p class="partition-note">Not enough students present to split.</p>'
+      : '<p class="partition-note">That doesn\'t split — try another number.</p>';
     return;
   }
   host.innerHTML = state.options.map((sizes, i) => `
     <button type="button" class="partition-card${i === state.partitionIndex ? ' is-active' : ''}" data-i="${i}">
-      <strong>${sizes.length} teams</strong>
-      <span>${describePartition(sizes)}</span>
+      <strong>${describePartition(sizes)}</strong>
+      <span>${sizes.length} team${sizes.length === 1 ? '' : 's'}</span>
     </button>`).join('');
 }
 
@@ -168,24 +223,29 @@ document.getElementById('partition-options').addEventListener('click', (e) => {
 
 function setMode(mode) {
   state.mode = mode;
-  const sizeBtn = document.getElementById('mode-size');
-  const countBtn = document.getElementById('mode-count');
-  sizeBtn.classList.toggle('is-active', mode === 'size');
-  countBtn.classList.toggle('is-active', mode === 'count');
-  sizeBtn.setAttribute('aria-pressed', String(mode === 'size'));
-  countBtn.setAttribute('aria-pressed', String(mode === 'count'));
+  document.querySelectorAll('.split-mode').forEach((row) => {
+    const active = row.dataset.mode === mode;
+    row.classList.toggle('is-active', active);
+    row.querySelector('input[type="radio"]').checked = active;
+  });
   state.partitionIndex = 0;
   refreshPartitions();
 }
-document.getElementById('mode-size').addEventListener('click', () => setMode('size'));
-document.getElementById('mode-count').addEventListener('click', () => setMode('count'));
-document.getElementById('split-value').addEventListener('input', () => {
-  const v = Number(document.getElementById('split-value').value);
-  if (Number.isFinite(v) && v >= 2) {
-    state.value = Math.floor(v);
-    state.partitionIndex = 0;
-    refreshPartitions();
-  }
+
+document.querySelectorAll('.split-mode').forEach((row) => {
+  row.querySelector('input[type="radio"]').addEventListener('change', () => setMode(row.dataset.mode));
+  // Typing in a row's number is an implicit "I mean this mode".
+  row.querySelector('input[type="number"]').addEventListener('focus', () => setMode(row.dataset.mode));
+});
+document.getElementById('size-value').addEventListener('input', (e) => {
+  state.sizeValue = Math.floor(Number(e.target.value));
+  state.partitionIndex = 0;
+  refreshPartitions();
+});
+document.getElementById('count-value').addEventListener('input', (e) => {
+  state.countValue = Math.floor(Number(e.target.value));
+  state.partitionIndex = 0;
+  refreshPartitions();
 });
 
 function renderRevealStyles() {
@@ -207,27 +267,43 @@ document.getElementById('reveal-styles').addEventListener('click', (e) => {
 function makeAssignments() {
   const sizes = state.options[state.partitionIndex];
   state.bins = sizes.map((size, i) => ({ label: `Team ${i + 1}`, size }));
-  // Shuffle students, then hand out round-robin (draft order) so the
-  // reveal alternates teams instead of filling one team at a time.
-  const idx = state.names.map((_, i) => i);
-  for (let i = idx.length - 1; i > 0; i--) {
+  const present = presentNames();
+  // Ceremony labels: first name, last initial only when two present
+  // students share a first name (shared suite rule — display-name.js).
+  const students = present.map((name) => ({ name }));
+  const collisions = collisionFirstNames(students);
+  // Shuffle the present students (color stays keyed to roster index).
+  const picks = present.map((name) => ({
+    name,
+    label: displayName({ name }, undefined, collisions),
+    initials: initialsOf(name),
+    color: marbleColor(state.names.indexOf(name)),
+  }));
+  for (let i = picks.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;
-    [idx[i], idx[j]] = [idx[j], idx[i]];
+    [picks[i], picks[j]] = [picks[j], picks[i]];
   }
-  const remaining = sizes.slice();
+  // Dispense order is the ceremony's call: a draft alternates teams,
+  // the gacha machine fills one team completely before the next.
+  const module = REVEALS.find((r) => r.id === state.revealId) || REVEALS[0];
   state.assignments = [];
-  let bin = 0;
-  for (const nameIdx of idx) {
-    while (remaining[bin % sizes.length] === 0) bin++;
-    const b = bin % sizes.length;
-    remaining[b]--;
-    bin++;
-    state.assignments.push({
-      name: state.names[nameIdx],
-      initials: initialsOf(state.names[nameIdx]),
-      color: marbleColor(nameIdx),
-      binIndex: b,
+  if (module.order === 'sequential') {
+    let k = 0;
+    sizes.forEach((size, b) => {
+      for (let s = 0; s < size; s++) {
+        state.assignments.push({ ...picks[k++], binIndex: b });
+      }
     });
+  } else {
+    const remaining = sizes.slice();
+    let bin = 0;
+    for (const pick of picks) {
+      while (remaining[bin % sizes.length] === 0) bin++;
+      const b = bin % sizes.length;
+      remaining[b]--;
+      bin++;
+      state.assignments.push({ ...pick, binIndex: b });
+    }
   }
 }
 
@@ -272,6 +348,7 @@ function mountReveal() {
   state.reveal = module.create(stage, {
     assignments: state.assignments,
     bins: state.bins,
+    title: state.className,
     reducedMotion,
     onAssign: (i) => fillColumn(i),
     onDone: () => {

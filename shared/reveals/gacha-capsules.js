@@ -1,7 +1,13 @@
 // =============================================================
-// shared/reveals/gacha-capsules.js — a capsule machine cranks out
-// one capsule per student: the globe shakes, a capsule drops down
-// the chute, pops open, and the name inside joins its team.
+// shared/reveals/gacha-capsules.js — a capsule machine dispenses one
+// capsule per student. The teacher CRANKS it one capsule at a time,
+// or flips it to AUTO and lets it run. Capsules dispense team by
+// team (sequential order — the tool fills Team 1 completely, then
+// Team 2…), and the plate shows which team is currently filling.
+//
+// Placeholder look: the real machine art is a planned user-drawn
+// asset (full-screen machine, class-name label, visible capsules).
+// Everything here is functional scaffolding for that overhaul.
 // =============================================================
 
 import { ensureStyles, makeTimers, assignAllInstantly } from './util.js';
@@ -18,6 +24,13 @@ const CSS = `
   font-family: var(--font-slab, serif);
 }
 .rv-gacha-machine { position: relative; width: 240px; }
+.rv-gacha-title {
+  text-align: center;
+  color: rgb(246 238 216);
+  font-size: 15px; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin: 0 0 8px;
+}
 .rv-gacha-globe {
   /* MATERIAL: capsule globe (glass). */
   width: 240px; height: 240px;
@@ -42,12 +55,20 @@ const CSS = `
 }
 .rv-gacha-body {
   /* MATERIAL: machine body (enamel metal). */
-  width: 200px; height: 120px;
+  width: 200px; height: 128px;
   margin: -8px auto 0;
   background: rgb(96 26 38);
   border: 3px solid rgb(58 15 24);
   border-radius: 5px;
   position: relative;
+}
+.rv-gacha-plate {
+  position: absolute; top: 10px; left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: rgb(246 238 216);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
 }
 .rv-gacha-slot {
   position: absolute; left: 50%; bottom: 10px;
@@ -57,8 +78,29 @@ const CSS = `
   border-radius: 4px;
   border: 2px solid rgb(205 211 222 / 0.5);
 }
+.rv-gacha-controls {
+  display: flex; justify-content: center; gap: 10px;
+  margin-top: 60px;
+}
+.rv-gacha-controls button {
+  font-family: var(--font-slab, serif);
+  font-size: 13px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgb(246 238 216);
+  color: rgb(30 34 56);
+  border: 2px solid rgb(30 34 56);
+}
+.rv-gacha-controls button[disabled] { opacity: 0.4; cursor: default; }
+.rv-gacha-controls .rv-gacha-auto.is-on {
+  background: rgb(240 84 28);
+  color: rgb(246 238 216);
+  border-color: rgb(126 38 8);
+}
 .rv-gacha-capsule {
-  position: absolute; left: 50%; top: 96px;
+  position: absolute; left: 50%; top: 118px;
   width: 46px; height: 46px;
   margin-left: -23px;
   z-index: 3;
@@ -82,7 +124,7 @@ const CSS = `
 .rv-gacha-capsule.is-open .rv-cap-top { transform: translateY(-26px) rotate(-18deg); opacity: 0; }
 .rv-gacha-capsule.is-open .rv-cap-bottom { transform: translateY(26px) rotate(14deg); opacity: 0; }
 .rv-gacha-reveal {
-  position: absolute; left: 50%; top: 385px;
+  position: absolute; left: 50%; top: 398px;
   transform: translate(-50%, 8px);
   opacity: 0;
   transition: opacity 220ms ease-out, transform 220ms ease-out;
@@ -107,6 +149,7 @@ const CSS = `
 export default {
   id: 'gacha',
   label: 'Gacha Capsules',
+  order: 'sequential',
   glyph: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 9h12" stroke="currentColor" stroke-width="2"/><rect x="8" y="16" width="8" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
 
   create(host, ctx) {
@@ -116,6 +159,12 @@ export default {
 
     const machine = document.createElement('div');
     machine.className = 'rv-gacha-machine';
+    if (ctx.title) {
+      const title = document.createElement('p');
+      title.className = 'rv-gacha-title';
+      title.textContent = ctx.title;
+      machine.appendChild(title);
+    }
     const globe = document.createElement('div');
     globe.className = 'rv-gacha-globe';
     // The globe holds every not-yet-drawn capsule, tinted per student.
@@ -133,19 +182,57 @@ export default {
     machine.appendChild(globe);
     const body = document.createElement('div');
     body.className = 'rv-gacha-body';
-    body.innerHTML = '<div class="rv-gacha-slot"></div>';
+    body.innerHTML = '<div class="rv-gacha-plate"></div><div class="rv-gacha-slot"></div>';
     machine.appendChild(body);
+    const plate = body.querySelector('.rv-gacha-plate');
+
+    const controls = document.createElement('div');
+    controls.className = 'rv-gacha-controls';
+    const crankBtn = document.createElement('button');
+    crankBtn.type = 'button';
+    crankBtn.textContent = 'Crank';
+    const autoBtn = document.createElement('button');
+    autoBtn.type = 'button';
+    autoBtn.className = 'rv-gacha-auto';
+    autoBtn.textContent = 'Auto';
+    controls.appendChild(crankBtn);
+    controls.appendChild(autoBtn);
+    machine.appendChild(controls);
+
     wrap.appendChild(machine);
     host.appendChild(wrap);
 
     const timers = makeTimers();
+    let next = 0;           // next assignment to dispense
+    let busy = false;       // a capsule is mid-cycle
+    let auto = false;
+    let autoTimer = 0;
+    let armed = false;
 
-    function crank(i) {
+    function updatePlate() {
+      if (next >= ctx.assignments.length) {
+        plate.textContent = 'All teams full';
+        return;
+      }
+      const bin = ctx.assignments[next].binIndex;
+      plate.textContent = `Filling ${ctx.bins[bin].label}`;
+    }
+
+    function updateButtons() {
+      const out = next >= ctx.assignments.length;
+      crankBtn.disabled = !armed || busy || auto || out;
+      autoBtn.disabled = !armed || out;
+      autoBtn.classList.toggle('is-on', auto);
+    }
+
+    function crank() {
+      if (busy || next >= ctx.assignments.length) return;
+      busy = true;
+      const i = next++;
       const a = ctx.assignments[i];
       wrap.classList.add('is-shaking');
       timers.after(500, () => wrap.classList.remove('is-shaking'));
 
-      // Capsule drops out of the slot.
       const capsule = document.createElement('div');
       capsule.className = 'rv-gacha-capsule';
       capsule.innerHTML =
@@ -153,7 +240,7 @@ export default {
         `<div class="rv-cap-bottom" style="background:${a.color}"></div>`;
       machine.appendChild(capsule);
       void capsule.getBoundingClientRect();
-      capsule.style.transform = 'translateY(196px)';
+      capsule.style.transform = 'translateY(226px)';
 
       timers.after(620, () => {
         pills[i].remove(); // that capsule has left the globe
@@ -162,28 +249,55 @@ export default {
         reveal.className = 'rv-gacha-reveal';
         reveal.innerHTML =
           `<span class="rv-gacha-dot" style="background:${a.color}"></span>` +
-          `<span>${escHtml(a.name)}</span>` +
+          `<span>${escHtml(a.label ?? a.name)}</span>` +
           `<span class="rv-gacha-team">${escHtml(ctx.bins[a.binIndex].label)}</span>`;
         machine.appendChild(reveal);
         void reveal.getBoundingClientRect();
         reveal.classList.add('is-in');
         ctx.onAssign(i);
+        updatePlate();
         timers.after(CYCLE_MS - 660, () => {
           reveal.classList.remove('is-in');
           timers.after(240, () => { reveal.remove(); capsule.remove(); });
+          busy = false;
+          updateButtons();
+          if (next >= ctx.assignments.length) {
+            stopAuto();
+            ctx.onDone();
+          } else if (auto) {
+            autoTimer = timers.after(120, crank);
+          }
         });
       });
+      updateButtons();
     }
+
+    function stopAuto() {
+      auto = false;
+      clearTimeout(autoTimer);
+      updateButtons();
+    }
+
+    crankBtn.addEventListener('click', crank);
+    autoBtn.addEventListener('click', () => {
+      if (auto) { stopAuto(); return; }
+      auto = true;
+      updateButtons();
+      if (!busy) crank();
+    });
+
+    updatePlate();
+    updateButtons();
 
     return {
       start() {
         if (ctx.reducedMotion) { assignAllInstantly(ctx); return; }
-        ctx.assignments.forEach((_, i) => {
-          timers.after(200 + i * CYCLE_MS, () => crank(i));
-        });
-        timers.after(200 + ctx.assignments.length * CYCLE_MS + 200, () => ctx.onDone());
+        // Arm the machine — the teacher drives it from here.
+        armed = true;
+        updateButtons();
       },
       destroy() {
+        stopAuto();
         timers.clear();
         wrap.remove();
       },

@@ -1,9 +1,10 @@
 // =============================================================
-// shared/reveals/marble-sorter.js — marbles pour from a funnel and
-// sort themselves into labeled team bins. Physics is real enough to
-// feel like the Marble Race; a gentle steering force guarantees each
-// marble lands in its assigned bin (the drama is HOW it gets there,
-// not WHERE it ends up — assignments are decided before the pour).
+// shared/reveals/marble-sorter.js — pachinko sort: marbles pour from
+// a funnel, ricochet down a brass peg field, and drop into labeled
+// team bins. The pegs own the chaos; a steering force that only
+// wakes up BELOW the peg field guarantees each marble still lands in
+// its assigned bin (the drama is the route, not the destination —
+// assignments are decided before the pour).
 //
 // Uses the suite's shared glass-marble material (one paint entry
 // point in shared/components/marbles.js).
@@ -15,12 +16,16 @@ import { ensureStyles, makeTimers, assignAllInstantly } from './util.js';
 const W = 1200;
 const H = 760;
 const R = 15;                 // marble radius (course units)
+const PEG_R = 8;
 const GRAVITY = 620;
-const STEER = 2.4;            // pull toward the assigned bin's x
-const STEER_MAX = 300;
+const STEER = 3.2;            // pull toward the assigned bin's x
+const STEER_MAX = 420;
 const WALL_BOUNCE = 0.55;
-const SPAWN_EVERY_S = 0.42;
+const PEG_BOUNCE = 0.62;
+const SPAWN_EVERY_S = 0.5;
 const BIN_TOP = H - 210;      // divider tops
+const PEG_TOP = 190;          // peg field band
+const PEG_BOTTOM = BIN_TOP - 90;
 
 const CSS = `
 .rv-sorter { position: absolute; inset: 0; display: flex; }
@@ -30,6 +35,7 @@ const CSS = `
 export default {
   id: 'sorter',
   label: 'Marble Sorter',
+  order: 'roundRobin',
   glyph: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l6 6M20 4l-6 6"/><line x1="9" y1="20" x2="9" y2="15"/><line x1="15" y1="20" x2="15" y2="15"/></g><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>',
 
   create(host, ctx) {
@@ -44,6 +50,22 @@ export default {
     const t = ctx.bins.length;
     const binW = W / t;
     const timers = makeTimers();
+
+    // Pachinko peg field: staggered rows between funnel and bins.
+    const pegs = [];
+    {
+      const xStep = 96, yStep = (PEG_BOTTOM - PEG_TOP) / 5;
+      for (let row = 0; row < 6; row++) {
+        const y = PEG_TOP + row * yStep;
+        const offset = row % 2 === 0 ? 0 : xStep / 2;
+        for (let x = 52 + offset; x < W - 40; x += xStep) {
+          pegs.push({
+            x: x + (Math.random() - 0.5) * 10,
+            y: y + (Math.random() - 0.5) * 8,
+          });
+        }
+      }
+    }
     let rafId = 0;
     let simT = 0;
     let lastTs = 0;
@@ -82,14 +104,20 @@ export default {
     function spawn() {
       const i = spawned++;
       const a = ctx.assignments[i];
+      // Pachinko pour: enter from the top edge roughly over the target
+      // bin, with enough noise that the peg field decides the route.
+      const targetX = a.binIndex * binW + binW / 2;
+      const spread = Math.min(binW * 1.5, 360);
+      const x = Math.max(R + 4, Math.min(W - R - 4,
+        targetX + (Math.random() - 0.5) * spread));
       marbles.push({
         a: i,
         color: a.color,
         initials: a.initials,
         binIndex: a.binIndex,
-        x: W / 2 + (Math.random() - 0.5) * 120,
+        x,
         y: -R,
-        vx: (Math.random() - 0.5) * 160,
+        vx: (Math.random() - 0.5) * 200,
         vy: 40,
         rot: 0,
         mode: 'fall',
@@ -116,17 +144,40 @@ export default {
           }
           continue;
         }
-        // Falling: gravity + steering toward the assigned bin center.
+        // Falling: gravity everywhere; steering ramps in only BELOW
+        // the peg field so pegs own the chaos up top but every marble
+        // still funnels into its assigned bin at the bottom.
         const targetX = m.binIndex * binW + binW / 2;
-        let ax = (targetX - m.x) * STEER;
+        // Ramp from mid peg-field: pegs rule the top, the pull firms
+        // up through the lower rows, and it's decisive by the mouths.
+        const depth = Math.max(0, Math.min(1, (m.y - 320) / (BIN_TOP - 320)));
+        let ax = (targetX - m.x) * STEER * depth;
         if (ax > STEER_MAX) ax = STEER_MAX;
         if (ax < -STEER_MAX) ax = -STEER_MAX;
         m.vx += ax * dt;
-        m.vx *= 1 - Math.min(1, dt * 0.8); // light air drag keeps steering sane
+        m.vx *= 1 - Math.min(1, dt * (0.4 + depth * 1.2)); // drag grows with the steer
         m.vy += GRAVITY * dt;
         m.x += m.vx * dt;
         m.y += m.vy * dt;
         m.rot += (m.vx / R) * dt;
+        // Pegs — circle bounce, same feel as the race.
+        for (const p of pegs) {
+          const dx = m.x - p.x, dy = m.y - p.y;
+          const rr = R + PEG_R;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > 0 && d2 < rr * rr) {
+            const d = Math.sqrt(d2);
+            const nx = dx / d, ny = dy / d;
+            m.x = p.x + nx * rr;
+            m.y = p.y + ny * rr;
+            const vn = m.vx * nx + m.vy * ny;
+            if (vn < 0) {
+              m.vx -= (1 + PEG_BOUNCE) * vn * nx;
+              m.vy -= (1 + PEG_BOUNCE) * vn * ny;
+              if (vn < -60) p.hitT = simT;
+            }
+          }
+        }
         // Side walls.
         if (m.x < R) { m.x = R; m.vx = Math.abs(m.vx) * WALL_BOUNCE; }
         if (m.x > W - R) { m.x = W - R; m.vx = -Math.abs(m.vx) * WALL_BOUNCE; }
@@ -157,12 +208,16 @@ export default {
       // Field.
       g.fillStyle = 'rgb(24 27 44)';
       g.fillRect(0, 0, W, H);
-      // Funnel guides.
-      g.strokeStyle = 'rgb(205 211 222 / 0.8)';
-      g.lineWidth = 6;
       g.lineCap = 'round';
-      g.beginPath(); g.moveTo(0, 60); g.lineTo(W / 2 - 90, 190); g.stroke();
-      g.beginPath(); g.moveTo(W, 60); g.lineTo(W / 2 + 90, 190); g.stroke();
+      g.strokeStyle = 'rgb(205 211 222 / 0.8)';
+      // Peg field — brass posts; lit teal for a beat after a hit.
+      for (const p of pegs) {
+        const flash = simT - (p.hitT ?? -9) < 0.18;
+        g.fillStyle = 'rgb(140 104 36)';
+        g.beginPath(); g.arc(p.x, p.y, PEG_R, 0, Math.PI * 2); g.fill();
+        g.fillStyle = flash ? 'rgb(28 168 172)' : 'rgb(214 168 74)';
+        g.beginPath(); g.arc(p.x, p.y, PEG_R - 2, 0, Math.PI * 2); g.fill();
+      }
       // Bins: dividers + floor + labels.
       g.lineWidth = 5;
       for (let k = 0; k <= t; k++) {

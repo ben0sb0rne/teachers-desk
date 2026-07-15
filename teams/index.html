@@ -71,12 +71,28 @@
 
       <div class="setup-panel">
         <div class="setup-block">
-          <span class="setup-label">Split by</span>
-          <div class="setup-mode" role="group" aria-label="Split mode">
-            <button type="button" id="mode-size" class="mode-btn is-active" aria-pressed="true">Team size</button>
-            <button type="button" id="mode-count" class="mode-btn" aria-pressed="false">Number of teams</button>
-            <input type="number" id="split-value" min="2" max="99" value="4"
-                   aria-label="Team size or number of teams" />
+          <span class="setup-label">Absent today</span>
+          <div class="absent-row">
+            <select id="absent-select" aria-label="Mark a student absent">
+              <option value="">Mark absent…</option>
+            </select>
+            <div id="absent-chips" class="absent-chips"></div>
+          </div>
+        </div>
+
+        <div class="setup-block">
+          <span class="setup-label">Split the class</span>
+          <div class="split-modes" role="radiogroup" aria-label="How to split">
+            <label class="split-mode is-active" data-mode="size">
+              <input type="radio" name="split-mode" value="size" checked />
+              <span>Teams of</span>
+              <input type="number" id="size-value" min="2" max="99" value="4" aria-label="Students per team" />
+            </label>
+            <label class="split-mode" data-mode="count">
+              <input type="radio" name="split-mode" value="count" />
+              <input type="number" id="count-value" min="2" max="99" value="4" aria-label="Number of teams" />
+              <span>teams</span>
+            </label>
           </div>
         </div>
 
