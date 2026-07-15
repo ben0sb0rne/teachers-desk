@@ -1,10 +1,11 @@
 // =============================================================
 // shared/reveals/marble-sorter.js — pachinko sort: marbles pour from
-// a funnel, ricochet down a brass peg field, and drop into labeled
-// team bins. The pegs own the chaos; a steering force that only
-// wakes up BELOW the peg field guarantees each marble still lands in
-// its assigned bin (the drama is the route, not the destination —
-// assignments are decided before the pour).
+// a funnel and ricochet down a brass peg field (the chaos, the
+// suspense), then a SORTING LANE below the pegs homes each marble
+// into the bin the roster assigned it. The homing is a direct
+// position glide + a hard divider wall keyed to the assigned bin, so
+// what lands in each bin ALWAYS matches the team list — the physics
+// decides the route, never the destination.
 //
 // Uses the suite's shared glass-marble material (one paint entry
 // point in shared/components/marbles.js).
@@ -18,14 +19,13 @@ const H = 760;
 const R = 15;                 // marble radius (course units)
 const PEG_R = 8;
 const GRAVITY = 620;
-const STEER = 3.2;            // pull toward the assigned bin's x
-const STEER_MAX = 420;
+const MAX_FALL = 300;         // capped descent so the sort stays watchable
 const WALL_BOUNCE = 0.55;
 const PEG_BOUNCE = 0.62;
 const SPAWN_EVERY_S = 0.5;
 const BIN_TOP = H - 210;      // divider tops
-const PEG_TOP = 190;          // peg field band
-const PEG_BOTTOM = BIN_TOP - 90;
+const PEG_TOP = 170;          // peg field band
+const PEG_BOTTOM = BIN_TOP - 150; // sorting lane runs from here to BIN_TOP
 
 const CSS = `
 .rv-sorter { position: absolute; inset: 0; display: flex; }
@@ -73,7 +73,19 @@ export default {
     let landed = 0;
     let destroyed = false;
 
-    const marbles = []; // { a: assignment index, x, y, vx, vy, rot, calm, born, mode: 'fall'|'done' }
+    const marbles = []; // { a, x, y, vx, vy, rot, calm, born, targetX, mode: 'fall'|'done' }
+    // Per-bin arrival counter → each marble homes to a spread slot inside
+    // its bin (not the dead center), so a team lands as a tidy row rather
+    // than a single occluding stack.
+    const binArrived = new Array(t).fill(0);
+    function slotTargetX(binIndex) {
+      const size = ctx.bins[binIndex].size;
+      const slot = binArrived[binIndex]++;
+      const usable = binW - 2 * (R + 20);
+      const step = size > 1 ? usable / size : 0;
+      const offset = (slot + 0.5) * step - usable / 2;
+      return binIndex * binW + binW / 2 + offset;
+    }
 
     function fitCanvas() {
       const availW = Math.max(200, host.clientWidth - 8);
@@ -100,6 +112,7 @@ export default {
         color: a.color,
         initials: a.initials,
         binIndex: a.binIndex,
+        targetX: slotTargetX(a.binIndex),
         x,
         y: -R,
         vx: (Math.random() - 0.5) * 200,
@@ -116,27 +129,27 @@ export default {
       while (spawned < ctx.assignments.length && simT > spawned * SPAWN_EVERY_S) spawn();
       for (const m of marbles) {
         if (m.mode === 'done') continue;
-        // Falling: gravity everywhere; steering ramps in only BELOW
-        // the peg field so pegs own the chaos up top but every marble
-        // still funnels into its assigned bin at the bottom. Once a
-        // marble is INSIDE its bin the steering lets go entirely —
-        // the landing is pure physics, piling where it piles.
-        const targetX = m.binIndex * binW + binW / 2;
-        // Ramp from mid peg-field: pegs rule the top, the pull firms
-        // up through the lower rows, and it's decisive by the mouths.
-        const depth = m.y > BIN_TOP
-          ? 0
-          : Math.max(0, Math.min(1, (m.y - 320) / (BIN_TOP - 320)));
-        let ax = (targetX - m.x) * STEER * depth;
-        if (ax > STEER_MAX) ax = STEER_MAX;
-        if (ax < -STEER_MAX) ax = -STEER_MAX;
-        m.vx += ax * dt;
-        m.vx *= 1 - Math.min(1, dt * (0.4 + depth * 1.2)); // drag grows with the steer
+        const targetX = m.targetX;
         m.vy += GRAVITY * dt;
+        if (m.vy > MAX_FALL) m.vy = MAX_FALL;
+        // Above the pegs and inside them: free physics — the tumble.
+        // In the sorting lane (below the pegs) a direct glide homes the
+        // marble to its ASSIGNED bin's center, ramping from gentle at
+        // the top of the lane to decisive at the mouth. Convergence is
+        // guaranteed before BIN_TOP, so no marble crosses into a
+        // neighbor's bin.
+        // Homing acts ONLY in the lane (above the mouths). Once the
+        // marble drops into its bin it's free to pile naturally.
+        if (m.y > PEG_BOTTOM && m.y < BIN_TOP) {
+          const f = (m.y - PEG_BOTTOM) / (BIN_TOP - PEG_BOTTOM);
+          m.x += (targetX - m.x) * (0.10 + 0.28 * f);
+          m.vx *= 1 - 0.3 * f;
+        }
         m.x += m.vx * dt;
         m.y += m.vy * dt;
         m.rot += (m.vx / R) * dt;
-        // Pegs — circle bounce, same feel as the race.
+        // Pegs — circle bounce, same feel as the race. (They live above
+        // the sorting lane, so the tumble happens before the homing.)
         for (const p of pegs) {
           const dx = m.x - p.x, dy = m.y - p.y;
           const rr = R + PEG_R;
@@ -157,32 +170,13 @@ export default {
         // Side walls.
         if (m.x < R) { m.x = R; m.vx = Math.abs(m.vx) * WALL_BOUNCE; }
         if (m.x > W - R) { m.x = W - R; m.vx = -Math.abs(m.vx) * WALL_BOUNCE; }
-        // Divider caps — rounded tops so edge hits deflect naturally.
-        if (m.y > BIN_TOP - R * 2 && m.y < BIN_TOP + R) {
-          for (let k = 1; k < t; k++) {
-            const dx = m.x - k * binW, dy = m.y - BIN_TOP;
-            const rr = R + 5;
-            const d2 = dx * dx + dy * dy;
-            if (d2 > 0 && d2 < rr * rr) {
-              const d = Math.sqrt(d2);
-              const nx = dx / d, ny = dy / d;
-              m.x = k * binW + nx * rr;
-              m.y = BIN_TOP + ny * rr;
-              const vn = m.vx * nx + m.vy * ny;
-              if (vn < 0) {
-                m.vx -= (1 + WALL_BOUNCE) * vn * nx;
-                m.vy -= (1 + WALL_BOUNCE) * vn * ny;
-              }
-            }
-          }
-        }
-        // Inside the bins the dividers are real walls (of whichever
-        // bin the marble is actually over — no teleporting).
+        // Below the mouth, the dividers are hard walls of the marble's
+        // ASSIGNED bin — the guarantee that landings match the roster.
         if (m.y > BIN_TOP + R * 0.4) {
-          const k = Math.max(0, Math.min(t - 1, Math.floor(m.x / binW)));
-          const lo = k * binW + R + 4, hi = (k + 1) * binW - R - 4;
-          if (m.x < lo) { m.x = lo; m.vx = Math.abs(m.vx) * WALL_BOUNCE; }
-          if (m.x > hi) { m.x = hi; m.vx = -Math.abs(m.vx) * WALL_BOUNCE; }
+          const lo = m.binIndex * binW + R + 4;
+          const hi = (m.binIndex + 1) * binW - R - 4;
+          if (m.x < lo) { m.x = lo; if (m.vx < 0) m.vx = -m.vx * WALL_BOUNCE; }
+          if (m.x > hi) { m.x = hi; if (m.vx > 0) m.vx = -m.vx * WALL_BOUNCE; }
         }
         // Floor.
         const floorY = H - 6 - R;
