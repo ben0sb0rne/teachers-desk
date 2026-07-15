@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Team Maker · The Teacher's Desk</title>
+  <meta name="description" content="Team Maker — split any class into fair teams, then reveal them with a marble sorter, draft cards, gacha capsules, or a very serious algorithm. Part of The Teacher's Desk." />
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+      <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+        <span>The Teacher's Desk</span>
+      </a>
+      <a href="#" id="crumb-tool" hidden>Team Maker</a>
+      <span id="crumb-context" class="is-current" hidden></span>
+    </nav>
+    <div class="suite-topstrip-actions">
+      <button type="button" class="settings-button" id="btn-settings-topstrip"
+              aria-label="Settings" title="Settings (S)"></button>
+      <button type="button" id="btn-fullscreen"
+              title="Fullscreen (F)" aria-label="Enter fullscreen">
+        <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- SVG icon sprite (same fullscreen glyphs as the other tools). -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
+    <symbol id="icon-fullscreen"      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="icon-fullscreen-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+  </svg>
+
+  <main class="teams-main">
+
+    <!-- Class-select view -->
+    <section id="class-select-view" class="view">
+      <header class="view-header">
+        <h1>Pick a class</h1>
+        <p class="muted">Split any class into teams, then reveal them with a little ceremony.</p>
+      </header>
+      <div id="class-grid" class="teams-class-grid" aria-live="polite"></div>
+      <div id="class-empty" class="print-paper" hidden>
+        <p>No classes yet.</p>
+        <p class="muted">Create one in the Seating Chart or the Wheel first.</p>
+      </div>
+    </section>
+
+    <!-- Setup view: the math panel -->
+    <section id="setup-view" class="view" hidden>
+      <header class="view-header">
+        <h1 id="setup-class-name">&nbsp;</h1>
+        <p class="muted" id="setup-count-line"></p>
+      </header>
+
+      <div class="setup-panel">
+        <div class="setup-block">
+          <span class="setup-label">Split by</span>
+          <div class="setup-mode" role="group" aria-label="Split mode">
+            <button type="button" id="mode-size" class="mode-btn is-active" aria-pressed="true">Team size</button>
+            <button type="button" id="mode-count" class="mode-btn" aria-pressed="false">Number of teams</button>
+            <input type="number" id="split-value" min="2" max="99" value="4"
+                   aria-label="Team size or number of teams" />
+          </div>
+        </div>
+
+        <div class="setup-block">
+          <span class="setup-label">The math</span>
+          <div id="partition-options" class="partition-options" role="group" aria-label="Team layouts"></div>
+        </div>
+
+        <div class="setup-block">
+          <span class="setup-label">Reveal style</span>
+          <div id="reveal-styles" class="reveal-styles" role="group" aria-label="Reveal style"></div>
+        </div>
+
+        <div class="setup-actions">
+          <button type="button" id="btn-make" class="desk-button">Make teams</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reveal view: stage + team board -->
+    <section id="reveal-view" class="view view--reveal" hidden>
+      <header class="reveal-header">
+        <h1 id="reveal-class-name">&nbsp;</h1>
+        <div class="reveal-controls">
+          <button type="button" id="btn-run" class="desk-button">Reveal teams</button>
+          <button type="button" id="btn-reroll" class="desk-button is-ghost">Re-roll</button>
+          <button type="button" id="btn-back-setup" class="desk-button is-ghost">Setup</button>
+        </div>
+      </header>
+      <div class="reveal-stage-wrap">
+        <div id="reveal-stage" class="reveal-stage"></div>
+        <aside class="team-board" aria-live="polite">
+          <h2>Teams</h2>
+          <div id="team-columns"></div>
+        </aside>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

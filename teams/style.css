@@ -1,0 +1,257 @@
+/* =============================================================
+   teams/style.css — Team Maker.
+
+   Teacher-facing chrome (class select, the math panel) sits on the
+   suite's wood desk with paper panels. The reveal stage is a dark
+   window each reveal module dresses itself: the modules bring their
+   own worlds (felt table, toy machine, CRT, sorter field).
+   ============================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.teams-main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-5) var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+}
+
+.view-header {
+  color: rgb(var(--paper-on-wood));
+  margin-bottom: var(--space-5);
+  text-align: center;
+}
+.view-header h1 { margin: 0 0 var(--space-1); }
+.view-header p { margin: 0; }
+
+/* ── Class select — marble-pool cards (suite pattern) ────────── */
+#class-select-view, #setup-view {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.teams-class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-4);
+}
+.teams-class-card {
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  padding: var(--space-4);
+  font-family: var(--font-slab);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.teams-class-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.teams-class-card strong {
+  display: block;
+  font-size: var(--type-17);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.teams-class-card .count { display: block; font-size: var(--type-13); color: var(--ink-muted); }
+.teams-card-marbles {
+  display: block;
+  width: 100%;
+  margin: var(--space-3) 0;
+  background: rgb(246 238 216);
+  border: 1px solid rgb(var(--paper-edge) / 0.15);
+  border-radius: var(--radius-tight);
+}
+
+/* ── Setup — the math panel ──────────────────────────────────── */
+.setup-panel {
+  max-width: 720px;
+  margin: 0 auto;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  padding: var(--space-5);
+  font-family: var(--font-slab);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.setup-label {
+  display: block;
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+  border-bottom: 2px solid rgb(var(--paper-edge) / 0.2);
+  padding-bottom: 4px;
+}
+.setup-mode { display: flex; gap: var(--space-2); align-items: center; }
+.mode-btn {
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  font-weight: 700;
+  padding: 7px 14px;
+  background: transparent;
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+}
+.mode-btn.is-active {
+  background: rgb(var(--paper-edge));
+  color: rgb(var(--paper-cream));
+  border-color: rgb(var(--paper-edge));
+}
+#split-value {
+  width: 76px;
+  font-family: var(--font-slab);
+  font-size: var(--type-17);
+  font-weight: 700;
+  text-align: center;
+  padding: 5px 6px;
+  background: rgb(255 255 255 / 0.6);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius-tight);
+}
+
+.partition-options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.partition-card {
+  font-family: var(--font-slab);
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  background: rgb(255 255 255 / 0.5);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+}
+.partition-card strong { display: block; font-size: var(--type-15); }
+.partition-card span { display: block; font-size: var(--type-11); color: var(--ink-muted); }
+.partition-card.is-active {
+  border-color: rgb(var(--accent-blue, 40 90 160));
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-blue, 40 90 160) / 0.6);
+}
+.partition-note { font-size: var(--type-13); color: var(--ink-muted); margin: 0; }
+
+.reveal-styles { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.reveal-style-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  font-weight: 700;
+  padding: 8px 12px;
+  background: rgb(255 255 255 / 0.5);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+}
+.reveal-style-card svg { width: 20px; height: 20px; color: rgb(var(--paper-edge) / 0.7); }
+.reveal-style-card.is-active {
+  border-color: rgb(var(--accent-blue, 40 90 160));
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-blue, 40 90 160) / 0.6);
+}
+.setup-actions { display: flex; justify-content: flex-end; }
+
+/* ── Reveal — dark stage + team board ────────────────────────── */
+.view--reveal:not([hidden]) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.reveal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  color: rgb(var(--paper-on-wood));
+}
+.reveal-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--type-22);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.reveal-controls { display: flex; gap: var(--space-2); }
+
+.reveal-stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: var(--space-3);
+  overflow: hidden;
+}
+.reveal-stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;   /* reveal modules mount absolute inside */
+  background: rgb(18 20 32);
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.team-board {
+  width: 250px;
+  flex-shrink: 0;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.25);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  overflow-y: auto;
+  font-family: var(--font-slab);
+}
+.team-board h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-muted);
+  border-bottom: 2px solid rgb(var(--paper-edge) / 0.25);
+  padding-bottom: 4px;
+}
+.team-col { margin-bottom: var(--space-3); }
+.team-col h3 {
+  margin: 0 0 4px;
+  font-size: var(--type-13);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.team-col ul { margin: 0; padding: 0; list-style: none; font-size: var(--type-13); }
+.team-col li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.team-col li.is-empty { color: var(--ink-muted); }
+.team-col li.is-new { background: rgb(var(--paper-edge) / 0.08); }
+.team-col .dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+}

@@ -20,6 +20,7 @@ import {
   getClasses, getRoster, getClassName, incrementCallCount,
 } from '../shared/roster-bridge.js';
 import { mountSettingsButton } from '../shared/settings.js';
+import { marbleColor, initialsOf, paintMarble, paintPool } from '../shared/components/marbles.js';
 
 mountSettingsButton();
 
@@ -211,19 +212,6 @@ const TRACK_GLYPHS = {
   floors: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 7 10 11"/><polyline points="21 7 14 11"/><polyline points="3 15 12 19"/><polyline points="21 15 16 17.2"/></g></svg>',
   bumpers: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.8" fill="currentColor"/></svg>',
 };
-
-/* Distinct stable colors — golden-angle hue walk. */
-function marbleColor(i) {
-  return `hsl(${(i * 137.508) % 360} 72% 45%)`;
-}
-
-/* "Maya Rodriguez" → "MR", "Cher" → "C". */
-function initialsOf(name) {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? '?';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
-  return (first + last).toUpperCase();
-}
 
 function resetRace(newSeed) {
   cancelAnimationFrame(state.rafId);
@@ -571,43 +559,8 @@ function paintHub(s) {
   ctx.beginPath(); ctx.arc(s.cx, s.cy, 6.5, 0, Math.PI * 2); ctx.fill();
 }
 
-/* MATERIAL: glass marble — color body, shared gloss highlight,
-   initials. A glass/plastic texture would swap in here. */
-let marbleGloss = null;
-function ensureMarbleGloss() {
-  if (marbleGloss) return;
-  marbleGloss = ctx.createRadialGradient(
-    -MARBLE_R * 0.35, -MARBLE_R * 0.4, MARBLE_R * 0.1,
-    0, 0, MARBLE_R,
-  );
-  marbleGloss.addColorStop(0, 'rgb(255 255 255 / 0.75)');
-  marbleGloss.addColorStop(0.35, 'rgb(255 255 255 / 0.15)');
-  marbleGloss.addColorStop(1, 'rgb(0 0 0 / 0.18)');
-}
-
-/* Draws at the ORIGIN — callers translate (and optionally scale/fade)
-   first, so the same body serves live marbles and the finish sink. */
-function paintMarbleBody(m) {
-  ensureMarbleGloss();
-  ctx.fillStyle = m.color;
-  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
-  // Internal glass swirl — rotates with the roll (m.rot), under the
-  // gloss; the initials decal stays upright for readability.
-  ctx.save();
-  ctx.rotate(m.rot);
-  ctx.strokeStyle = 'rgb(255 255 255 / 0.3)';
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R * 0.52, 0.3, 1.8); ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R * 0.52, Math.PI + 0.3, Math.PI + 1.8); ctx.stroke();
-  ctx.restore();
-  ctx.fillStyle = marbleGloss;
-  ctx.beginPath(); ctx.arc(0, 0, MARBLE_R, 0, Math.PI * 2); ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgb(0 0 0 / 0.45)';
-  ctx.strokeText(m.initials, 0, 0.5);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(m.initials, 0, 0.5);
-}
+/* MATERIAL: glass marble — shared suite material, one paint entry
+   point for all tools: shared/components/marbles.js paintMarble. */
 
 function draw() {
   const cw = canvas.width, ch = canvas.height;
@@ -639,10 +592,6 @@ function draw() {
   }
 
   // Marbles with initials — the leaderboard's color dots are the full key.
-  ctx.font = `800 ${Math.round(MARBLE_R * 0.95)}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
   // Finishers sink through the slot: shrink + fade at the crossing point.
   for (const m of state.marbles) {
     if (!m.finished) continue;
@@ -653,7 +602,7 @@ function draw() {
     ctx.globalAlpha = 1 - t;
     ctx.translate(m.x, m.y + 9 * t);
     ctx.scale(s, s);
-    paintMarbleBody(m);
+    paintMarble(ctx, m, MARBLE_R);
     ctx.restore();
   }
 
@@ -661,11 +610,9 @@ function draw() {
     if (m.finished) continue;
     ctx.save();
     ctx.translate(m.x, m.y);
-    paintMarbleBody(m);
+    paintMarble(ctx, m, MARBLE_R);
     ctx.restore();
   }
-  ctx.textAlign = 'start';
-  ctx.textBaseline = 'alphabetic';
 
   // Impact sparks — white-hot core over an orange streak.
   ctx.lineCap = 'round';
@@ -712,47 +659,10 @@ function showClassSelect() {
       <span class="count">${n} student${n === 1 ? '' : 's'}</span>
     </button>`;
   }).join('');
-  // Paint each card's marble pool — the class IS its marbles, drawn at
-  // race scale with initials so the preview matches the course. Rows are
-  // centered; height fits the whole roster; the buffer is DPR-scaled so
-  // the initials stay crisp.
+  // Paint each card's marble pool — the class IS its marbles (shared
+  // suite pattern; see shared/components/marbles.js paintPool).
   grid.querySelectorAll('.race-class-card').forEach((card) => {
-    const names = getRoster(card.dataset.id);
-    const cv = card.querySelector('.race-card-marbles');
-    const R = 13;
-    const stepX = R * 2 + 8;
-    const stepY = R * 2 + 10;
-    const cssW = cv.clientWidth || 300;
-    const perRow = Math.max(1, Math.floor((cssW - 16) / stepX));
-    const rows = Math.max(1, Math.ceil(names.length / perRow));
-    const cssH = rows * stepY + 10;
-    const dpr = window.devicePixelRatio || 1;
-    cv.style.height = cssH + 'px';
-    cv.width = Math.round(cssW * dpr);
-    cv.height = Math.round(cssH * dpr);
-    const c2 = cv.getContext('2d');
-    c2.scale(dpr, dpr);
-    c2.font = `800 ${Math.round(R * 0.85)}px system-ui, sans-serif`;
-    c2.textAlign = 'center';
-    c2.textBaseline = 'middle';
-    c2.lineWidth = 2.5;
-    c2.strokeStyle = 'rgb(0 0 0 / 0.45)';
-    names.forEach((name, i) => {
-      const row = (i / perRow) | 0;
-      const inRow = Math.min(perRow, names.length - row * perRow);
-      const rowLeft = (cssW - inRow * stepX) / 2 + stepX / 2;
-      const x = rowLeft + (i % perRow) * stepX;
-      const wob = ((i * 7919) % 5) - 2; // deterministic wobble, no RNG needed
-      const y = 5 + stepY / 2 + row * stepY + wob;
-      c2.fillStyle = marbleColor(i);
-      c2.beginPath();
-      c2.arc(x, y, R, 0, Math.PI * 2);
-      c2.fill();
-      const init = initialsOf(name);
-      c2.strokeText(init, x, y + 0.5);
-      c2.fillStyle = '#fff';
-      c2.fillText(init, x, y + 0.5);
-    });
+    paintPool(card.querySelector('.race-card-marbles'), getRoster(card.dataset.id));
   });
 }
 
