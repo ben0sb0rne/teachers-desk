@@ -4,18 +4,22 @@
 // The classic head-to-head review game: the champion holds the seat,
 // the challenger stands. A bell rings, a flashcard shows a 3-second
 // mental-math question, first to answer takes the seat. The teacher
-// is the judge — tap the card to flip it and check the answer, tap a
-// fighter to declare the round.
+// is the judge — tap the card to flip it and check, tap a fighter to
+// declare the round.
 //
-// Questions come from the tool's own mental-math bank (sets/*.csv,
-// bingo CSV format, parsed by shared/problem-sets.js). Teacher can
-// select several categories; they're shuffled into one pool. Verbal
-// mode runs the structure with a generic QUESTION card.
+// Setup is the corner office: multi-select question sets (built-in
+// bank + uploaded/authored custom sets, all bingo CSV format via
+// shared/problem-sets.js), verbal mode, a DRAGGABLE fight order that
+// mirrors the literal walk around the room (persisted per class,
+// tap a student to sit them out today), first champion, and a ring
+// backdrop. Matches autosave per class — reopening the class offers
+// to pick up where you left off. A champion who beats every other
+// fighter in one reign sweeps the room and ends the match.
 //
 // Suite conventions: roster via the bridge, both fighters recorded
-// through incrementCallCount each round, prefs + records via shared
-// storage, visible mute toggle, Esc/Space/F/M grammar, borderless
-// fullscreen standard.
+// through incrementCallCount each round, prefs + records + saves in
+// tools.around-the-world, visible mute toggle, Esc/Space/F/M
+// grammar, borderless fullscreen standard.
 // =============================================================
 
 import { getRoster, getClassName, incrementCallCount } from '../shared/roster-bridge.js';
@@ -24,7 +28,7 @@ import {
 } from '../shared/storage.js';
 import { mountSettingsButton } from '../shared/settings.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
-import { loadProblemRows, fetchSetText, renderMathInto, warmMath } from '../shared/problem-sets.js';
+import { loadProblemRows, fetchSetText, parseCSVText, renderMathInto, warmMath } from '../shared/problem-sets.js';
 
 mountSettingsButton();
 
@@ -38,9 +42,15 @@ const SETS = [
   { id: 'fraction-compare',  label: 'Which fraction is greater?', path: 'sets/fraction-compare.csv' },
   { id: 'fraction-simplify', label: 'Simplify the fraction',      path: 'sets/fraction-simplify.csv' },
   { id: 'percents',          label: 'Percents',                   path: 'sets/percents.csv' },
-  { id: 'verbal',            label: 'Verbal — I’ll ask my own',   verbal: true },
 ];
-const setRowsCache = new Map(); // set id → rows [{problem, answer}]
+const BACKDROPS = [
+  { id: 'classic', label: 'Classic' },
+  { id: 'crimson', label: 'Crimson' },
+  { id: 'navy',    label: 'Navy' },
+  { id: 'slate',   label: 'Slate' },
+  { id: 'forest',  label: 'Forest' },
+];
+const setRowsCache = new Map(); // built-in id / 'custom:<id>' → rows
 
 const state = {
   classId: null,
@@ -49,18 +59,22 @@ const state = {
   selected: new Set(['multiplication']),
   verbal: false,
   championPick: '',      // '' = random
+  orderNames: [],        // full roster in fight order (persisted per class)
+  out: new Set(),        // sitting out today (session + saved with a match)
   // Game state
   pool: [],
   poolIdx: 0,
-  order: [],             // shuffled roster circle
+  order: [],             // present fighters, in fight order
   nextIdx: 0,
   champion: null,
   challenger: null,
   streak: 0,
+  beaten: new Set(),     // distinct opponents beaten in the current reign
   best: null,            // { name, streak } best this game
   phase: 'idle',         // idle | question | revealed
   running: false,
 };
+let hintsRetired = false; // "tap to…" copy leaves after the first flip
 
 const shuffled = (arr) => {
   const a = arr.slice();
@@ -70,6 +84,57 @@ const shuffled = (arr) => {
   }
   return a;
 };
+
+/* ── Tool storage (orders / custom sets / saves / records) ──── */
+function toolBlob() { return getToolState('around-the-world') ?? {}; }
+function patchTool(patch) { setToolState('around-the-world', { ...toolBlob(), ...patch }); }
+
+function savedOrderFor(classId) { return toolBlob().orders?.[classId] ?? null; }
+function persistOrder() {
+  const orders = { ...(toolBlob().orders ?? {}) };
+  orders[state.classId] = state.orderNames.slice();
+  patchTool({ orders });
+}
+
+function customSets() { return toolBlob().customSets ?? []; }
+function upsertCustomSet(entry) {
+  const sets = customSets().slice();
+  const i = sets.findIndex((s) => s.id === entry.id);
+  if (i >= 0) sets[i] = entry; else sets.push(entry);
+  patchTool({ customSets: sets });
+}
+function deleteCustomSet(id) {
+  patchTool({ customSets: customSets().filter((s) => s.id !== id) });
+  state.selected.delete('custom:' + id);
+  setRowsCache.delete('custom:' + id);
+}
+
+function savedMatchFor(classId) { return toolBlob().saves?.[classId] ?? null; }
+function persistMatch() {
+  if (!state.running) return;
+  const saves = { ...(toolBlob().saves ?? {}) };
+  saves[state.classId] = {
+    at: new Date().toISOString(),
+    selected: [...state.selected],
+    verbal: state.verbal,
+    orderNames: state.orderNames.slice(),
+    out: [...state.out],
+    champion: state.champion,
+    challenger: state.challenger,
+    nextIdx: state.nextIdx,
+    streak: state.streak,
+    beaten: [...state.beaten],
+    best: state.best,
+  };
+  patchTool({ saves });
+}
+function clearMatchSave() {
+  const saves = { ...(toolBlob().saves ?? {}) };
+  if (saves[state.classId]) {
+    delete saves[state.classId];
+    patchTool({ saves });
+  }
+}
 
 /* ── Synth — bell + winner sting (WebAudio, no assets; the real
    samples arrive with the asset pass). Honors suite soundMuted. ── */
@@ -86,7 +151,7 @@ const synth = (() => {
     return ac;
   }
   function strike(c, t0, v) {
-    // MATERIAL(sound): boxing bell — two bright partials, hard attack,
+    // MATERIAL(sound): boxing bell — bright partials, hard attack,
     // long ring-out.
     for (const [f, g] of [[1046, 1], [1568, 0.6], [2093, 0.25]]) {
       const osc = c.createOscillator();
@@ -170,39 +235,92 @@ function openSetup(classId) {
   state.className = getClassName(classId) || '(unnamed)';
   state.roster = getRoster(classId);
   if (state.roster.length < 2) return;
+
+  // Fight order: saved order, pruned to the live roster, new students
+  // appended at the end.
+  const saved = savedOrderFor(classId) ?? [];
+  const inRoster = new Set(state.roster);
+  state.orderNames = [
+    ...saved.filter((n) => inRoster.has(n)),
+    ...state.roster.filter((n) => !saved.includes(n)),
+  ];
+  state.out = new Set();
+
   document.getElementById('setup-class-name').textContent = state.className;
-  const sel = document.getElementById('champion-select');
-  sel.innerHTML = '<option value="">Random</option>' +
-    state.roster.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
-  sel.value = state.championPick && state.roster.includes(state.championPick) ? state.championPick : '';
   showView('setup-view');
+  renderResumeBanner();
   renderSetCards();
+  renderOrderCards();
+  renderChampionSelect();
+  renderBackdropCards();
   refreshPool();
+  // Eager-load every set so the counts are real, not "…".
+  for (const s of SETS) ensureSetLoaded(s.id);
+  for (const c of customSets()) ensureSetLoaded('custom:' + c.id);
+}
+
+function renderResumeBanner() {
+  const banner = document.getElementById('resume-banner');
+  const save = savedMatchFor(state.classId);
+  banner.hidden = !save;
+  if (save) {
+    const when = new Date(save.at);
+    const nice = when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+      ' ' + when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    document.getElementById('resume-text').textContent =
+      `${save.champion} was defending the seat (${save.streak} in a row) — saved ${nice}.`;
+  }
+}
+
+/* Set cards: built-ins + custom sets. */
+function allSetDefs() {
+  return [
+    ...SETS,
+    ...customSets().map((c) => ({
+      id: 'custom:' + c.id,
+      label: c.name,
+      custom: c,
+    })),
+  ];
 }
 
 function renderSetCards() {
   const host = document.getElementById('set-cards');
-  host.innerHTML = SETS.map((s) => {
-    const active = s.verbal ? state.verbal : (!state.verbal && state.selected.has(s.id));
-    const disabled = !s.verbal && state.verbal;
+  host.innerHTML = allSetDefs().map((s) => {
+    const active = !state.verbal && state.selected.has(s.id);
+    const disabled = state.verbal;
     const rows = setRowsCache.get(s.id);
-    const count = s.verbal ? 'the structure only' : (rows ? `${rows.length} questions` : '…');
+    const count = rows ? `${rows.length} questions` : '…';
+    const actions = s.custom
+      ? `<span class="set-card-actions">
+           <button type="button" data-edit="${s.custom.id}" aria-label="Edit ${escHtml(s.label)}">Edit</button>
+           <button type="button" data-del="${s.custom.id}" aria-label="Delete ${escHtml(s.label)}">&times;</button>
+         </span>`
+      : '';
     return `<button type="button" class="set-card${active ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}" data-id="${s.id}">
-      <strong>${escHtml(s.label)}</strong><span>${count}</span>
+      <strong>${escHtml(s.label)}</strong><span>${count}</span>${actions}
     </button>`;
   }).join('');
+  document.getElementById('verbal-check').checked = state.verbal;
 }
 
 async function ensureSetLoaded(id) {
-  if (setRowsCache.has(id)) return;
-  const set = SETS.find((s) => s.id === id);
-  if (!set || set.verbal) return;
+  if (setRowsCache.has(id)) { renderSetCards(); refreshPool(); return; }
   try {
-    const text = await fetchSetText(set.path);
+    let text;
+    if (id.startsWith('custom:')) {
+      const c = customSets().find((s) => 'custom:' + s.id === id);
+      if (!c) return;
+      text = c.csv;
+    } else {
+      const set = SETS.find((s) => s.id === id);
+      if (!set) return;
+      text = await fetchSetText(set.path);
+    }
     const { rows } = loadProblemRows(text, { required: ['problem', 'answer'] });
     setRowsCache.set(id, rows);
   } catch (e) {
-    console.error(`Around the World: could not load ${set.path}`, e);
+    console.error(`Around the World: could not load set ${id}`, e);
     setRowsCache.set(id, []);
   }
   renderSetCards();
@@ -212,9 +330,14 @@ async function ensureSetLoaded(id) {
 function refreshPool() {
   const line = document.getElementById('pool-line');
   const enter = document.getElementById('btn-enter-ring');
+  const present = state.orderNames.filter((n) => !state.out.has(n));
+  const enoughFighters = present.length >= 2;
+  document.getElementById('order-line').textContent =
+    `${present.length} fighting${state.out.size ? ` · ${state.out.size} sitting out` : ''}`;
+
   if (state.verbal) {
     line.textContent = 'Verbal mode — you ask the questions; the card just keeps the ceremony.';
-    enter.disabled = false;
+    enter.disabled = !enoughFighters;
     return;
   }
   const chosen = [...state.selected];
@@ -228,51 +351,269 @@ function refreshPool() {
   line.textContent = loaded.length < chosen.length
     ? 'Loading questions…'
     : `${total} questions in the pool, shuffled together.`;
-  enter.disabled = loaded.length < chosen.length || total === 0;
+  enter.disabled = loaded.length < chosen.length || total === 0 || !enoughFighters;
 }
 
 document.getElementById('set-cards').addEventListener('click', (e) => {
-  const card = e.target.closest('.set-card');
-  if (!card) return;
-  const set = SETS.find((s) => s.id === card.dataset.id);
-  if (!set) return;
-  if (set.verbal) {
-    state.verbal = !state.verbal;
-  } else {
-    if (state.verbal) return; // sets are parked while verbal is on
-    if (state.selected.has(set.id)) state.selected.delete(set.id);
-    else {
-      state.selected.add(set.id);
-      ensureSetLoaded(set.id);
+  const edit = e.target.closest('button[data-edit]');
+  if (edit) { e.stopPropagation(); openSetEditor(edit.dataset.edit); return; }
+  const del = e.target.closest('button[data-del]');
+  if (del) {
+    e.stopPropagation();
+    const c = customSets().find((s) => s.id === del.dataset.del);
+    if (c && confirm(`Delete "${c.name}"?`)) {
+      deleteCustomSet(del.dataset.del);
+      renderSetCards();
+      refreshPool();
     }
+    return;
+  }
+  const card = e.target.closest('.set-card');
+  if (!card || state.verbal) return;
+  const id = card.dataset.id;
+  if (state.selected.has(id)) state.selected.delete(id);
+  else {
+    state.selected.add(id);
+    ensureSetLoaded(id);
   }
   renderSetCards();
   refreshPool();
 });
 
+document.getElementById('verbal-check').addEventListener('change', (e) => {
+  state.verbal = e.target.checked;
+  renderSetCards();
+  refreshPool();
+});
+
+/* ── Custom sets: upload + editor ───────────────────────────── */
+function showSetError(msg) {
+  const el = document.getElementById('set-error');
+  el.textContent = msg ?? '';
+  el.hidden = !msg;
+}
+
+document.getElementById('btn-upload-set').addEventListener('click', () => {
+  document.getElementById('set-file-input').click();
+});
+document.getElementById('set-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  showSetError(null);
+  const text = await file.text();
+  const { rows, errors } = loadProblemRows(text, { required: ['problem', 'answer'] });
+  if (rows.length === 0) {
+    showSetError(`Couldn't use "${file.name}": ${errors[0] ?? 'no usable rows'}`);
+    return;
+  }
+  const id = 'up-' + Date.now().toString(36);
+  const name = file.name.replace(/\.csv$/i, '');
+  upsertCustomSet({ id, name, csv: text, savedAt: new Date().toISOString() });
+  setRowsCache.set('custom:' + id, rows);
+  state.selected.add('custom:' + id);
+  renderSetCards();
+  refreshPool();
+});
+
+/** Lean set editor — name + problem/answer rows, saved to the tool's
+ *  custom sets in the same CSV format uploads use (LaTeX welcome). */
+function openSetEditor(editId = null) {
+  const existing = editId ? customSets().find((s) => s.id === editId) : null;
+  const startRows = existing
+    ? loadProblemRows(existing.csv, { required: ['problem', 'answer'] }).rows
+    : [{ problem: '', answer: '' }, { problem: '', answer: '' }, { problem: '', answer: '' }];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'suite-overlay';
+  overlay.innerHTML = `
+    <div class="suite-panel atw-editor" role="dialog" aria-modal="true" aria-label="Design a question set">
+      <div class="suite-panel-header"><h2>${existing ? 'Edit set' : 'Design a set'}</h2>
+      <button type="button" class="suite-panel-close" aria-label="Close">&times;</button></div>
+      <div class="suite-panel-body">
+        <label style="display:block;margin-bottom:var(--space-3)">
+          <span style="display:block;font-size:var(--type-11);font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Set name</span>
+          <input type="text" id="ed-name" class="modal-input" style="width:100%" placeholder="e.g. Squares to 15" value="${existing ? escHtml(existing.name) : ''}">
+        </label>
+        <div id="ed-rows"></div>
+        <button type="button" class="set-tool-btn" id="ed-add">+ Add a question</button>
+        <p class="block-hint" style="margin-top:var(--space-2)">LaTeX works in both fields — e.g. \\frac{3}{4}.</p>
+        <p class="pool-line is-error" id="ed-error" hidden></p>
+        <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-3)">
+          <button type="button" class="desk-button is-ghost" data-act="cancel">Cancel</button>
+          <button type="button" class="desk-button" data-act="save">Save set</button>
+        </div>
+      </div>
+    </div>`;
+  const rowsHost = overlay.querySelector('#ed-rows');
+  const addRow = (p = '', a = '') => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:6px;align-items:center';
+    row.innerHTML = `
+      <input type="text" class="modal-input ed-q" placeholder="Problem" style="flex:1.4" value="${escHtml(p)}">
+      <input type="text" class="modal-input ed-a" placeholder="Answer" style="flex:1" value="${escHtml(a)}">
+      <button type="button" class="set-tool-btn ed-del" aria-label="Remove row">&times;</button>`;
+    row.querySelector('.ed-del').addEventListener('click', () => row.remove());
+    rowsHost.appendChild(row);
+  };
+  startRows.forEach((r) => addRow(r.problem, r.answer));
+  overlay.querySelector('#ed-add').addEventListener('click', () => addRow());
+
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) return close();
+    const btn = e.target.closest('.suite-panel-close, [data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'save') {
+      const name = overlay.querySelector('#ed-name').value.trim() || 'My set';
+      const rows = [...rowsHost.children].map((row) => ({
+        problem: row.querySelector('.ed-q').value.trim(),
+        answer: row.querySelector('.ed-a').value.trim(),
+      })).filter((r) => r.problem && r.answer);
+      if (rows.length === 0) {
+        const err = overlay.querySelector('#ed-error');
+        err.textContent = 'Add at least one complete question.';
+        err.hidden = false;
+        return;
+      }
+      const cols = ['B', 'I', 'N', 'G', 'O'];
+      const q = (s) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+      const csv = 'column,problem,answer\n' +
+        rows.map((r, i) => `${cols[i % 5]},${q(r.problem)},${q(r.answer)}`).join('\n') + '\n';
+      const id = existing?.id ?? ('ed-' + Date.now().toString(36));
+      upsertCustomSet({ id, name, csv, savedAt: new Date().toISOString() });
+      setRowsCache.set('custom:' + id, rows);
+      state.selected.add('custom:' + id);
+      renderSetCards();
+      refreshPool();
+      close();
+    } else {
+      close();
+    }
+  });
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.querySelector('#ed-name').focus(), 0);
+}
+document.getElementById('btn-new-set').addEventListener('click', () => openSetEditor());
+
+/* ── Fight order: drag to reorder, tap to sit out ───────────── */
+let dragName = null;
+
+function renderOrderCards() {
+  const host = document.getElementById('order-cards');
+  let n = 0;
+  host.innerHTML = state.orderNames.map((name) => {
+    const out = state.out.has(name);
+    if (!out) n++;
+    return `<span class="order-card${out ? ' is-out' : ''}" draggable="true" data-name="${escHtml(name)}" role="button" tabindex="0"
+      aria-label="${escHtml(name)}${out ? ' (sitting out)' : `, position ${n}`}">
+      <span class="order-num">${out ? '' : n}</span>${escHtml(name)}
+    </span>`;
+  }).join('');
+}
+
+{
+  const host = document.getElementById('order-cards');
+  host.addEventListener('click', (e) => {
+    const card = e.target.closest('.order-card');
+    if (!card || dragName) return;
+    const name = card.dataset.name;
+    if (state.out.has(name)) state.out.delete(name);
+    else state.out.add(name);
+    renderOrderCards();
+    renderChampionSelect();
+    refreshPool();
+  });
+  host.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.order-card');
+    if (!card) return;
+    dragName = card.dataset.name;
+    card.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', dragName); } catch (err) { void err; }
+  });
+  host.addEventListener('dragover', (e) => {
+    if (!dragName) return;
+    e.preventDefault();
+    const card = e.target.closest('.order-card');
+    host.querySelectorAll('.is-drop-target').forEach((c) => c.classList.remove('is-drop-target'));
+    if (card && card.dataset.name !== dragName) card.classList.add('is-drop-target');
+  });
+  host.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const card = e.target.closest('.order-card');
+    if (dragName && card && card.dataset.name !== dragName) {
+      const from = state.orderNames.indexOf(dragName);
+      let to = state.orderNames.indexOf(card.dataset.name);
+      state.orderNames.splice(from, 1);
+      if (from < to) to--;
+      // Drop BEFORE the target when coming from the right, AFTER when
+      // coming from the left — reads as "insert where I pointed".
+      state.orderNames.splice(from < to + 1 ? to + 1 : to, 0, dragName);
+      persistOrder();
+    }
+    endDrag();
+  });
+  host.addEventListener('dragend', endDrag);
+  function endDrag() {
+    dragName = null;
+    document.querySelectorAll('.order-card.is-dragging, .order-card.is-drop-target')
+      .forEach((c) => c.classList.remove('is-dragging', 'is-drop-target'));
+    renderOrderCards();
+    renderChampionSelect();
+    refreshPool();
+  }
+}
+
+function renderChampionSelect() {
+  const sel = document.getElementById('champion-select');
+  const present = state.orderNames.filter((n) => !state.out.has(n));
+  sel.innerHTML = '<option value="">Random</option>' +
+    present.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  sel.value = state.championPick && present.includes(state.championPick) ? state.championPick : '';
+}
 document.getElementById('champion-select').addEventListener('change', (e) => {
   state.championPick = e.target.value;
 });
 
+/* ── Ring backdrop ──────────────────────────────────────────── */
+function renderBackdropCards() {
+  const current = getPreference('atw.backdrop', 'classic');
+  document.getElementById('backdrop-cards').innerHTML = BACKDROPS.map((b) => `
+    <button type="button" class="backdrop-card${b.id === current ? ' is-active' : ''}"
+      data-id="${b.id}" data-label="${b.label}" aria-label="${b.label} backdrop"></button>`).join('');
+  document.body.setAttribute('data-ring-backdrop', current);
+}
+document.getElementById('backdrop-cards').addEventListener('click', (e) => {
+  const card = e.target.closest('.backdrop-card');
+  if (!card) return;
+  setPreference('atw.backdrop', card.dataset.id);
+  renderBackdropCards();
+});
+
 /* ── The game ───────────────────────────────────────────────── */
-function enterRing() {
-  // Build the pool.
-  if (!state.verbal) {
-    state.pool = shuffled([...state.selected].flatMap((id) => setRowsCache.get(id) ?? []));
-    if (state.pool.length === 0) return;
-    warmMath(state.pool.flatMap((r) => [r.problem, r.answer]));
-  } else {
-    state.pool = [];
-  }
+function buildPool() {
+  if (state.verbal) { state.pool = []; state.poolIdx = 0; return; }
+  state.pool = shuffled([...state.selected].flatMap((id) => setRowsCache.get(id) ?? []));
   state.poolIdx = 0;
-  // The circle: shuffled once per game. Champion steps out of it.
-  state.order = shuffled(state.roster);
-  state.champion = state.championPick && state.roster.includes(state.championPick)
+  warmMath(state.pool.flatMap((r) => [r.problem, r.answer]));
+}
+
+function enterRing() {
+  const present = state.orderNames.filter((n) => !state.out.has(n));
+  if (present.length < 2) return;
+  buildPool();
+  if (!state.verbal && state.pool.length === 0) return;
+  state.order = present;
+  state.champion = state.championPick && present.includes(state.championPick)
     ? state.championPick
-    : state.order[0];
+    : present[(Math.random() * present.length) | 0];
   state.nextIdx = 0;
   state.challenger = nextChallenger();
   state.streak = 0;
+  state.beaten = new Set();
   state.best = null;
   state.phase = 'idle';
   state.running = true;
@@ -280,6 +621,52 @@ function enterRing() {
   document.getElementById('end-card').hidden = true;
   showView('ring-view');
   renderRing();
+  persistMatch();
+}
+
+function resumeMatch() {
+  const save = savedMatchFor(state.classId);
+  if (!save) return;
+  const inRoster = new Set(state.roster);
+  state.selected = new Set(save.selected.filter((id) =>
+    id.startsWith('custom:') ? customSets().some((c) => 'custom:' + c.id === id)
+      : SETS.some((s) => s.id === id)));
+  state.verbal = save.verbal;
+  state.orderNames = [
+    ...save.orderNames.filter((n) => inRoster.has(n)),
+    ...state.roster.filter((n) => !save.orderNames.includes(n)),
+  ];
+  state.out = new Set(save.out.filter((n) => inRoster.has(n)));
+  const present = state.orderNames.filter((n) => !state.out.has(n));
+  if (present.length < 2 || !present.includes(save.champion)) {
+    // The room changed too much — a stale save can't drive a match.
+    clearMatchSave();
+    renderResumeBanner();
+    return;
+  }
+  const finish = () => {
+    buildPool();
+    state.order = present;
+    state.champion = save.champion;
+    state.nextIdx = save.nextIdx;
+    state.streak = save.streak;
+    state.beaten = new Set(save.beaten.filter((n) => present.includes(n)));
+    state.best = save.best;
+    // The saved challenger was already drawn — restore, don't redraw
+    // (redrawing would skip them). Redraw only if they're now absent.
+    state.challenger = save.challenger && present.includes(save.challenger)
+      ? save.challenger
+      : nextChallenger();
+    state.phase = 'idle';
+    state.running = true;
+    document.getElementById('ring-class-name').textContent = state.className;
+    document.getElementById('end-card').hidden = true;
+    showView('ring-view');
+    renderRing();
+  };
+  if (state.verbal) { finish(); return; }
+  // Make sure every selected set is loaded before the pool builds.
+  Promise.all([...state.selected].map((id) => ensureSetLoaded(id))).then(finish);
 }
 
 function nextChallenger() {
@@ -288,11 +675,10 @@ function nextChallenger() {
     state.nextIdx++;
     if (name !== state.champion) return name;
   }
-  return null; // roster of 1 can't happen (guarded at setup)
+  return null;
 }
 
 function fitPlateName(el) {
-  // Shrink to one line inside the plate.
   el.style.fontSize = '';
   const max = el.parentElement.clientWidth - 24;
   let px = parseFloat(getComputedStyle(el).fontSize);
@@ -317,13 +703,15 @@ function renderRing({ enteringChallenger = false } = {}) {
   document.getElementById('plate-chall').disabled = !inRound;
   document.getElementById('btn-bell').hidden = inRound;
   document.getElementById('btn-skip').hidden = !inRound || state.verbal;
-  const card = document.getElementById('flash-card');
-  card.hidden = !inRound;
+  document.getElementById('flash-card').hidden = !inRound;
 
+  // The coaching copy retires once the teacher has flipped a card.
   const hint = document.getElementById('ring-hint');
-  if (!inRound) hint.textContent = 'Ring the bell to start the round';
+  if (hintsRetired) hint.textContent = '';
+  else if (!inRound) hint.textContent = 'Ring the bell to start the round';
   else if (state.phase === 'question') hint.textContent = state.verbal ? 'Ask away — tap the winner' : 'Tap the card to check the answer · tap the winner';
   else hint.textContent = 'Tap the winner';
+  document.querySelector('.flash-flip-hint').hidden = hintsRetired;
 
   if (enteringChallenger) {
     const plate = document.getElementById('plate-chall');
@@ -333,26 +721,30 @@ function renderRing({ enteringChallenger = false } = {}) {
   }
 }
 
+function dealQuestion() {
+  const q = document.getElementById('flash-question');
+  const a = document.getElementById('flash-answer');
+  if (state.verbal) {
+    q.textContent = 'QUESTION';
+    a.textContent = 'YOUR CALL, REF';
+    return;
+  }
+  if (state.poolIdx >= state.pool.length) {
+    state.pool = shuffled(state.pool);
+    state.poolIdx = 0;
+  }
+  const row = state.pool[state.poolIdx++];
+  renderMathInto(q, row.problem);
+  renderMathInto(a, row.answer);
+}
+
 function ringBell() {
   if (state.phase !== 'idle' || !state.running) return;
   state.phase = 'question';
   synth.bell();
   const card = document.getElementById('flash-card');
   card.classList.remove('is-flipped');
-  const q = document.getElementById('flash-question');
-  const a = document.getElementById('flash-answer');
-  if (state.verbal) {
-    q.textContent = 'QUESTION';
-    a.textContent = 'YOUR CALL, REF';
-  } else {
-    if (state.poolIdx >= state.pool.length) {
-      state.pool = shuffled(state.pool);
-      state.poolIdx = 0;
-    }
-    const row = state.pool[state.poolIdx++];
-    renderMathInto(q, row.problem);
-    renderMathInto(a, row.answer);
-  }
+  dealQuestion();
   card.hidden = false;
   card.classList.remove('is-dealt');
   void card.getBoundingClientRect();
@@ -364,6 +756,7 @@ function flipCard() {
   if (state.phase === 'question') {
     state.phase = 'revealed';
     document.getElementById('flash-card').classList.add('is-flipped');
+    hintsRetired = true; // they know the move now
     renderRing();
   } else if (state.phase === 'revealed') {
     state.phase = 'question';
@@ -376,22 +769,12 @@ function skipQuestion() {
   if (state.phase === 'idle' || state.verbal) return;
   state.phase = 'question';
   document.getElementById('flash-card').classList.remove('is-flipped');
-  const q = document.getElementById('flash-question');
-  const a = document.getElementById('flash-answer');
-  if (state.poolIdx >= state.pool.length) {
-    state.pool = shuffled(state.pool);
-    state.poolIdx = 0;
-  }
-  const row = state.pool[state.poolIdx++];
-  renderMathInto(q, row.problem);
-  renderMathInto(a, row.answer);
+  dealQuestion();
   renderRing();
 }
 
 function declareWinner(side) {
   if (state.phase === 'idle' || !state.running) return;
-  const winner = side === 'champ' ? state.champion : state.challenger;
-  const loser  = side === 'champ' ? state.challenger : state.champion;
   // Suite convention: both fighters participated in the round.
   incrementCallCount(state.classId, state.champion);
   incrementCallCount(state.classId, state.challenger);
@@ -399,41 +782,48 @@ function declareWinner(side) {
 
   if (side === 'champ') {
     state.streak++;
+    state.beaten.add(state.challenger);
   } else {
+    // New reign: the dethroned champion is the first name on the list.
+    const dethroned = state.champion;
     state.champion = state.challenger;
     state.streak = 1;
+    state.beaten = new Set([dethroned]);
   }
+
   if (!state.best || state.streak > state.best.streak) {
     state.best = { name: state.champion, streak: state.streak };
   }
-  void winner; void loser;
+
+  // Swept the room: beaten every other present fighter in one reign.
+  if (state.beaten.size >= state.order.length - 1) {
+    persistMatch();
+    endGame({ sweep: true });
+    return;
+  }
 
   state.challenger = nextChallenger();
   state.phase = 'idle';
   document.getElementById('flash-card').classList.remove('is-flipped');
   renderRing({ enteringChallenger: true });
+  persistMatch();
 }
 
 /* ── End game + records ─────────────────────────────────────── */
 function loadRecords() {
-  return getToolState('around-the-world')?.records ?? {};
+  return toolBlob().records ?? {};
 }
-
 function saveRecord(classId, entry) {
-  const tool = getToolState('around-the-world') ?? {};
-  const records = { ...(tool.records ?? {}) };
-  records[classId] = entry;
-  setToolState('around-the-world', { ...tool, records });
+  patchTool({ records: { ...(toolBlob().records ?? {}), [classId]: entry } });
 }
 
-function endGame() {
+function endGame({ sweep = false } = {}) {
   if (!state.running) return;
-  const champ = state.best ?? (state.streak > 0
-    ? { name: state.champion, streak: state.streak }
-    : { name: state.champion, streak: 0 });
+  const champ = state.best ?? { name: state.champion, streak: state.streak };
   document.getElementById('end-name').textContent = champ.name ?? '—';
-  document.getElementById('end-streak').textContent =
-    `${champ.streak} SEAT${champ.streak === 1 ? '' : 'S'}`;
+  document.getElementById('end-streak').textContent = sweep
+    ? `BEAT THE WHOLE ROOM — ${champ.streak} SEAT${champ.streak === 1 ? '' : 'S'}`
+    : `${champ.streak} SEAT${champ.streak === 1 ? '' : 'S'}`;
 
   const recordEl = document.getElementById('end-record');
   const prev = loadRecords()[state.classId];
@@ -448,29 +838,43 @@ function endGame() {
     recordEl.textContent = '';
   }
   state.running = false;
+  clearMatchSave();
   document.getElementById('end-card').hidden = false;
 }
 
 /* ── Wiring ─────────────────────────────────────────────────── */
-document.getElementById('btn-enter-ring').addEventListener('click', enterRing);
+document.getElementById('btn-enter-ring').addEventListener('click', () => {
+  clearMatchSave(); // an explicit fresh start replaces any waiting match
+  enterRing();
+});
+document.getElementById('btn-resume').addEventListener('click', resumeMatch);
+document.getElementById('btn-fresh').addEventListener('click', () => {
+  clearMatchSave();
+  renderResumeBanner();
+});
 document.getElementById('btn-bell').addEventListener('click', ringBell);
 document.getElementById('flash-card').addEventListener('click', flipCard);
 document.getElementById('btn-skip').addEventListener('click', skipQuestion);
 document.getElementById('plate-champ').addEventListener('click', () => declareWinner('champ'));
 document.getElementById('plate-chall').addEventListener('click', () => declareWinner('chall'));
-document.getElementById('btn-end-game').addEventListener('click', endGame);
+document.getElementById('btn-end-game').addEventListener('click', () => endGame());
 document.getElementById('btn-rematch').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
   enterRing();
 });
 document.getElementById('btn-change-setup').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
+  state.running = false;
   showView('setup-view');
+  renderResumeBanner();
   renderSetCards();
+  renderOrderCards();
+  renderChampionSelect();
   refreshPool();
 });
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
+  persistMatch(); // leaving mid-match keeps it waiting
   showClassSelect();
 });
 
@@ -513,12 +917,12 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('keydown', (e) => {
   if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (document.querySelector('.suite-overlay')) return; // editor open
   const inRing = !document.getElementById('ring-view').hidden;
   const inSetup = !document.getElementById('setup-view').hidden;
   const endOpen = !document.getElementById('end-card').hidden;
 
   if (e.key === ' ' && inRing && !endOpen) {
-    // Space is the contextual primary: bell, then flip.
     e.preventDefault();
     if (state.phase === 'idle') ringBell();
     else flipCard();
@@ -528,10 +932,11 @@ document.addEventListener('keydown', (e) => {
       declareWinner(e.key === 'ArrowLeft' ? 'champ' : 'chall');
     }
   } else if (e.key === 'Escape') {
-    if (document.fullscreenElement) return; // native exit first
+    if (document.fullscreenElement) return;
     if (endOpen) {
       document.getElementById('end-card').hidden = true;
-      showView('setup-view'); renderSetCards(); refreshPool();
+      showView('setup-view');
+      renderResumeBanner(); renderSetCards(); renderOrderCards(); renderChampionSelect(); refreshPool();
     } else if (inRing) {
       endGame();
     } else if (inSetup) {
@@ -551,7 +956,6 @@ function escHtml(s) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 }
+void parseCSVText; // (kept for future import tooling)
 
-// Preload the default set so the pool line fills in quickly.
-ensureSetLoaded('multiplication');
 showClassSelect();

@@ -76,17 +76,49 @@
       </header>
 
       <div class="setup-panel">
-        <div class="setup-block">
-          <span class="setup-label">Question sets</span>
-          <div id="set-cards" class="set-cards" role="group" aria-label="Question sets"></div>
-          <p class="pool-line" id="pool-line">&nbsp;</p>
+        <div id="resume-banner" class="resume-banner" hidden>
+          <span id="resume-text">A match is waiting.</span>
+          <span class="resume-actions">
+            <button type="button" id="btn-resume" class="desk-button">Pick up where we left off</button>
+            <button type="button" id="btn-fresh" class="desk-button is-ghost">Start fresh</button>
+          </span>
         </div>
 
         <div class="setup-block">
-          <span class="setup-label">First champion</span>
-          <select id="champion-select" aria-label="First champion">
-            <option value="">Random</option>
-          </select>
+          <span class="setup-label">Question sets</span>
+          <div id="set-cards" class="set-cards" role="group" aria-label="Question sets"></div>
+          <div class="set-tools">
+            <button type="button" id="btn-upload-set" class="set-tool-btn">Upload a CSV</button>
+            <button type="button" id="btn-new-set" class="set-tool-btn">Design your own</button>
+            <label class="verbal-toggle" for="verbal-check">
+              <input type="checkbox" id="verbal-check" />
+              Verbal mode — I’ll ask my own questions
+            </label>
+            <input type="file" id="set-file-input" accept=".csv,text/csv" hidden />
+          </div>
+          <p class="pool-line" id="pool-line">&nbsp;</p>
+          <p class="pool-line is-error" id="set-error" hidden></p>
+        </div>
+
+        <div class="setup-block">
+          <span class="setup-label">Fight order</span>
+          <p class="block-hint">Drag to match the walk around your room. Tap a student to sit them out today. The order saves itself.</p>
+          <div id="order-cards" class="order-cards" aria-label="Fight order"></div>
+          <p class="pool-line" id="order-line">&nbsp;</p>
+        </div>
+
+        <div class="setup-row-2col">
+          <div class="setup-block">
+            <span class="setup-label">First champion</span>
+            <select id="champion-select" aria-label="First champion">
+              <option value="">Random</option>
+            </select>
+          </div>
+          <div class="setup-block">
+            <span class="setup-label">Ring backdrop</span>
+            <div id="backdrop-cards" class="backdrop-cards" role="group" aria-label="Ring backdrop"></div>
+            <p class="block-hint">Photo backdrops (including your own classroom) arrive with the art pass.</p>
+          </div>
         </div>
 
         <div class="setup-actions">

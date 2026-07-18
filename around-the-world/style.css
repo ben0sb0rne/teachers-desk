@@ -110,6 +110,162 @@ body {
   border-radius: var(--radius-tight);
 }
 .setup-actions { display: flex; justify-content: flex-end; }
+.setup-row-2col {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.2fr);
+  gap: var(--space-5);
+}
+@media (max-width: 760px) { .setup-row-2col { grid-template-columns: 1fr; } }
+.block-hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-11);
+  color: var(--ink-muted);
+}
+
+/* Resume banner — a waiting match gets first billing. */
+.resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3);
+  border: 2px solid rgb(140 28 36 / 0.55);
+  border-radius: var(--radius-tight);
+  background: rgb(140 28 36 / 0.07);
+  font-size: var(--type-13);
+}
+.resume-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Set tools — upload / editor / verbal live under the set cards. */
+.set-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+.set-tool-btn {
+  font-family: var(--font-slab);
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  background: transparent;
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+}
+.set-tool-btn:hover { background: rgb(var(--paper-edge) / 0.06); }
+.verbal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--type-13);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  margin-left: auto;
+}
+.verbal-toggle input { accent-color: rgb(var(--paper-edge)); }
+.pool-line.is-error { color: #b71c1c; }
+
+/* Custom-set card actions (edit / delete) */
+.set-card { position: relative; }
+.set-card .set-card-actions {
+  position: absolute;
+  top: 4px; right: 4px;
+  display: flex;
+  gap: 2px;
+}
+.set-card .set-card-actions button {
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font: 700 var(--type-11) var(--font-slab);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: var(--radius-tight);
+}
+.set-card .set-card-actions button:hover {
+  background: rgb(var(--paper-edge) / 0.08);
+  color: rgb(var(--paper-edge));
+}
+
+/* Fight order — draggable student cards. Tap sits a student out. */
+.order-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.order-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  font-weight: 700;
+  background: rgb(255 255 255 / 0.55);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius-tight);
+  cursor: grab;
+  user-select: none;
+}
+.order-card:active { cursor: grabbing; }
+.order-card .order-num {
+  font-size: var(--type-11);
+  color: var(--ink-muted);
+  min-width: 1.4em;
+  text-align: right;
+}
+.order-card.is-out {
+  opacity: 0.45;
+  text-decoration: line-through;
+  background: transparent;
+}
+.order-card.is-out .order-num { visibility: hidden; }
+.order-card.is-dragging { opacity: 0.35; border-style: dashed; }
+.order-card.is-drop-target { border-color: rgb(var(--accent-blue, 40 90 160)); box-shadow: inset 0 0 0 1.5px rgb(var(--accent-blue, 40 90 160) / 0.6); }
+
+/* Ring backdrop swatches. MATERIAL: each backdrop is one body rule
+   below — photo JPGs slot in as more [data-ring-backdrop] variants. */
+.backdrop-cards { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.backdrop-card {
+  width: 74px;
+  height: 46px;
+  border: 2px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  font-size: 0;
+}
+.backdrop-card.is-active {
+  border-color: rgb(var(--accent-blue, 40 90 160));
+  box-shadow: 0 0 0 1.5px rgb(var(--accent-blue, 40 90 160) / 0.6);
+}
+.backdrop-card[data-id="classic"] { background: radial-gradient(ellipse at 50% 20%, rgb(66 56 44 / 0.6), transparent 70%) rgb(13 10 15); }
+.backdrop-card[data-id="crimson"] { background: radial-gradient(ellipse at 50% 20%, rgb(96 24 30 / 0.6), transparent 70%) rgb(34 8 12); }
+.backdrop-card[data-id="navy"]    { background: radial-gradient(ellipse at 50% 20%, rgb(28 52 88 / 0.6), transparent 70%) rgb(8 14 26); }
+.backdrop-card[data-id="slate"]   { background: radial-gradient(ellipse at 50% 20%, rgb(58 64 74 / 0.6), transparent 70%) rgb(18 20 24); }
+.backdrop-card[data-id="forest"]  { background: radial-gradient(ellipse at 50% 20%, rgb(26 58 40 / 0.6), transparent 70%) rgb(8 20 14); }
+.backdrop-card::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  font-size: 9px;
+  font-family: var(--font-slab);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(246 238 216 / 0.85);
+  background: rgb(0 0 0 / 0.35);
+  padding: 1px 3px;
+}
 
 /* ── The ring ────────────────────────────────────────────────── */
 /* MATERIAL: ring canvas + spotlight. Near-black room, one pool of
@@ -121,6 +277,25 @@ body.is-ring {
     rgb(13 10 15 / 0) 68%
   );
   background-color: rgb(13 10 15);
+}
+/* Backdrop variants — picked in setup, persisted. Photo backdrops
+   (built-ins + the teacher's own classroom JPG) become more of these
+   with background-image: url(...) center/cover during the art pass. */
+body.is-ring[data-ring-backdrop="crimson"] {
+  background-color: rgb(34 8 12);
+  background-image: radial-gradient(ellipse 90% 62% at 50% 18%, rgb(96 24 30 / 0.5), rgb(34 8 12 / 0) 68%);
+}
+body.is-ring[data-ring-backdrop="navy"] {
+  background-color: rgb(8 14 26);
+  background-image: radial-gradient(ellipse 90% 62% at 50% 18%, rgb(28 52 88 / 0.5), rgb(8 14 26 / 0) 68%);
+}
+body.is-ring[data-ring-backdrop="slate"] {
+  background-color: rgb(18 20 24);
+  background-image: radial-gradient(ellipse 90% 62% at 50% 18%, rgb(58 64 74 / 0.5), rgb(18 20 24 / 0) 68%);
+}
+body.is-ring[data-ring-backdrop="forest"] {
+  background-color: rgb(8 20 14);
+  background-image: radial-gradient(ellipse 90% 62% at 50% 18%, rgb(26 58 40 / 0.5), rgb(8 20 14 / 0) 68%);
 }
 body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
 
@@ -259,6 +434,7 @@ body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
   min-height: 0;
   width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
@@ -284,20 +460,29 @@ body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
 .bell-btn:active { transform: translateY(2px); }
 .bell-btn:focus-visible { outline: 3px solid rgb(214 168 74 / 0.7); outline-offset: 3px; }
 
-/* MATERIAL: flashcard stock (cream card, navy ink). */
+/* MATERIAL: flashcard stock (cream card, navy ink). The card is the
+   show — it fills whatever the fighters leave it. */
 .flash-card {
-  width: min(680px, 92%);
-  height: min(360px, 52vh);
-  perspective: 1100px;
+  flex: 1;
+  min-height: 0;
+  width: min(1280px, 98%);
+  margin: 0 auto;
+  perspective: 1400px;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
+  align-self: stretch;
+  /* Flex column so the inner fills via flex, not height:100% —
+     percentage heights don't resolve against a flex-sized parent. */
+  display: flex;
+  flex-direction: column;
 }
 .flash-card-inner {
   position: relative;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   transform-style: preserve-3d;
   transition: transform 420ms cubic-bezier(0.3, 0, 0.25, 1);
 }
@@ -334,8 +519,8 @@ body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
 .flash-back .flash-label { color: rgb(140 28 36 / 0.75); }
 .flash-text {
   font-weight: 800;
-  font-size: clamp(34px, 5.4vw, 84px);
-  line-height: 1.1;
+  font-size: clamp(48px, 16vmin, 260px);
+  line-height: 1.08;
   text-align: center;
   overflow-wrap: break-word;
   max-width: 100%;
