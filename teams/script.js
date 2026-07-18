@@ -13,10 +13,10 @@
 // on anyone, so call counts are NOT incremented here.
 // =============================================================
 
-import { getRoster, getClassName } from '../shared/roster-bridge.js';
+import { getRoster, getRosterDetailed, getClassName } from '../shared/roster-bridge.js';
 import { getPreference, setPreference } from '../shared/storage.js';
 import { mountSettingsButton } from '../shared/settings.js';
-import { marbleColor, initialsOf } from '../shared/components/marbles.js';
+import { colorForStudent, initialsOf } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { displayName, collisionFirstNames } from '../shared/display-name.js';
 import marbleSorter from '../shared/reveals/marble-sorter.js';
@@ -269,12 +269,15 @@ function makeAssignments() {
   // students share a first name (shared suite rule — display-name.js).
   const students = present.map((name) => ({ name }));
   const collisions = collisionFirstNames(students);
-  // Shuffle the present students (color stays keyed to roster index).
+  // Shuffle the present students. Colors: favorite color when the
+  // roster has one, else the stable auto palette by roster index.
+  const detail = getRosterDetailed(state.classId);
+  const detailByName = new Map(detail.map((s) => [s.name, s]));
   const picks = present.map((name) => ({
     name,
     label: displayName({ name }, undefined, collisions),
     initials: initialsOf(name),
-    color: marbleColor(state.names.indexOf(name)),
+    color: colorForStudent(detailByName.get(name), state.names.indexOf(name)),
   }));
   for (let i = picks.length - 1; i > 0; i--) {
     const j = (Math.random() * (i + 1)) | 0;

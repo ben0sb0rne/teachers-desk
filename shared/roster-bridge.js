@@ -33,6 +33,7 @@ import * as storage from './storage.js';
 // -------------------------------------------------------------
 export const getClasses = storage.listClasses;
 export const getRoster = storage.getRoster;
+export const getRosterDetailed = storage.getRosterDetailed;
 export const getClassName = storage.getClassName;
 export const getCallCount = storage.getCallCount;
 export const getToolMeta = storage.getToolMeta;
@@ -143,6 +144,7 @@ export default {
   // snapshots
   getClasses,
   getRoster,
+  getRosterDetailed,
   getClassName,
   getCallCount,
   getToolMeta,

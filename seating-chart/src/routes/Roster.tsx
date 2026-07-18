@@ -6,6 +6,7 @@ import PasteNamesDialog from "@/components/roster/PasteNamesDialog";
 import KeepApartEditor from "@/components/roster/KeepApartEditor";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/Icon";
+import { autoColorHex } from "@/lib/marble-color";
 
 export default function Roster() {
   const { id } = useParams();
@@ -88,19 +89,21 @@ export default function Roster() {
       <div className="card overflow-hidden">
         <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col className="w-[17%]" />
-            <col className="w-[17%]" />
-            <col className="w-[8%]" />
-            <col className="w-[11%]" />
-            <col className="w-[21%]" />
-            <col className="w-[10%]" />
             <col className="w-[16%]" />
+            <col className="w-[16%]" />
+            <col className="w-[7%]" />
+            <col className="w-[8%]" />
+            <col className="w-[10%]" />
+            <col className="w-[19%]" />
+            <col className="w-[9%]" />
+            <col className="w-[15%]" />
           </colgroup>
           <thead className="border-b border-ink/15 text-left text-xs uppercase tracking-wide text-ink-muted">
             <tr>
               <th className="px-3 py-2">First</th>
               <th className="px-3 py-2">Last</th>
               <th className="px-3 py-2" title="Student number (optional, manual)">#</th>
+              <th className="px-3 py-2" title="Favorite color — drives their marble in the pickers">Color</th>
               <th className="px-3 py-2">Front row</th>
               <th className="px-3 py-2">Keep apart</th>
               <th className="px-3 py-2">Notes</th>
@@ -110,13 +113,13 @@ export default function Roster() {
           <tbody>
             {klass.students.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-ink-muted">
+                <td colSpan={8} className="px-4 py-8 text-center text-ink-muted">
                   No students yet — add one below or paste a list.
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-ink-muted">
+                <td colSpan={8} className="px-4 py-8 text-center text-ink-muted">
                   No matches for "{filter}".
                 </td>
               </tr>
@@ -149,6 +152,14 @@ export default function Roster() {
                       onChange={(e) =>
                         updateStudent(klass.id, st.id, { studentNumber: e.target.value || undefined })
                       }
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <ColorEditor
+                      studentName={st.name}
+                      favColor={st.favColor}
+                      autoColor={autoColorHex(klass.students.indexOf(st))}
+                      onChange={(favColor) => updateStudent(klass.id, st.id, { favColor })}
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -213,7 +224,7 @@ export default function Roster() {
                   onKeyDown={(e) => e.key === "Enter" && handleAddSingle()}
                 />
               </td>
-              <td className="px-3 py-2" colSpan={3}>
+              <td className="px-3 py-2" colSpan={4}>
                 <span className="text-xs text-ink-muted">Add a single student, or use “Paste names”.</span>
               </td>
               <td className="px-3 py-2 text-right">
@@ -241,6 +252,76 @@ export default function Roster() {
         }}
       />
     </div>
+  );
+}
+
+/** Favorite-color control. Unassigned is unmistakable: a grey dashed
+ *  swatch (the tools fall back to the auto palette). Assigned shows
+ *  the student's color; "Use auto color" resets to unassigned. */
+function ColorEditor({
+  studentName,
+  favColor,
+  autoColor,
+  onChange,
+}: {
+  studentName: string;
+  favColor?: string;
+  autoColor: string;
+  onChange: (favColor: string | undefined) => void;
+}) {
+  const assigned = !!favColor;
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button
+          className={
+            "h-7 w-9 rounded-md border-2 " +
+            (assigned
+              ? "border-ink/30"
+              : "border-dashed border-ink/35 bg-ink/10")
+          }
+          style={assigned ? { backgroundColor: favColor } : undefined}
+          title={
+            assigned
+              ? `${studentName}'s favorite color`
+              : `No favorite color yet — ${studentName} gets an auto color`
+          }
+          aria-label={assigned ? `Favorite color for ${studentName}` : `Pick a favorite color for ${studentName}`}
+        />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          className="z-50 w-60 rounded-md border border-ink/15 bg-paper p-3 shadow-lift"
+        >
+          <div className="mb-2 text-xs font-semibold text-ink">
+            Favorite color — <span className="text-accent-blue">{studentName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              className="h-9 w-14 cursor-pointer rounded border border-ink/30 bg-paper p-0.5"
+              value={favColor ?? autoColor}
+              onChange={(e) => onChange(e.target.value)}
+              aria-label="Pick a color"
+            />
+            <button
+              className="btn-secondary text-xs disabled:opacity-50"
+              disabled={!assigned}
+              onClick={() => onChange(undefined)}
+              title="Clear the favorite — the tools use the auto color again"
+            >
+              Use auto color
+            </button>
+          </div>
+          <p className="mt-2 text-[10px] text-ink-muted">
+            {assigned
+              ? "This colors their marble in the pickers."
+              : "Not assigned — their marble uses the auto palette for now."}
+          </p>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 

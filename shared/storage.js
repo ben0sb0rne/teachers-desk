@@ -424,6 +424,7 @@ export function getRosterDetailed(classId) {
       firstName: s && typeof s.firstName === 'string' ? s.firstName : undefined,
       lastName: s && typeof s.lastName === 'string' ? s.lastName : undefined,
       studentNumber: s && typeof s.studentNumber === 'string' ? s.studentNumber : undefined,
+      favColor: s && typeof s.favColor === 'string' ? s.favColor : undefined,
     };
   });
 }

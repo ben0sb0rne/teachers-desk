@@ -15,6 +15,11 @@ export interface Student {
   lastName?: string;
   /** Manual, free-text — a class number or an SIS id. */
   studentNumber?: string;
+  /** The student's favorite color (hex, e.g. "#e63946"). Drives their
+   *  marble + other per-student visuals suite-wide. Unset = the tools
+   *  fall back to the auto palette (stable golden-angle hue by roster
+   *  index) and the roster editor shows a clearly-unassigned grey. */
+  favColor?: string;
   needsFrontRow: boolean;
   keepApart: StudentId[];
   notes?: string;
@@ -175,7 +180,7 @@ export interface ClassRoom {
   autoOrder?: boolean;
 }
 
-export const SCHEMA_VERSION = 12 as const;
+export const SCHEMA_VERSION = 13 as const;
 
 export interface AppState {
   /** Top-level, reusable room layouts. Referenced by ClassRoom.seatings[].roomId. */

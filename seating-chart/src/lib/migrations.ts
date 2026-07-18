@@ -22,7 +22,14 @@ export function runMigrations(persisted: unknown, fromVersion: number): AppState
   if (fromVersion < 10) s = migrateV9toV10(s);
   if (fromVersion < 11) s = migrateV10toV11(s);
   if (fromVersion < 12) s = migrateV11toV12(s);
+  if (fromVersion < 13) s = migrateV12toV13(s);
   return s as AppState;
+}
+
+/** v12 → v13: students gain the optional `favColor` (favorite color,
+ *  hex). Absent means unassigned — pass-through. */
+export function migrateV12toV13(persisted: unknown): AppState {
+  return persisted as AppState;
 }
 
 /** v11 → v12: adds the optional per-class `autoOrder` flag (keep roster

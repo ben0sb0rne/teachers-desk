@@ -11,9 +11,17 @@
 // here and every tool updates at once.
 // =============================================================
 
-/** Distinct stable colors — golden-angle hue walk over the roster. */
+/** Distinct stable colors — golden-angle hue walk over the roster.
+ *  (Mirrored in seating-chart/src/lib/marble-color.ts — change both.) */
 export function marbleColor(i) {
   return `hsl(${(i * 137.508) % 360} 72% 45%)`;
+}
+
+/** The color a student's marble actually wears: their favorite color
+ *  when one is assigned (Student.favColor via the roster editor),
+ *  else the stable auto palette by roster index. */
+export function colorForStudent(student, index) {
+  return (student && student.favColor) || marbleColor(index);
 }
 
 /** "Maya Rodriguez" → "MR", "Cher" → "C". */
@@ -78,10 +86,13 @@ export function paintMarble(ctx, m, r) {
  * Sizes the canvas buffer to fit every row (DPR-scaled for crisp
  * initials) and sets the element's CSS height to match.
  * @param {HTMLCanvasElement} canvas
- * @param {string[]} names
+ * @param {Array<string | { name: string, favColor?: string }>} entries
+ *   plain names, or detailed students (favColor honored)
  * @param {{ r?: number }} [opts]
  */
-export function paintPool(canvas, names, opts = {}) {
+export function paintPool(canvas, entries, opts = {}) {
+  const names = entries.map((e) => (typeof e === 'string' ? e : e.name));
+  const students = entries.map((e) => (typeof e === 'string' ? null : e));
   const R = opts.r ?? 13;
   const stepX = R * 2 + 8;
   const stepY = R * 2 + 10;
@@ -104,7 +115,7 @@ export function paintPool(canvas, names, opts = {}) {
     const y = 5 + stepY / 2 + row * stepY + wob;
     ctx.save();
     ctx.translate(x, y);
-    paintMarble(ctx, { color: marbleColor(i), initials: initialsOf(name) }, R);
+    paintMarble(ctx, { color: colorForStudent(students[i], i), initials: initialsOf(name) }, R);
     ctx.restore();
   });
 }

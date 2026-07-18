@@ -86,8 +86,9 @@ export function mountClassCardGrid(host, opts = {}) {
         cv.setAttribute('aria-hidden', 'true');
         card.appendChild(cv);
         // Paint after the card is in the DOM so clientWidth is real.
+        // Detailed roster → favorite colors show on the pool.
         queueMicrotask(() => {
-          if (cv.isConnected) paintPool(cv, bridge.getRoster(c.id));
+          if (cv.isConnected) paintPool(cv, bridge.getRosterDetailed(c.id));
         });
       }
 

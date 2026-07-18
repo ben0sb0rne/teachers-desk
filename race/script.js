@@ -17,10 +17,10 @@
 // =============================================================
 
 import {
-  getRoster, getClassName, incrementCallCount,
+  getRoster, getRosterDetailed, getClassName, incrementCallCount,
 } from '../shared/roster-bridge.js';
 import { mountSettingsButton } from '../shared/settings.js';
-import { marbleColor, initialsOf, paintMarble } from '../shared/components/marbles.js';
+import { colorForStudent, initialsOf, paintMarble } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 
 mountSettingsButton();
@@ -244,7 +244,7 @@ function resetRace(newSeed) {
     return {
       name: state.names[nameIdx],
       initials: initialsOf(state.names[nameIdx]),
-      color: marbleColor(nameIdx),
+      color: colorForStudent(state.detail?.[nameIdx], nameIdx),
       x: W / 2 + (col - perRow / 2 + 0.5) * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
       y: 34 + row * (MARBLE_R * 2.2) + (rand() - 0.5) * 6,
       vx: 0, vy: 0,
@@ -634,7 +634,7 @@ function renderResults() {
   const ol = document.getElementById('race-results');
   ol.innerHTML = state.results.map((name, i) => {
     const idx = state.names.indexOf(name);
-    return `<li${i === 0 ? ' class="is-winner"' : ''}><span class="dot" style="background:${marbleColor(idx)}"></span>${escHtml(name)}</li>`;
+    return `<li${i === 0 ? ' class="is-winner"' : ''}><span class="dot" style="background:${colorForStudent(state.detail?.[idx], idx)}"></span>${escHtml(name)}</li>`;
   }).join('');
 }
 
@@ -666,6 +666,7 @@ function showClassSelect() {
 function openRace(classId) {
   state.classId = classId;
   state.names = getRoster(classId);
+  state.detail = getRosterDetailed(classId); // favorite colors ride along
   if (state.names.length === 0) return;
   // app-view creams the topstrip (suite pattern); is-parlor kills the
   // wood desk and turns the room lights off for the machine.
