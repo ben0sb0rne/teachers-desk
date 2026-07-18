@@ -164,6 +164,11 @@ body {
   margin-left: auto;
 }
 .verbal-toggle input { accent-color: rgb(var(--paper-edge)); }
+.verbal-toggle.is-plain { margin-left: 0; }
+
+/* Flashcards-only mode: the fighters leave the stage entirely and
+   the card takes the whole room. */
+.view--ring.is-cards-only .fighters-row { display: none; }
 .pool-line.is-error { color: #b71c1c; }
 
 /* Custom-set card actions (edit / delete) */

@@ -58,6 +58,7 @@ const state = {
   roster: [],
   selected: new Set(['multiplication']),
   verbal: false,
+  cardsOnly: !!getPreference('atw.cardsOnly', false), // no names on screen
   orderNames: [],        // full roster in fight order (persisted per class)
   out: new Set(),        // sitting out today (session + saved with a match)
   // Game state
@@ -110,13 +111,15 @@ function deleteCustomSet(id) {
 
 function savedMatchFor(classId) { return toolBlob().saves?.[classId] ?? null; }
 function persistMatch() {
-  if (!state.running) return;
+  // Cards-only runs have no match state worth saving.
+  if (!state.running || state.cardsOnly) return;
   const saves = { ...(toolBlob().saves ?? {}) };
   saves[state.classId] = {
     at: new Date().toISOString(),
     selected: [...state.selected],
     verbal: state.verbal,
     orderNames: state.orderNames.slice(),
+    gameOrder: state.order.slice(),   // live seat map — swaps included
     out: [...state.out],
     champion: state.champion,
     challenger: state.challenger,
@@ -300,6 +303,7 @@ function renderSetCards() {
     </button>`;
   }).join('');
   document.getElementById('verbal-check').checked = state.verbal;
+  document.getElementById('cards-only-check').checked = state.cardsOnly;
 }
 
 async function ensureSetLoaded(id) {
@@ -382,6 +386,11 @@ document.getElementById('verbal-check').addEventListener('change', (e) => {
   state.verbal = e.target.checked;
   renderSetCards();
   refreshPool();
+});
+
+document.getElementById('cards-only-check').addEventListener('change', (e) => {
+  state.cardsOnly = e.target.checked;
+  setPreference('atw.cardsOnly', state.cardsOnly);
 });
 
 /* ── Custom sets: upload + editor ───────────────────────────── */
@@ -601,6 +610,7 @@ function enterRing() {
   state.best = null;
   state.phase = 'idle';
   state.running = true;
+  document.getElementById('ring-view').classList.toggle('is-cards-only', state.cardsOnly);
   document.getElementById('ring-class-name').textContent = state.className;
   document.getElementById('end-card').hidden = true;
   showView('ring-view');
@@ -630,7 +640,10 @@ function resumeMatch() {
   }
   const finish = () => {
     buildPool();
-    state.order = present;
+    // Restore the LIVE seat map (dethronement swaps included), pruned
+    // to today's present fighters; anyone new slots in at the end.
+    const savedGame = (save.gameOrder ?? save.orderNames).filter((n) => present.includes(n));
+    state.order = [...savedGame, ...present.filter((n) => !savedGame.includes(n))];
     state.champion = save.champion;
     state.nextIdx = save.nextIdx;
     state.streak = save.streak;
@@ -673,31 +686,46 @@ function fitPlateName(el) {
 }
 
 function renderRing({ enteringChallenger = false } = {}) {
-  const champName = document.getElementById('champ-name');
-  const challName = document.getElementById('chall-name');
-  champName.textContent = state.champion ?? '';
-  challName.textContent = state.challenger ?? '';
-  fitPlateName(champName);
-  fitPlateName(challName);
-  document.getElementById('champ-streak-text').textContent =
-    state.streak === 0 ? 'NEW CHAMPION' : `${state.streak} SEAT${state.streak === 1 ? '' : 'S'} DEFENDED`;
-
   const inRound = state.phase !== 'idle';
-  document.getElementById('plate-champ').disabled = !inRound;
-  document.getElementById('plate-chall').disabled = !inRound;
-  document.getElementById('btn-bell').hidden = inRound;
-  document.getElementById('btn-skip').hidden = !inRound || state.verbal;
+
+  if (!state.cardsOnly) {
+    const champName = document.getElementById('champ-name');
+    const challName = document.getElementById('chall-name');
+    champName.textContent = state.champion ?? '';
+    challName.textContent = state.challenger ?? '';
+    fitPlateName(champName);
+    fitPlateName(challName);
+    document.getElementById('champ-streak-text').textContent =
+      state.streak === 0 ? 'NEW CHAMPION' : `${state.streak} SEAT${state.streak === 1 ? '' : 'S'} DEFENDED`;
+    document.getElementById('plate-champ').disabled = !inRound;
+    document.getElementById('plate-chall').disabled = !inRound;
+  }
+
+  // Cards-only: the bell doubles as "Next question" once the answer
+  // is up; otherwise it disappears during the round as usual.
+  const bell = document.getElementById('btn-bell');
+  if (state.cardsOnly) {
+    bell.hidden = state.phase === 'question';
+    bell.textContent = state.phase === 'revealed' ? 'Next question' : 'Ring the bell';
+  } else {
+    bell.hidden = inRound;
+    bell.textContent = 'Ring the bell';
+  }
+  document.getElementById('btn-skip').hidden = !inRound || state.verbal || state.cardsOnly;
   document.getElementById('flash-card').hidden = !inRound;
 
   // The coaching copy retires once the teacher has flipped a card.
   const hint = document.getElementById('ring-hint');
   if (hintsRetired) hint.textContent = '';
   else if (!inRound) hint.textContent = 'Ring the bell to start the round';
-  else if (state.phase === 'question') hint.textContent = state.verbal ? 'Ask away — tap the winner' : 'Tap the card to check the answer · tap the winner';
-  else hint.textContent = 'Tap the winner';
+  else if (state.phase === 'question') {
+    hint.textContent = state.cardsOnly ? 'Tap the card to check the answer'
+      : state.verbal ? 'Ask away — tap the winner'
+      : 'Tap the card to check the answer · tap the winner';
+  } else hint.textContent = state.cardsOnly ? '' : 'Tap the winner';
   document.querySelector('.flash-flip-hint').hidden = hintsRetired;
 
-  if (enteringChallenger) {
+  if (enteringChallenger && !state.cardsOnly) {
     const plate = document.getElementById('plate-chall');
     plate.classList.remove('is-in', 'is-out');
     void plate.getBoundingClientRect();
@@ -759,6 +787,7 @@ function skipQuestion() {
 
 function declareWinner(side) {
   if (state.phase === 'idle' || !state.running) return;
+  if (state.cardsOnly) return; // no fighters on screen, nothing to judge
   // Suite convention: both fighters participated in the round.
   incrementCallCount(state.classId, state.champion);
   incrementCallCount(state.classId, state.challenger);
@@ -768,8 +797,17 @@ function declareWinner(side) {
     state.streak++;
     state.beaten.add(state.challenger);
   } else {
-    // New reign: the dethroned champion is the first name on the list.
+    // New reign — and a seat change, per the classic rules: the
+    // winner stands up to travel, and the dethroned champion sits in
+    // the seat they vacated. Swapping their positions in the live
+    // order keeps the walk visiting the right DESKS: the old champ
+    // now gets challenged at the winner's old spot.
     const dethroned = state.champion;
+    const wIdx = state.order.indexOf(state.challenger);
+    const lIdx = state.order.indexOf(dethroned);
+    if (wIdx >= 0 && lIdx >= 0) {
+      [state.order[wIdx], state.order[lIdx]] = [state.order[lIdx], state.order[wIdx]];
+    }
     state.champion = state.challenger;
     state.streak = 1;
     state.beaten = new Set([dethroned]);
@@ -803,6 +841,13 @@ function saveRecord(classId, entry) {
 
 function endGame({ sweep = false } = {}) {
   if (!state.running) return;
+  if (state.cardsOnly) {
+    // Nothing to crown — straight back to the corner office.
+    state.running = false;
+    showView('setup-view');
+    renderResumeBanner(); renderSetCards(); renderOrderCards(); refreshPool();
+    return;
+  }
   const champ = state.best ?? { name: state.champion, streak: state.streak };
   document.getElementById('end-name').textContent = champ.name ?? '—';
   document.getElementById('end-streak').textContent = sweep
@@ -839,7 +884,11 @@ document.getElementById('btn-fresh').addEventListener('click', () => {
   clearMatchSave();
   renderResumeBanner();
 });
-document.getElementById('btn-bell').addEventListener('click', ringBell);
+document.getElementById('btn-bell').addEventListener('click', () => {
+  // Cards-only: the bell is also "Next question" after a reveal.
+  if (state.cardsOnly && state.phase === 'revealed') state.phase = 'idle';
+  ringBell();
+});
 document.getElementById('flash-card').addEventListener('click', flipCard);
 document.getElementById('btn-skip').addEventListener('click', skipQuestion);
 document.getElementById('plate-champ').addEventListener('click', () => declareWinner('champ'));
@@ -916,7 +965,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ' && inRing && !endOpen) {
     e.preventDefault();
     if (state.phase === 'idle') ringBell();
-    else flipCard();
+    else if (state.cardsOnly && state.phase === 'revealed') {
+      state.phase = 'idle';
+      ringBell(); // Space walks the deck: question → answer → next
+    } else flipCard();
   } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && inRing && !endOpen) {
     if (state.phase !== 'idle') {
       e.preventDefault();
