@@ -58,7 +58,6 @@ const state = {
   roster: [],
   selected: new Set(['multiplication']),
   verbal: false,
-  championPick: '',      // '' = random
   orderNames: [],        // full roster in fight order (persisted per class)
   out: new Set(),        // sitting out today (session + saved with a match)
   // Game state
@@ -251,7 +250,6 @@ function openSetup(classId) {
   renderResumeBanner();
   renderSetCards();
   renderOrderCards();
-  renderChampionSelect();
   renderBackdropCards();
   refreshPool();
   // Eager-load every set so the counts are real, not "…".
@@ -523,7 +521,6 @@ function renderOrderCards() {
     if (state.out.has(name)) state.out.delete(name);
     else state.out.add(name);
     renderOrderCards();
-    renderChampionSelect();
     refreshPool();
   });
   host.addEventListener('dragstart', (e) => {
@@ -562,21 +559,9 @@ function renderOrderCards() {
     document.querySelectorAll('.order-card.is-dragging, .order-card.is-drop-target')
       .forEach((c) => c.classList.remove('is-dragging', 'is-drop-target'));
     renderOrderCards();
-    renderChampionSelect();
     refreshPool();
   }
 }
-
-function renderChampionSelect() {
-  const sel = document.getElementById('champion-select');
-  const present = state.orderNames.filter((n) => !state.out.has(n));
-  sel.innerHTML = '<option value="">Random</option>' +
-    present.map((n) => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
-  sel.value = state.championPick && present.includes(state.championPick) ? state.championPick : '';
-}
-document.getElementById('champion-select').addEventListener('change', (e) => {
-  state.championPick = e.target.value;
-});
 
 /* ── Ring backdrop ──────────────────────────────────────────── */
 function renderBackdropCards() {
@@ -607,9 +592,8 @@ function enterRing() {
   buildPool();
   if (!state.verbal && state.pool.length === 0) return;
   state.order = present;
-  state.champion = state.championPick && present.includes(state.championPick)
-    ? state.championPick
-    : present[(Math.random() * present.length) | 0];
+  // First in the fight order opens as champion; the line forms behind.
+  state.champion = present[0];
   state.nextIdx = 0;
   state.challenger = nextChallenger();
   state.streak = 0;
@@ -837,8 +821,11 @@ function endGame({ sweep = false } = {}) {
   } else {
     recordEl.textContent = '';
   }
+  // Keep the match resumable — the title card is a ceremony, not a
+  // deletion. Save & exit / closing the tab picks it back up; a
+  // Rematch or explicit fresh start replaces it.
+  persistMatch();
   state.running = false;
-  clearMatchSave();
   document.getElementById('end-card').hidden = false;
 }
 
@@ -860,7 +847,12 @@ document.getElementById('plate-chall').addEventListener('click', () => declareWi
 document.getElementById('btn-end-game').addEventListener('click', () => endGame());
 document.getElementById('btn-rematch').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
+  clearMatchSave(); // a rematch replaces the finished match
   enterRing();
+});
+document.getElementById('btn-save-exit').addEventListener('click', () => {
+  document.getElementById('end-card').hidden = true;
+  showClassSelect(); // the match is already persisted by endGame
 });
 document.getElementById('btn-change-setup').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
@@ -869,7 +861,6 @@ document.getElementById('btn-change-setup').addEventListener('click', () => {
   renderResumeBanner();
   renderSetCards();
   renderOrderCards();
-  renderChampionSelect();
   refreshPool();
 });
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
@@ -936,7 +927,7 @@ document.addEventListener('keydown', (e) => {
     if (endOpen) {
       document.getElementById('end-card').hidden = true;
       showView('setup-view');
-      renderResumeBanner(); renderSetCards(); renderOrderCards(); renderChampionSelect(); refreshPool();
+      renderResumeBanner(); renderSetCards(); renderOrderCards(); refreshPool();
     } else if (inRing) {
       endGame();
     } else if (inSetup) {

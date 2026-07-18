@@ -110,12 +110,6 @@ body {
   border-radius: var(--radius-tight);
 }
 .setup-actions { display: flex; justify-content: flex-end; }
-.setup-row-2col {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.2fr);
-  gap: var(--space-5);
-}
-@media (max-width: 760px) { .setup-row-2col { grid-template-columns: 1fr; } }
 .block-hint {
   margin: 0 0 var(--space-2);
   font-size: var(--type-11);
@@ -194,14 +188,16 @@ body {
   color: rgb(var(--paper-edge));
 }
 
-/* Fight order — draggable student cards. Tap sits a student out. */
+/* Fight order — one draggable card per row, top-to-bottom = the walk
+   around the room. Tap sits a student out. */
 .order-cards {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
 }
 .order-card {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
   padding: 6px 10px;
@@ -543,9 +539,7 @@ body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
   justify-content: center;
   background: rgb(8 6 10 / 0.88);
 }
-/* display:flex would otherwise beat the [hidden] UA rule and leave the
-   empty card floating over every round. */
-.end-overlay[hidden] { display: none; }
+/* ([hidden] always wins suite-wide now — see shared/desk.css.) */
 /* MATERIAL: championship title card (printed fight poster). */
 .title-card {
   display: flex;

@@ -72,7 +72,7 @@
     <section id="setup-view" class="view" hidden>
       <header class="view-header">
         <h1 id="setup-class-name">&nbsp;</h1>
-        <p class="muted" id="setup-sub">Pick the question sets, choose your first champion, ring the bell.</p>
+        <p class="muted" id="setup-sub">Pick the question sets, set the walk order, ring the bell.</p>
       </header>
 
       <div class="setup-panel">
@@ -102,23 +102,15 @@
 
         <div class="setup-block">
           <span class="setup-label">Fight order</span>
-          <p class="block-hint">Drag to match the walk around your room. Tap a student to sit them out today. The order saves itself.</p>
+          <p class="block-hint">Drag to match the walk around your room — first in line opens as champion. Tap a student to sit them out today. The order saves itself.</p>
           <div id="order-cards" class="order-cards" aria-label="Fight order"></div>
           <p class="pool-line" id="order-line">&nbsp;</p>
         </div>
 
-        <div class="setup-row-2col">
-          <div class="setup-block">
-            <span class="setup-label">First champion</span>
-            <select id="champion-select" aria-label="First champion">
-              <option value="">Random</option>
-            </select>
-          </div>
-          <div class="setup-block">
-            <span class="setup-label">Ring backdrop</span>
-            <div id="backdrop-cards" class="backdrop-cards" role="group" aria-label="Ring backdrop"></div>
-            <p class="block-hint">Photo backdrops (including your own classroom) arrive with the art pass.</p>
-          </div>
+        <div class="setup-block">
+          <span class="setup-label">Ring backdrop</span>
+          <div id="backdrop-cards" class="backdrop-cards" role="group" aria-label="Ring backdrop"></div>
+          <p class="block-hint">Photo backdrops (including your own classroom) arrive with the art pass.</p>
         </div>
 
         <div class="setup-actions">
@@ -184,6 +176,7 @@
           <span class="title-card-record" id="end-record"></span>
           <div class="title-card-actions">
             <button type="button" id="btn-rematch" class="desk-button">Rematch</button>
+            <button type="button" id="btn-save-exit" class="desk-button is-ghost">Save &amp; exit</button>
             <button type="button" id="btn-change-setup" class="desk-button is-ghost">Change setup</button>
           </div>
         </div>

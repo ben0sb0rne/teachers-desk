@@ -883,6 +883,15 @@ a.suite-tool-name:focus-visible {
 }
 
 /* =============================================================
+   [hidden] always wins.
+   The UA's `[hidden] { display: none }` loses to any authored
+   `display: flex/grid/…` on the same element — which has bitten us
+   repeatedly (overlays and cards staying on screen with hidden set).
+   In this codebase `hidden` always means GONE, so make it absolute.
+   ============================================================= */
+[hidden] { display: none !important; }
+
+/* =============================================================
    .class-grid / .class-card — the suite's class-select pattern
    (rendered by shared/components/class-card-grid.js). Paper cards
    on the wood desk: teacher chrome, deliberately world-neutral.
