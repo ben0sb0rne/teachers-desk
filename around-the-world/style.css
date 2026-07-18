@@ -1,0 +1,432 @@
+/* =============================================================
+   around-the-world/style.css — the boxing broadcast.
+
+   Teacher chrome (class select, setup) sits on the suite wood desk
+   with paper panels. The RING is its own world: near-black canvas
+   under a single overhead spotlight, red and blue corner plates in
+   heavy slab caps, a cream flashcard in the middle. Fight-poster
+   energy, mid-century weight. The world does NOT theme.
+
+   TEXTURE-READY: each material has one styling entry point —
+   canvas/spotlight (body.is-ring), corner plates (.fighter-plate
+   .is-red/.is-blue), flashcard stock (.flash-face), bell button
+   (.bell-btn), title card (.title-card).
+   ============================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.atw-main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-5) var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+}
+
+.view-header {
+  color: rgb(var(--paper-on-wood));
+  margin-bottom: var(--space-5);
+  text-align: center;
+}
+.view-header h1 { margin: 0 0 var(--space-1); }
+.view-header p { margin: 0; }
+
+#class-select-view, #setup-view {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Setup — paper math panel (teacher chrome) ───────────────── */
+.setup-panel {
+  max-width: 760px;
+  margin: 0 auto;
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  padding: var(--space-5);
+  font-family: var(--font-slab);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.setup-label {
+  display: block;
+  font-size: var(--type-11);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-2);
+  border-bottom: 2px solid rgb(var(--paper-edge) / 0.2);
+  padding-bottom: 4px;
+}
+.set-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-2);
+}
+.set-card {
+  font-family: var(--font-slab);
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  background: rgb(255 255 255 / 0.5);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.3);
+  border-radius: var(--radius-tight);
+  cursor: pointer;
+}
+.set-card strong { display: block; font-size: var(--type-13); }
+.set-card span { display: block; font-size: var(--type-11); color: var(--ink-muted); }
+.set-card.is-active {
+  border-color: rgb(var(--accent-blue, 40 90 160));
+  box-shadow: inset 0 0 0 1.5px rgb(var(--accent-blue, 40 90 160) / 0.6);
+}
+.set-card.is-disabled { opacity: 0.45; cursor: default; }
+.pool-line {
+  margin: var(--space-2) 0 0;
+  font-size: var(--type-13);
+  color: var(--ink-muted);
+}
+#champion-select {
+  font-family: var(--font-slab);
+  font-size: var(--type-15);
+  padding: 7px 10px;
+  min-width: 260px;
+  background: rgb(255 255 255 / 0.7);
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius-tight);
+}
+.setup-actions { display: flex; justify-content: flex-end; }
+
+/* ── The ring ────────────────────────────────────────────────── */
+/* MATERIAL: ring canvas + spotlight. Near-black room, one pool of
+   warm light from above — physical stage lighting, not decoration. */
+body.is-ring {
+  background-image: radial-gradient(
+    ellipse 90% 62% at 50% 18%,
+    rgb(66 56 44 / 0.55),
+    rgb(13 10 15 / 0) 68%
+  );
+  background-color: rgb(13 10 15);
+}
+body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
+
+.view--ring:not([hidden]) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ring-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: rgb(246 238 216);
+}
+.ring-header h1 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--type-17);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.7;
+}
+.ring-controls { display: flex; gap: var(--space-2); }
+.ring-controls .desk-button.is-ghost {
+  color: rgb(246 238 216);
+  border-color: rgb(246 238 216 / 0.4);
+}
+.ring-controls .desk-button.is-ghost:hover { background: rgb(246 238 216 / 0.08); }
+
+.ring-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.fighters-row {
+  width: 100%;
+  max-width: 1250px;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+.vs-mark {
+  align-self: center;
+  font-family: var(--font-slab);
+  font-weight: 800;
+  font-size: clamp(22px, 3.2vw, 44px);
+  color: rgb(246 238 216 / 0.55);
+  letter-spacing: 0.04em;
+  flex: none;
+}
+
+/* MATERIAL: corner plates (painted steel fight-poster panels).
+   Red and blue are the brief's corners — the one world allowed to
+   use a cool color. */
+.fighter-plate {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border-radius: var(--radius);
+  cursor: default;
+  font-family: var(--font-slab);
+  color: rgb(246 238 216);
+  border: 3px solid;
+  transition: transform 120ms ease, opacity 260ms ease, box-shadow 120ms ease;
+}
+.fighter-plate.is-red  { background: rgb(96 18 24);  border-color: rgb(140 28 36); }
+.fighter-plate.is-blue { background: rgb(16 38 66);  border-color: rgb(30 68 112); }
+.fighter-plate:not([disabled]) { cursor: pointer; }
+.fighter-plate:not([disabled]):hover { transform: translateY(-2px); }
+.fighter-plate:not([disabled]):focus-visible {
+  outline: 3px solid rgb(246 238 216 / 0.7);
+  outline-offset: 3px;
+}
+.fighter-plate.is-out { opacity: 0.15; }
+.fighter-plate.is-in { animation: plate-enter 420ms cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+@keyframes plate-enter {
+  from { transform: translateY(26px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.corner-tag {
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.fighter-name {
+  font-weight: 800;
+  font-size: clamp(26px, 4.6vw, 62px);
+  line-height: 1.02;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.streak-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--type-13);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(214 168 74);
+}
+.streak-tag.is-quiet { color: rgb(246 238 216 / 0.5); }
+.streak-tag .belt { width: 30px; height: 16px; color: rgb(214 168 74); }
+
+.ring-hint {
+  margin: 0;
+  min-height: 1.4em;
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(246 238 216 / 0.55);
+}
+
+/* ── The flashcard + bell ────────────────────────────────────── */
+.card-arena {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding-bottom: var(--space-4);
+}
+
+/* MATERIAL: the bell button (brass dome on a red mount). */
+.bell-btn {
+  font-family: var(--font-slab);
+  font-weight: 800;
+  font-size: clamp(18px, 2.2vw, 30px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: clamp(14px, 2vw, 24px) clamp(28px, 4vw, 56px);
+  color: rgb(246 238 216);
+  background: rgb(140 28 36);
+  border: 3px solid rgb(214 168 74);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 90ms ease;
+}
+.bell-btn:hover { background: rgb(158 36 44); }
+.bell-btn:active { transform: translateY(2px); }
+.bell-btn:focus-visible { outline: 3px solid rgb(214 168 74 / 0.7); outline-offset: 3px; }
+
+/* MATERIAL: flashcard stock (cream card, navy ink). */
+.flash-card {
+  width: min(680px, 92%);
+  height: min(360px, 52vh);
+  perspective: 1100px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.flash-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 420ms cubic-bezier(0.3, 0, 0.25, 1);
+}
+.flash-card.is-flipped .flash-card-inner { transform: rotateY(180deg); }
+.flash-card.is-dealt { animation: card-deal 320ms cubic-bezier(0.2, 0.9, 0.3, 1.1); }
+@keyframes card-deal {
+  from { transform: translateY(30px) scale(0.92); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+.flash-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--radius);
+  background: rgb(246 238 216);
+  color: rgb(30 34 56);
+  border: 4px solid rgb(30 34 56);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  font-family: var(--font-slab);
+}
+.flash-back { transform: rotateY(180deg); border-color: rgb(140 28 36); }
+.flash-label {
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgb(30 34 56 / 0.55);
+}
+.flash-back .flash-label { color: rgb(140 28 36 / 0.75); }
+.flash-text {
+  font-weight: 800;
+  font-size: clamp(34px, 5.4vw, 84px);
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+.flash-text .katex { font-size: 1em; }
+.flash-flip-hint {
+  font-size: var(--type-11);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(30 34 56 / 0.4);
+}
+
+/* ── End-of-game title card ──────────────────────────────────── */
+.end-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(8 6 10 / 0.88);
+}
+/* display:flex would otherwise beat the [hidden] UA rule and leave the
+   empty card floating over every round. */
+.end-overlay[hidden] { display: none; }
+/* MATERIAL: championship title card (printed fight poster). */
+.title-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-7);
+  background: rgb(13 10 15);
+  border: 3px solid rgb(214 168 74);
+  outline: 1px solid rgb(214 168 74 / 0.4);
+  outline-offset: 6px;
+  border-radius: var(--radius);
+  font-family: var(--font-slab);
+  color: rgb(246 238 216);
+  text-align: center;
+  max-width: min(720px, 92vw);
+}
+.title-card-kicker {
+  font-size: var(--type-13);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: rgb(214 168 74);
+}
+.title-card-name {
+  font-weight: 800;
+  font-size: clamp(38px, 6vw, 84px);
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.title-card-streak {
+  font-size: clamp(17px, 2vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(214 168 74);
+}
+.title-card-record {
+  min-height: 1.3em;
+  font-size: var(--type-13);
+  color: rgb(246 238 216 / 0.6);
+  letter-spacing: 0.06em;
+}
+.title-card-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+/* Diegetic buttons — no suite blue inside the ring. */
+.title-card-actions .desk-button {
+  background: rgb(140 28 36);
+  border-color: rgb(214 168 74);
+  color: rgb(246 238 216);
+}
+.title-card-actions .desk-button:hover { background: rgb(158 36 44); }
+.title-card-actions .desk-button.is-ghost {
+  background: transparent;
+  color: rgb(246 238 216);
+  border-color: rgb(246 238 216 / 0.4);
+}
+.title-card-actions .desk-button.is-ghost:hover { background: rgb(246 238 216 / 0.08); }
+
+/* Topstrip mute toggle — dims when muted, same as the wheel's. */
+#btn-audio-toggle.is-muted { opacity: 0.35; }
+#btn-audio-toggle.is-muted:hover { opacity: 0.75; }
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-card-inner { transition: none; }
+  .flash-card.is-dealt, .fighter-plate.is-in { animation: none; }
+}

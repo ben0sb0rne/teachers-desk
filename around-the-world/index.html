@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Around the World · The Teacher's Desk</title>
+  <meta name="description" content="Around the World — the classic head-to-head mental-math review game as a boxing match. Champion stays, challenger advances. Part of The Teacher's Desk." />
+  <!-- KaTeX (pinned, same build as Math Bingo) for fraction flashcards. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+      <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+        <span>The Teacher's Desk</span>
+      </a>
+      <a href="#" id="crumb-tool" hidden>Around the World</a>
+      <span id="crumb-context" class="is-current" hidden></span>
+    </nav>
+    <div class="suite-topstrip-actions">
+      <button type="button" id="btn-audio-toggle" aria-label="Mute audio" title="Mute audio (M)">
+        <svg class="icon" aria-hidden="true"><use href="#icon-volume"/></svg>
+      </button>
+      <button type="button" class="settings-button" id="btn-settings-topstrip"
+              aria-label="Settings" title="Settings (S)"></button>
+      <button type="button" id="btn-fullscreen"
+              title="Fullscreen (F)" aria-label="Enter fullscreen">
+        <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- SVG icon sprite (suite-standard glyphs). -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
+    <symbol id="icon-fullscreen"      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="icon-fullscreen-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="icon-volume"   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></symbol>
+    <symbol id="icon-volume-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></symbol>
+    <!-- Championship belt for the reigning fighter's plate. -->
+    <symbol id="icon-belt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="20" height="6" rx="1.5"/><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none"/><line x1="5.5" y1="10.5" x2="5.5" y2="13.5"/><line x1="18.5" y1="10.5" x2="18.5" y2="13.5"/></symbol>
+  </svg>
+
+  <main class="atw-main">
+
+    <!-- Class-select view -->
+    <section id="class-select-view" class="view">
+      <header class="view-header">
+        <h1>Pick a class</h1>
+        <p class="muted">Two fighters. One seat. Winner stays.</p>
+      </header>
+      <div id="class-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- Setup view: question sets + first champion -->
+    <section id="setup-view" class="view" hidden>
+      <header class="view-header">
+        <h1 id="setup-class-name">&nbsp;</h1>
+        <p class="muted" id="setup-sub">Pick the question sets, choose your first champion, ring the bell.</p>
+      </header>
+
+      <div class="setup-panel">
+        <div class="setup-block">
+          <span class="setup-label">Question sets</span>
+          <div id="set-cards" class="set-cards" role="group" aria-label="Question sets"></div>
+          <p class="pool-line" id="pool-line">&nbsp;</p>
+        </div>
+
+        <div class="setup-block">
+          <span class="setup-label">First champion</span>
+          <select id="champion-select" aria-label="First champion">
+            <option value="">Random</option>
+          </select>
+        </div>
+
+        <div class="setup-actions">
+          <button type="button" id="btn-enter-ring" class="desk-button">Enter the ring</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- The ring -->
+    <section id="ring-view" class="view view--ring" hidden>
+      <header class="ring-header">
+        <h1 id="ring-class-name">&nbsp;</h1>
+        <div class="ring-controls">
+          <button type="button" id="btn-skip" class="desk-button is-ghost" hidden>Skip question</button>
+          <button type="button" id="btn-end-game" class="desk-button is-ghost">End game</button>
+        </div>
+      </header>
+
+      <div class="ring-stage">
+        <div class="fighters-row">
+          <button type="button" id="plate-champ" class="fighter-plate is-red" disabled>
+            <span class="corner-tag">RED CORNER · CHAMPION</span>
+            <span class="fighter-name" id="champ-name">&nbsp;</span>
+            <span class="streak-tag" id="champ-streak">
+              <svg class="belt" aria-hidden="true"><use href="#icon-belt"/></svg>
+              <span id="champ-streak-text">&nbsp;</span>
+            </span>
+          </button>
+          <span class="vs-mark" aria-hidden="true">VS</span>
+          <button type="button" id="plate-chall" class="fighter-plate is-blue" disabled>
+            <span class="corner-tag">BLUE CORNER · CHALLENGER</span>
+            <span class="fighter-name" id="chall-name">&nbsp;</span>
+            <span class="streak-tag is-quiet">NEXT SEAT UP</span>
+          </button>
+        </div>
+
+        <p class="ring-hint" id="ring-hint">&nbsp;</p>
+
+        <div class="card-arena">
+          <button type="button" id="btn-bell" class="bell-btn">Ring the bell</button>
+          <div id="flash-card" class="flash-card" hidden>
+            <div class="flash-card-inner">
+              <div class="flash-face flash-front">
+                <span class="flash-label">Question</span>
+                <div class="flash-text" id="flash-question"></div>
+                <span class="flash-flip-hint">tap to reveal the answer</span>
+              </div>
+              <div class="flash-face flash-back">
+                <span class="flash-label">Answer</span>
+                <div class="flash-text" id="flash-answer"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- End-of-game title card -->
+      <div id="end-card" class="end-overlay" hidden>
+        <div class="title-card" role="dialog" aria-modal="true" aria-label="Game result">
+          <span class="title-card-kicker">CHAMPION OF THE ROOM</span>
+          <span class="title-card-name" id="end-name">&nbsp;</span>
+          <span class="title-card-streak" id="end-streak">&nbsp;</span>
+          <span class="title-card-record" id="end-record"></span>
+          <div class="title-card-actions">
+            <button type="button" id="btn-rematch" class="desk-button">Rematch</button>
+            <button type="button" id="btn-change-setup" class="desk-button is-ghost">Change setup</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

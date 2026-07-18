@@ -2,6 +2,10 @@
 
 import * as sharedStorage from '../shared/storage.js';
 import { registerToolSettings, openSettings, closeSettings } from '../shared/settings.js';
+import {
+  parseCSVText, mathHtmlOrNull, renderMathHtml as sharedRenderMathHtml,
+  warmMath, clearMathCache,
+} from '../shared/problem-sets.js';
 
 /* ============================================================
    DEFAULT PROBLEMS (80 integer addition/subtraction problems)
@@ -443,46 +447,9 @@ function topicPrimaryGrade(group, allowed = GRADE_ORDER) {
 }
 
 /* ============================================================
-   CSV PARSER (handles quoted fields, CRLF/LF, whitespace)
+   CSV PARSER — moved to shared/problem-sets.js (imported above);
+   Around the World parses the same format.
    ============================================================ */
-function parseCSVText(text) {
-  const rows = [];
-  // Strip UTF-8 BOM (Excel adds one when "Save As CSV UTF-8"). Without
-  // this, the first header parses as "﻿column" and loadProblems
-  // reports a spurious "Missing required header" error.
-  const raw = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  let i = 0;
-  while (i <= raw.length) {
-    const row = [];
-    while (true) {
-      let field = '';
-      if (i < raw.length && raw[i] === '"') {
-        i++; // skip opening quote
-        while (i < raw.length) {
-          if (raw[i] === '"' && raw[i+1] === '"') { field += '"'; i += 2; }
-          else if (raw[i] === '"') { i++; break; }
-          else { field += raw[i++]; }
-        }
-        // skip to comma or newline
-        while (i < raw.length && raw[i] !== ',' && raw[i] !== '\n') i++;
-      } else {
-        while (i < raw.length && raw[i] !== ',' && raw[i] !== '\n') {
-          field += raw[i++];
-        }
-      }
-      row.push(field.trim());
-      if (i >= raw.length || raw[i] === '\n') { i++; break; }
-      i++; // skip comma
-    }
-    if (row.length === 1 && row[0] === '') {
-      if (i > raw.length) break;
-      continue;
-    }
-    rows.push(row);
-    if (i > raw.length) break;
-  }
-  return rows;
-}
 
 /* ============================================================
    PROBLEM LOADER & VALIDATOR
@@ -3706,53 +3673,31 @@ function icon(name) {
   return `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
 }
 
-/* In-memory cache of KaTeX HTML output, keyed by the raw LaTeX
-   string. Pre-warmed at host-game entry (see preWarmLatexHtmlCache)
-   and cleared on set change (see applyLoadedSet). renderMath and
-   renderMathHtml below both consult this cache so the Next-click path
-   never blocks the main thread on katex.renderToString — the work has
-   already happened during the view transition. A null value means
-   KaTeX threw on parse (the renderer falls back to textContent). */
-const latexHtmlCache = new Map();
-function clearLatexHtmlCache() { latexHtmlCache.clear(); }
+/* KaTeX HTML cache now lives in shared/problem-sets.js (imported
+   above) so Around the World shares the render path. These are thin
+   bingo-named shims over the shared cache — pre-warmed at host-game
+   entry, cleared on set change, same behavior as before. */
+function clearLatexHtmlCache() { clearMathCache(); }
 
-function _katexHtml(text) {
-  if (latexHtmlCache.has(text)) return latexHtmlCache.get(text);
-  let html = null;
-  try { html = katex.renderToString(text, { throwOnError: false, displayMode: false }); }
-  catch (e) { html = null; }
-  latexHtmlCache.set(text, html);
-  return html;
-}
+function _katexHtml(text) { return mathHtmlOrNull(text); }
 
 function renderMath(el, text) {
-  if (text && text.includes('\\') && typeof katex !== 'undefined') {
-    const html = _katexHtml(text);
+  if (text && text.includes('\\')) {
+    const html = mathHtmlOrNull(text);
     if (html) { el.innerHTML = html; return; }
   }
   el.textContent = text;
 }
 
-function renderMathHtml(text) {
-  const s = String(text ?? '');
-  if (s.includes('\\') && typeof katex !== 'undefined') {
-    const html = _katexHtml(s);
-    if (html) return html;
-  }
-  return escHtml(s);
-}
+function renderMathHtml(text) { return sharedRenderMathHtml(text); }
 
 function preWarmLatexHtmlCache() {
-  if (typeof katex === 'undefined') return;
   const strings = new Set();
   (state.problems || []).forEach(p => {
-    if (p.problem && p.problem.includes('\\')) strings.add(p.problem);
-    const ansStr = String(p.answer ?? '');
-    if (ansStr.includes('\\')) strings.add(ansStr);
+    if (p.problem) strings.add(p.problem);
+    strings.add(String(p.answer ?? ''));
   });
-  for (const s of strings) {
-    if (!latexHtmlCache.has(s)) _katexHtml(s);
-  }
+  warmMath(strings);
 }
 
 const latexPngCache = new Map();
