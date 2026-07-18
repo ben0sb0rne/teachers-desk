@@ -42,6 +42,10 @@ body {
 /* Class-select cards come from the shared suite pattern
    (shared/components/class-card-grid.js + desk.css .class-card). */
 
+/* Topstrip mute toggle — dims when muted, same as the wheel's. */
+#btn-audio-toggle.is-muted { opacity: 0.35; }
+#btn-audio-toggle.is-muted:hover { opacity: 0.75; }
+
 /* ── Setup — the math panel ──────────────────────────────────── */
 .setup-panel {
   max-width: 720px;

@@ -20,8 +20,11 @@
   <link rel="stylesheet" href="shared/desk.css" />
   <style>
     /* Page-local layout only. No tokens here. */
-    html, body { min-height: 100%; }
-    body { display: flex; flex-direction: column; }
+    /* html needs a DEFINITE height (not min-height) or body's percentage
+       min-height resolves to auto and the vertical centering never
+       engages — content hugs the top with a dead band below. */
+    html { height: 100%; }
+    body { min-height: 100%; display: flex; flex-direction: column; }
     main { flex: 1; }
 
     .desk-frame {

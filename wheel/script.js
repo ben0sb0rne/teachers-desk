@@ -326,8 +326,7 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 
 // Breadcrumb middle item — "Wheel of Names" link returns to the
 // class-select view. Visible only while a class is open.
-document.getElementById('crumb-tool').addEventListener('click', (e) => {
-  e.preventDefault();
+function backToClassSelect() {
   abortPendingSpin();
   hideReveal();
   showView('classSelect');
@@ -338,6 +337,11 @@ document.getElementById('crumb-tool').addEventListener('click', (e) => {
     activeClassUnsubscribe();
     activeClassUnsubscribe = null;
   }
+}
+
+document.getElementById('crumb-tool').addEventListener('click', (e) => {
+  e.preventDefault();
+  backToClassSelect();
 });
 
 // Fullscreen toggle. Mirrors the bingo implementation so behaviour
@@ -1032,6 +1036,12 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'm' || e.key === 'M') {
     e.preventDefault();
     if (audioToggleBtn) audioToggleBtn.click();
+  } else if (e.key === 'Escape') {
+    // Suite grammar: Esc walks back (race/teams do the same). Native
+    // fullscreen-exit keeps priority; overlays are handled above.
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    e.preventDefault();
+    backToClassSelect();
   }
 });
 

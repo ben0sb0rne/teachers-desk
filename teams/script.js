@@ -404,6 +404,31 @@ document.getElementById('crumb-tool').addEventListener('click', (e) => {
   showClassSelect();
 });
 
+/* ── Audio mute toggle (topstrip) ───────────────────────────────
+   Suite convention: a tool that plays audio keeps a visible mute
+   toggle. Teams' only sound source is the reveal modules' synth,
+   which reads the suite 'soundMuted' preference per note — so the
+   toggle flips that pref and takes effect immediately. */
+function updateAudioToggleUI() {
+  const btn = document.getElementById('btn-audio-toggle');
+  if (!btn) return;
+  const muted = !!getPreference('soundMuted', false);
+  const use = btn.querySelector('use');
+  if (use) use.setAttribute('href', muted ? '#icon-volume-x' : '#icon-volume');
+  btn.setAttribute('aria-label', muted ? 'Unmute audio' : 'Mute audio');
+  btn.title = muted ? 'Unmute audio (M)' : 'Mute audio (M)';
+  btn.setAttribute('aria-pressed', String(muted));
+  btn.classList.toggle('is-muted', muted);
+}
+
+function toggleAudioMuted() {
+  setPreference('soundMuted', !getPreference('soundMuted', false));
+  updateAudioToggleUI();
+}
+
+document.getElementById('btn-audio-toggle')?.addEventListener('click', toggleAudioMuted);
+updateAudioToggleUI();
+
 /* ── Fullscreen + keys (suite grammar) ──────────────────────── */
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
@@ -435,6 +460,9 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
     toggleFullscreen();
+  } else if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    toggleAudioMuted();
   }
 });
 

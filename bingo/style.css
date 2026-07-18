@@ -324,6 +324,10 @@ body {
 /* (Chrome collapse now comes from the suite-wide body.is-fullscreen
    standard in shared/desk.css — every view, every tool.) */
 
+/* Topstrip mute toggle — dims when muted, same as the wheel's. */
+#btn-audio-toggle.is-muted { opacity: 0.35; }
+#btn-audio-toggle.is-muted:hover { opacity: 0.75; }
+
 /* ── Inline SVG icons ── */
 .icon {
   width: 1em; height: 1em;

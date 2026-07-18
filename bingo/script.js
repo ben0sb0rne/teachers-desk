@@ -4046,6 +4046,10 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       toggleFullscreen();
       break;
+    case 'm': case 'M':
+      e.preventDefault();
+      toggleAudioMuted();
+      break;
     case 'a': case 'A':
       e.preventDefault();
       if (state.currentView === 'caller') renderCheckAnswers();
@@ -4055,6 +4059,33 @@ document.addEventListener('keydown', e => {
       break;
   }
 });
+
+/* ============================================================
+   AUDIO MUTE TOGGLE (topstrip)
+   Suite convention: every tool that plays audio keeps a clearly
+   labeled mute toggle visible at all times. Flips the one field
+   every bingo sound gates on (state.settings.soundMuted).
+   ============================================================ */
+function updateAudioToggleUI() {
+  const btn = document.getElementById('btn-audio-toggle');
+  if (!btn) return;
+  const muted = !!state.settings.soundMuted;
+  const use = btn.querySelector('use');
+  if (use) use.setAttribute('href', muted ? '#icon-volume-x' : '#icon-volume');
+  btn.setAttribute('aria-label', muted ? 'Unmute audio' : 'Mute audio');
+  btn.title = muted ? 'Unmute audio (M)' : 'Mute audio (M)';
+  btn.setAttribute('aria-pressed', String(muted));
+  btn.classList.toggle('is-muted', muted);
+}
+
+function toggleAudioMuted() {
+  state.settings.soundMuted = !state.settings.soundMuted;
+  saveSettings();
+  audio.setMuted();
+  updateAudioToggleUI();
+}
+
+document.getElementById('btn-audio-toggle')?.addEventListener('click', toggleAudioMuted);
 
 /* ============================================================
    FULLSCREEN
@@ -4368,6 +4399,7 @@ function init() {
   applyCardColors();
   applyFont();
   audio.init();
+  updateAudioToggleUI();
   // Register bingo's settings section into the shared suite dialog.
   // The render function takes a host element provided by the dialog
   // and populates it with bingo-specific controls.
