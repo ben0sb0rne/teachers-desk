@@ -29,6 +29,7 @@ import {
 import { mountSettingsButton } from '../shared/settings.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { loadProblemRows, fetchSetText, parseCSVText, renderMathInto, warmMath } from '../shared/problem-sets.js';
+import { initLevels } from '../shared/nav-levels.js';
 
 mountSettingsButton();
 
@@ -213,6 +214,9 @@ function showView(id) {
   const crumbCtx = document.getElementById('crumb-context');
   crumbCtx.hidden = id === 'class-select-view';
   crumbCtx.textContent = state.className;
+  // Crumb rule: every level above the current one is a link. The class
+  // crumb is current on setup (plain bold) and an up-link in the ring.
+  crumbCtx.classList.toggle('is-current', id !== 'ring-view');
 }
 
 /* ── Class select ───────────────────────────────────────────── */
@@ -232,7 +236,7 @@ function showClassSelect() {
 }
 
 /* ── Setup ──────────────────────────────────────────────────── */
-function openSetup(classId) {
+function openSetup(classId, { pushLevel = true } = {}) {
   state.classId = classId;
   state.className = getClassName(classId) || '(unnamed)';
   state.roster = getRoster(classId);
@@ -258,6 +262,19 @@ function openSetup(classId) {
   // Eager-load every set so the counts are real, not "…".
   for (const s of SETS) ensureSetLoaded(s.id);
   for (const c of customSets()) ensureSetLoaded('custom:' + c.id);
+  if (pushLevel) nav.push('setup');
+}
+
+// Re-shows the setup level without resetting order/absences — used by
+// every walk-up out of the ring (history, crumb, end-card buttons).
+function renderSetupLevel() {
+  document.getElementById('end-card').hidden = true;
+  state.running = false;
+  showView('setup-view');
+  renderResumeBanner();
+  renderSetCards();
+  renderOrderCards();
+  refreshPool();
 }
 
 function renderResumeBanner() {
@@ -595,7 +612,7 @@ function buildPool() {
   warmMath(state.pool.flatMap((r) => [r.problem, r.answer]));
 }
 
-function enterRing() {
+function enterRing({ pushLevel = true } = {}) {
   const present = state.orderNames.filter((n) => !state.out.has(n));
   if (present.length < 2) return;
   buildPool();
@@ -616,9 +633,10 @@ function enterRing() {
   showView('ring-view');
   renderRing();
   persistMatch();
+  if (pushLevel) nav.push('ring');
 }
 
-function resumeMatch() {
+function resumeMatch({ pushLevel = true } = {}) {
   const save = savedMatchFor(state.classId);
   if (!save) return;
   const inRoster = new Set(state.roster);
@@ -660,6 +678,7 @@ function resumeMatch() {
     document.getElementById('end-card').hidden = true;
     showView('ring-view');
     renderRing();
+    if (pushLevel) nav.push('ring');
   };
   if (state.verbal) { finish(); return; }
   // Make sure every selected set is loaded before the pool builds.
@@ -844,8 +863,7 @@ function endGame({ sweep = false } = {}) {
   if (state.cardsOnly) {
     // Nothing to crown — straight back to the corner office.
     state.running = false;
-    showView('setup-view');
-    renderResumeBanner(); renderSetCards(); renderOrderCards(); refreshPool();
+    nav.pop();
     return;
   }
   const champ = state.best ?? { name: state.champion, streak: state.streak };
@@ -897,25 +915,23 @@ document.getElementById('btn-end-game').addEventListener('click', () => endGame(
 document.getElementById('btn-rematch').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
   clearMatchSave(); // a rematch replaces the finished match
-  enterRing();
+  enterRing({ pushLevel: false }); // already at the ring level
 });
 document.getElementById('btn-save-exit').addEventListener('click', () => {
   document.getElementById('end-card').hidden = true;
-  showClassSelect(); // the match is already persisted by endGame
+  nav.popTo('select'); // the match is already persisted by endGame
 });
 document.getElementById('btn-change-setup').addEventListener('click', () => {
-  document.getElementById('end-card').hidden = true;
-  state.running = false;
-  showView('setup-view');
-  renderResumeBanner();
-  renderSetCards();
-  renderOrderCards();
-  refreshPool();
+  nav.pop();
 });
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
-  persistMatch(); // leaving mid-match keeps it waiting
-  showClassSelect();
+  nav.popTo('select'); // onNavigate persists a mid-match game on the way out
+});
+document.getElementById('crumb-context').addEventListener('click', (e) => {
+  e.preventDefault();
+  // Only a link while in the ring (CSS disables it on setup).
+  if (nav.current() === 'ring') nav.pop();
 });
 
 /* ── Audio toggle (suite convention) ────────────────────────── */
@@ -977,13 +993,11 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'Escape') {
     if (document.fullscreenElement) return;
     if (endOpen) {
-      document.getElementById('end-card').hidden = true;
-      showView('setup-view');
-      renderResumeBanner(); renderSetCards(); renderOrderCards(); refreshPool();
+      nav.pop(); // dismissing the title card lands on setup
     } else if (inRing) {
       endGame();
     } else if (inSetup) {
-      showClassSelect();
+      nav.pop();
     }
   } else if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
@@ -1001,4 +1015,31 @@ function escHtml(s) {
 }
 void parseCSVText; // (kept for future import tooling)
 
+// Browser-history levels: Back/Forward walk select ⇄ setup ⇄ ring
+// instead of leaving the tool (shared/nav-levels.js).
+const nav = initLevels({
+  onNavigate(level) {
+    if (level === 'select') {
+      persistMatch(); // leaving mid-match keeps it waiting (self-guards)
+      showClassSelect();
+      return true;
+    }
+    if (level === 'setup') {
+      if (!state.classId || state.roster.length < 2) return false;
+      persistMatch(); // backing out of the ring mid-match keeps it waiting
+      renderSetupLevel();
+      return true;
+    }
+    if (level === 'ring') {
+      // Forward re-entry — only a saved match can re-drive the ring.
+      const save = state.classId ? savedMatchFor(state.classId) : null;
+      if (!save) return false;
+      resumeMatch({ pushLevel: false });
+      return true;
+    }
+    return false;
+  },
+});
+
 showClassSelect();
+nav.setRoot('select');

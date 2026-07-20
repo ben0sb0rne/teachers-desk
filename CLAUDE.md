@@ -98,16 +98,18 @@ Per-tool state lives under `tools.<toolName>` in the storage envelope.
 
 ## Tool navigation — the topstrip pattern
 
-Every tool uses the same `.suite-topstrip` shell (defined in [`shared/desk.css`](shared/desk.css)) with three rules:
+The top bar exists to walk the **levels of the current tool** (game → class select → suite home), not to hop between tools — teachers are single-tool visitors (decided 2026-07-19). Every tool page uses the same `.suite-topstrip` shell (defined in [`shared/desk.css`](shared/desk.css)):
 
-- **Left:** a breadcrumb starting with `The Teacher's Desk` (text-only, no back-arrow icon). The wordmark itself links to the suite root. Deeper crumbs are tool-internal levels (e.g. `Math Bingo › Set Name`). Last crumb is plain text — current context, not a link.
-- **Right:** icon-only action buttons. No chip backgrounds, no shadows. Color follows the bar: cream on the transparent home strip (over the dark wood backdrop), ink-dark on the paper-cream app-view bar. Hover is a unified `paper-edge / 0.08` overlay.
+- **Left, the breadcrumb** — starts with the `The Teacher's Desk` wordmark (text-only, no back-arrow icon), which links to the suite root. Deeper crumbs are tool-internal levels (e.g. `Math Bingo › Set Name`). **Every crumb above the current level is a link** and shows a resting underline (soft decoration color, firms on hover; the wordmark is exempt). The **current level is plain bold text** — when the level's element is an `<a>` that's currently at the top (Teams/AtW class crumb), it wears `.is-current`, which strips the underline and pointer.
+- **Right, the icon cluster** — icon-only buttons, order `[help?] [audio?] [settings] [fullscreen]` (help and audio only where the tool has them). No chip backgrounds, no shadows. Color follows the bar: cream on the transparent home strip, ink-dark on the paper-cream app-view bar. Hover is a unified `paper-edge / 0.08` overlay.
 - **Background:** transparent by default; paper-cream on app-views (caller, card designer, wheel spinner, seat editor). Toggled by `body.app-view` from each tool's view switcher.
 
 Additional conventions:
 
+- **Browser Back walks levels.** Every vanilla tool wires its views through [`shared/nav-levels.js`](shared/nav-levels.js): drill-downs push a history entry, and Back/Forward, the crumb links, and Esc all route through the same `onNavigate` renderer — Back never dumps the teacher out of the tool mid-game. Bingo's card designer vetoes the navigation and shows its save-changes prompt when dirty. The seating chart uses React Router URLs and manages its own history.
+- **Static pages get the strip too.** `about.html` and every `how-to.html` carry the same breadcrumb shell (wordmark › tool link › current page) with **no icon cluster** — they're documents, not apps.
 - **Borderless fullscreen is the suite standard** (decided 2026-07-15): in fullscreen, EVERY page sheds its chrome — the topstrip collapses to zero height and only the floating minimize button survives (fixed top-right; `body.is-fullscreen` rules in `shared/desk.css`). Tools toggle `body.is-fullscreen` from their `fullscreenchange` handler. The seating chart (its own React shell) is exempt. Dark worlds recolor `#btn-fullscreen` cream; nothing else overrides.
-- **No cross-tool navigation.** Tools never link to each other. The breadcrumb only walks to suite root or within the current tool.
+- **No cross-tool navigation — deliberately.** Tools never link to each other; the breadcrumb only walks to suite root or within the current tool. Teachers usually use one tool per visit; the desk is the switchboard.
 - **No footer, no sidebar.** Discovery happens at the desk.
 - Tool homepages still keep the same widget set as app-views — just transparent background — so the user can hit Settings or Fullscreen from any screen.
 

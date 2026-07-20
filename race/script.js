@@ -22,6 +22,7 @@ import {
 import { mountSettingsButton } from '../shared/settings.js';
 import { colorForStudent, initialsOf, paintMarble } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
+import { initLevels } from '../shared/nav-levels.js';
 
 mountSettingsButton();
 
@@ -663,7 +664,7 @@ function showClassSelect() {
   }
 }
 
-function openRace(classId) {
+function openRace(classId, { pushLevel = true } = {}) {
   state.classId = classId;
   state.names = getRoster(classId);
   state.detail = getRosterDetailed(classId); // favorite colors ride along
@@ -682,6 +683,7 @@ function openRace(classId) {
   crumbCtx.textContent = label;
   fitCanvas();
   resetRace(true);
+  if (pushLevel) nav.push('race');
 }
 
 /* ── Fullscreen ─────────────────────────────────────────────── */
@@ -709,9 +711,7 @@ document.getElementById('btn-start').addEventListener('click', startRace);
 document.getElementById('btn-reset').addEventListener('click', () => resetRace(true));
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
-  cancelAnimationFrame(state.rafId);
-  state.running = false;
-  showClassSelect();
+  nav.pop();
 });
 
 // Track picker — named playfield cards; switching lays out a fresh
@@ -753,9 +753,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     startRace();
   } else if (e.key === 'Escape' && inRace && !document.fullscreenElement) {
-    cancelAnimationFrame(state.rafId);
-    state.running = false;
-    showClassSelect();
+    nav.pop();
   } else if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !e.altKey) {
     e.preventDefault();
     toggleFullscreen();
@@ -766,4 +764,25 @@ window.addEventListener('resize', () => {
   if (!document.getElementById('race-view').hidden) { fitCanvas(); draw(); }
 });
 
+// Browser-history levels: Back/Forward walk select ⇄ race instead of
+// leaving the tool (shared/nav-levels.js).
+const nav = initLevels({
+  onNavigate(level) {
+    if (level === 'select') {
+      cancelAnimationFrame(state.rafId);
+      state.running = false;
+      showClassSelect();
+      return true;
+    }
+    if (level === 'race') {
+      // Forward re-entry — only while the class still has racers.
+      if (!state.classId || getRoster(state.classId).length === 0) return false;
+      openRace(state.classId, { pushLevel: false });
+      return true;
+    }
+    return false;
+  },
+});
+
 showClassSelect();
+nav.setRoot('select');

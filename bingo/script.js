@@ -6,6 +6,7 @@ import {
   parseCSVText, mathHtmlOrNull, renderMathHtml as sharedRenderMathHtml,
   warmMath, clearMathCache,
 } from '../shared/problem-sets.js';
+import { initLevels } from '../shared/nav-levels.js';
 
 /* ============================================================
    DEFAULT PROBLEMS (80 integer addition/subtraction problems)
@@ -1176,6 +1177,20 @@ function showView(view) {
   document.getElementById('progress-display').hidden = (view !== 'caller');
   // Refresh the beforeunload guard since print-view dirtiness now matters.
   updateBeforeUnload();
+  // Keep the history-level stack in step with whichever UI path switched
+  // the view, so the browser's Back/Forward walk home ⇄ print ⇄ caller
+  // (nav-levels drives the reverse direction; see the initLevels block).
+  if (!applyingNav && nav.depth() > 0 && nav.current() !== view) {
+    if (LEVEL_RANK[view] > LEVEL_RANK[nav.current()]) {
+      nav.push(view);
+    } else if (nav.contains(view)) {
+      navBypassGuard = true; // UI walk-ups already ran their own confirm
+      nav.popTo(view);
+    } else {
+      nav.replace(view); // lateral hop, e.g. caller → designer when the
+                         // designer wasn't on the way in
+    }
+  }
 }
 
 function applyLoadedSet(problems, name, allRows = null) {
@@ -4337,6 +4352,52 @@ function wireEvents() {
 }
 
 /* ============================================================
+   BROWSER-HISTORY LEVELS (shared/nav-levels.js)
+   Back/Forward walk home ⇄ print ⇄ caller instead of leaving the
+   tool. Drill-downs are recorded by the sync block at the end of
+   showView(); this handler renders the reverse direction — with the
+   designer's dirty guard on the way out.
+   ============================================================ */
+let applyingNav = false;    // true while onNavigate drives showView
+let navBypassGuard = false; // a UI flow (or confirmed prompt) already asked
+const LEVEL_RANK = { home: 0, print: 1, caller: 2 };
+
+const nav = initLevels({
+  onNavigate(level) {
+    // Browser Back out of a dirty designer: veto (nav-levels restores the
+    // entry), prompt, and re-drive the same walk-up once confirmed.
+    if (level === 'home' && state.currentView === 'print' && isPvDirty() && !navBypassGuard) {
+      confirmIfDirty('Save before leaving?', () => {
+        navBypassGuard = true;
+        nav.pop();
+      });
+      return false;
+    }
+    navBypassGuard = false;
+    applyingNav = true;
+    try {
+      if (level === 'home') {
+        showView('home');
+      } else if (level === 'print') {
+        showView('print');
+        renderPrintView();
+      } else if (level === 'caller') {
+        // Forward re-entry — only while a loaded set can drive the game.
+        if (!state.problems || state.problems.length === 0) return false;
+        showView('caller');
+        computeProblemFontSize();
+        render();
+      } else {
+        return false;
+      }
+    } finally {
+      applyingNav = false;
+    }
+    return true;
+  },
+});
+
+/* ============================================================
    INIT
    ============================================================ */
 function init() {
@@ -4355,6 +4416,7 @@ function init() {
   // prompts on Back / Host Game when the user hasn't actually edited.
   snapshotPvBaseline();
   showView('home');
+  nav.setRoot('home');
 }
 
 init();

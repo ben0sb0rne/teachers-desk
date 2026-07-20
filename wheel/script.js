@@ -32,6 +32,7 @@ import { mountSettingsButton, registerToolSettings } from '../shared/settings.js
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { openOverlay } from '../shared/components/overlay.js';
 import { mountPasteBulk } from '../shared/components/paste-bulk.js';
+import { initLevels } from '../shared/nav-levels.js';
 import * as audio from './audio.js';
 
 // Pre-decode the wheel SFX in the background. The AudioContext is
@@ -187,7 +188,7 @@ function abortPendingSpin() {
   audio.stopRumble();
 }
 
-function openClass(classId) {
+function openClass(classId, { pushLevel = true } = {}) {
   abortPendingSpin();
   hideReveal();
   state.activeClassId = classId;
@@ -220,6 +221,7 @@ function openClass(classId) {
   showView('wheel');
   renderWheel();
   updateMessage();
+  if (pushLevel) nav.push('spin');
 }
 
 // -------------------------------------------------------------
@@ -324,9 +326,10 @@ document.getElementById('btn-new-class').addEventListener('click', openNewClassM
 // WHEEL VIEW
 // -------------------------------------------------------------
 
-// Breadcrumb middle item — "Wheel of Names" link returns to the
-// class-select view. Visible only while a class is open.
-function backToClassSelect() {
+// Renders the class-select level. Only nav's onNavigate calls this —
+// user actions (crumb link, Esc, browser Back) all route through
+// history so the Back/Forward buttons stay in sync.
+function renderClassSelectLevel() {
   abortPendingSpin();
   hideReveal();
   showView('classSelect');
@@ -337,6 +340,12 @@ function backToClassSelect() {
     activeClassUnsubscribe();
     activeClassUnsubscribe = null;
   }
+}
+
+// Breadcrumb middle item — "Wheel of Names" link returns to the
+// class-select view. Visible only while a class is open.
+function backToClassSelect() {
+  nav.pop();
 }
 
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
@@ -1148,7 +1157,28 @@ registerToolSettings('picker', 'Wheel of Names', (host) => {
 });
 
 // -------------------------------------------------------------
+// Browser-history levels: Back/Forward walk select ⇄ spin instead of
+// leaving the tool (shared/nav-levels.js).
+// -------------------------------------------------------------
+const nav = initLevels({
+  onNavigate(level) {
+    if (level === 'select') {
+      renderClassSelectLevel();
+      return true;
+    }
+    if (level === 'spin') {
+      // Forward re-entry — only while the class still exists.
+      if (!state.activeClassId || !storage.getClassName(state.activeClassId)) return false;
+      openClass(state.activeClassId, { pushLevel: false });
+      return true;
+    }
+    return false;
+  },
+});
+
+// -------------------------------------------------------------
 // Boot
 // -------------------------------------------------------------
 mountClassSelect();
 showView('classSelect');
+nav.setRoot('select');

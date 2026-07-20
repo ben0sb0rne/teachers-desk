@@ -311,22 +311,54 @@ body.app-view .suite-topstrip-actions a:focus-visible {
 body.app-view .suite-breadcrumb > a,
 body.app-view .suite-breadcrumb > span { color: rgb(var(--paper-edge)); }
 
-.suite-breadcrumb > a { cursor: pointer; }
+/* Ancestor crumbs are LINKS and must read as links at rest — a soft
+   underline that firms up on hover. (Before this, the way back was
+   invisible until you happened to hover it.) The current level stays
+   plain bold text. */
+.suite-breadcrumb > a {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--paper-on-wood) / 0.35);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+body.app-view .suite-breadcrumb > a {
+  text-decoration-color: rgb(var(--paper-edge) / 0.3);
+}
 .suite-breadcrumb > a:hover,
 .suite-breadcrumb > a:focus-visible {
   background: rgb(var(--paper-on-wood) / 0.18);
+  text-decoration-color: currentColor;
   outline: none;
 }
 body.app-view .suite-breadcrumb > a:hover,
 body.app-view .suite-breadcrumb > a:focus-visible {
   background: rgb(var(--paper-edge) / 0.08);
+  text-decoration-color: currentColor;
 }
+/* The wordmark is identity first, link second — no underline. */
+.suite-breadcrumb > a.crumb-home { text-decoration: none; }
 
-.suite-breadcrumb > span.is-current {
+.suite-breadcrumb > span.is-current,
+.suite-breadcrumb > a.is-current {
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+/* A crumb anchor wearing .is-current IS the current level — render it
+   as plain text (tools toggle the class as you drill/climb). */
+.suite-breadcrumb > a.is-current {
+  text-decoration: none;
+  cursor: default;
+  pointer-events: none;
+}
+/* Long class/set names never eat the bar — link or not. */
+.suite-breadcrumb > a:not(.crumb-home),
+.suite-breadcrumb > span {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Separator › between visible items. :not(:empty) skips the separator

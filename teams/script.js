@@ -19,6 +19,7 @@ import { mountSettingsButton } from '../shared/settings.js';
 import { colorForStudent, initialsOf } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { displayName, collisionFirstNames } from '../shared/display-name.js';
+import { initLevels } from '../shared/nav-levels.js';
 import marbleSorter from '../shared/reveals/marble-sorter.js';
 import draftCards from '../shared/reveals/draft-cards.js';
 import gachaCapsules from '../shared/reveals/gacha-capsules.js';
@@ -112,6 +113,9 @@ function showView(id) {
   const crumbCtx = document.getElementById('crumb-context');
   crumbCtx.hidden = id === 'class-select-view';
   crumbCtx.textContent = state.className;
+  // Crumb rule: every level above the current one is a link. The class
+  // crumb is current on setup (plain bold) and an up-link on reveal.
+  crumbCtx.classList.toggle('is-current', id !== 'reveal-view');
 }
 
 /* ── Class select ───────────────────────────────────────────── */
@@ -133,7 +137,7 @@ function showClassSelect() {
 }
 
 /* ── Setup (math panel) ─────────────────────────────────────── */
-function openSetup(classId) {
+function openSetup(classId, { pushLevel = true } = {}) {
   destroyReveal();
   state.classId = classId;
   state.className = getClassName(classId) || '(unnamed)';
@@ -145,6 +149,7 @@ function openSetup(classId) {
   renderAbsent();
   refreshPartitions();
   renderRevealStyles();
+  if (pushLevel) nav.push('setup');
 }
 
 /* ── Absences ───────────────────────────────────────────────── */
@@ -377,6 +382,13 @@ function mountReveal() {
 function openReveal() {
   if (state.options.length === 0) return;
   makeAssignments();
+  renderRevealLevel();
+  nav.push('reveal');
+}
+
+// Re-shows the reveal view for the CURRENT assignments (no reroll) —
+// used both by openReveal and by history Forward re-entry.
+function renderRevealLevel() {
   document.getElementById('reveal-class-name').textContent = state.className;
   showView('reveal-view');
   mountReveal();
@@ -399,12 +411,16 @@ document.getElementById('btn-reroll').addEventListener('click', () => {
   mountReveal();
 });
 document.getElementById('btn-back-setup').addEventListener('click', () => {
-  destroyReveal();
-  showView('setup-view');
+  nav.pop();
 });
 document.getElementById('crumb-tool').addEventListener('click', (e) => {
   e.preventDefault();
-  showClassSelect();
+  nav.popTo('select');
+});
+document.getElementById('crumb-context').addEventListener('click', (e) => {
+  e.preventDefault();
+  // Only a link while on the reveal level (CSS disables it on setup).
+  if (nav.current() === 'reveal') nav.pop();
 });
 
 /* ── Audio mute toggle (topstrip) ───────────────────────────────
@@ -458,8 +474,7 @@ document.addEventListener('keydown', (e) => {
     runReveal();
   } else if (e.key === 'Escape') {
     if (document.fullscreenElement) return;
-    if (inReveal) { destroyReveal(); showView('setup-view'); }
-    else if (inSetup) showClassSelect();
+    if (inReveal || inSetup) nav.pop();
   } else if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
     toggleFullscreen();
@@ -475,4 +490,31 @@ function escHtml(s) {
   ));
 }
 
+// Browser-history levels: Back/Forward walk select ⇄ setup ⇄ reveal
+// instead of leaving the tool (shared/nav-levels.js).
+const nav = initLevels({
+  onNavigate(level) {
+    if (level === 'select') {
+      showClassSelect();
+      return true;
+    }
+    if (level === 'setup') {
+      // Back from reveal (keep setup state as-is) or Forward from
+      // select — either way the setup DOM is still populated.
+      if (!state.classId || state.names.length < 2) return false;
+      destroyReveal();
+      showView('setup-view');
+      return true;
+    }
+    if (level === 'reveal') {
+      // Forward re-entry — same teams, no reroll.
+      if (!state.classId || !state.assignments || state.assignments.length === 0) return false;
+      renderRevealLevel();
+      return true;
+    }
+    return false;
+  },
+});
+
 showClassSelect();
+nav.setRoot('select');
