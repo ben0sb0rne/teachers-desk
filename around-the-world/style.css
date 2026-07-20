@@ -663,3 +663,7 @@ html.tex-atw-backdrop-custom .backdrop-card[data-id="custom"] {
   background-size: cover;
   background-position: center;
 }
+
+/* Fullscreen: the suite minimize button owns the top-right corner —
+   keep End game clear of it. */
+body.is-fullscreen .ring-header { padding-right: 52px; }

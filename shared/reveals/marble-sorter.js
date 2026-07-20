@@ -27,6 +27,7 @@ const SPAWN_EVERY_S = 0.5;
 const BIN_TOP = H - 210;      // divider tops
 const PEG_TOP = 170;          // peg field band
 const PEG_BOTTOM = BIN_TOP - 150; // sorting lane runs from here to BIN_TOP
+const GUIDE_TOP = PEG_TOP + (PEG_BOTTOM - PEG_TOP) * 0.45; // drift fades in here
 
 const CSS = `
 .rv-sorter { position: absolute; inset: 0; display: flex; }
@@ -169,18 +170,24 @@ export default {
         const targetX = m.targetX;
         m.vy += GRAVITY * dt;
         if (m.vy > MAX_FALL) m.vy = MAX_FALL;
-        // Above the pegs and inside them: free physics — the tumble.
-        // In the sorting lane (below the pegs) a direct glide homes the
-        // marble to its ASSIGNED bin's center, ramping from gentle at
-        // the top of the lane to decisive at the mouth. Convergence is
-        // guaranteed before BIN_TOP, so no marble crosses into a
-        // neighbor's bin.
-        // Homing acts ONLY in the lane (above the mouths). Once the
-        // marble drops into its bin it's free to pile naturally.
+        // Above the pegs and in their top half: free physics — the
+        // tumble. From mid-field down, guidance is a LATERAL DRIFT on
+        // velocity (never a position snap): a spring toward the
+        // assigned bin's center that fades in with depth, plus
+        // progressive damping so the curve settles instead of
+        // oscillating. The marble bends its way there over the whole
+        // lower half of the board — it reads as luck, lands as roster.
+        if (m.y > GUIDE_TOP && m.y < BIN_TOP) {
+          const f = Math.min(1, (m.y - GUIDE_TOP) / (BIN_TOP - GUIDE_TOP));
+          m.vx += (targetX - m.x) * (2.0 + 9.0 * f * f) * dt;
+          m.vx *= Math.max(0, 1 - (0.8 + 2.6 * f) * dt);
+        }
+        // Last-stretch convergence in the sorting lane — dt-scaled and
+        // gentle (a nudge per second, not per frame). The divider
+        // walls below stay the hard roster guarantee.
         if (m.y > PEG_BOTTOM && m.y < BIN_TOP) {
           const f = (m.y - PEG_BOTTOM) / (BIN_TOP - PEG_BOTTOM);
-          m.x += (targetX - m.x) * (0.10 + 0.28 * f);
-          m.vx *= 1 - 0.3 * f;
+          m.x += (targetX - m.x) * Math.min(1, (0.6 + 4.4 * f) * dt);
         }
         m.x += m.vx * dt;
         m.y += m.vy * dt;

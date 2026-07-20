@@ -297,3 +297,7 @@ html.tex-race-cabinet #race-canvas {
   border-image: var(--tex-race-cabinet) 170 / 12px round;
   box-shadow: none;
 }
+
+/* Fullscreen: the suite minimize button owns the top-right corner —
+   keep Launch/Reset clear of it. */
+body.is-fullscreen .race-header { padding-right: 52px; }

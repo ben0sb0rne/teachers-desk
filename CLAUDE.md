@@ -2,7 +2,7 @@
 
 A static suite of free classroom tools for K–12 teachers, made by Mr. Osborne. Each tool has its own world (homepage diorama, wheel game-show, noise meter VU/traffic-light/control-panel, timer in four flavors, grade-book call tracker, boxing-match review game), but they all read and write through one shared data layer and share the same type system, interaction grammar, and engineering tokens. Everything is static + localStorage — no backend, no accounts, no analytics.
 
-**Shipped today:** homepage, Math Bingo, Wheel of Names, Seating Chart (which owns the roster editor). The noise meter, timer, Who's Been Called, and Around the World are planned — their briefs live in the `.docx` until each gets a per-tool `.md`.
+**Shipped today:** homepage, Math Bingo, Wheel of Names, Marble Race, Team Maker (four reveal ceremonies), Around the World, Seating Chart (which owns the roster editor). The noise meter, timer, and Who's Been Called are planned — their briefs live in the `.docx` until each gets a per-tool `.md`.
 
 ## Source of truth
 
@@ -27,16 +27,26 @@ Briefs live in `briefs/`. The original consolidated Word document is at `briefs/
 │   ├── storage.js              ← single source of truth for localStorage
 │   ├── roster-bridge.js        ← canonical-event subscription surface
 │   ├── settings.js             ← suite settings dialog + per-tool section registry
+│   ├── nav-levels.js           ← browser-history levels (Back walks a tool's views)
+│   ├── textures.js             ← hot-swap texture registry + Ctrl+Shift+T debug panel
+│   ├── problem-sets.js         ← CSV parsing + KaTeX cache (Bingo + Around the World)
+│   ├── display-name.js         ← roster display-name rules (first names, initials)
 │   ├── wheel-engine.js         ← STUB: future fairness-weighted picker logic
 │   ├── tip-jar.js              ← STUB: future Stripe payment-link tip jar
-│   └── components/             ← shared vanilla UI components
+│   ├── components/             ← shared vanilla UI (class-card-grid, marbles, overlay…)
+│   └── reveals/                ← Team Maker's four reveal ceremonies (self-contained)
 ├── bingo/                      ← Math Bingo (vanilla)
 ├── wheel/                      ← Wheel of Names (vanilla)
+├── race/                       ← Marble Race (vanilla)
+├── teams/                      ← Team Maker (vanilla; reveals live in shared/reveals/)
+├── around-the-world/           ← Around the World (vanilla)
 ├── picker/                     ← stub redirect to wheel/ (kept for old bookmarks)
 ├── rosters/                    ← stub redirect to seating-chart/
 ├── seating-chart/              ← React + TypeScript + Vite + Tailwind + Konva + Zustand + Radix
 │                                  Owns the canonical roster editor.
 ├── assets/
+│   └── textures/               ← hand-drawn art slots + README.md manifest (see below)
+├── serve.bat                   ← double-click local server (close window to stop)
 └── CLAUDE.md
 ```
 
@@ -49,6 +59,15 @@ Tools share code only by importing from `shared/`. Don't copy code between tools
 Single source of truth: [`shared/desk.css`](shared/desk.css). Color, typography, spacing, radius — all of it flows from there. **Don't redefine palette values, type scales, or spacing scales anywhere else.** If you need a new token, add it to `desk.css`.
 
 Konva renders to canvas and can't read CSS variables, so the seating chart keeps a JS mirror of the relevant tokens at [`seating-chart/src/lib/theme-tokens.ts`](seating-chart/src/lib/theme-tokens.ts). A vitest test catches drift; if you change a token in `desk.css`, run `npm test` in `seating-chart/`.
+
+## Texture system
+
+The user hand-illustrates the suite's textures. [`shared/textures.js`](shared/textures.js) is the hot-swap engine; [`assets/textures/README.md`](assets/textures/README.md) is the slot manifest (fixed filenames, sizes, fit modes, drawing notes). **Textures ship OFF by default** — the CSS/procedural look is always the fallback; Ctrl+Shift+T opens the debug panel (master + per-slot toggles + cache-busting reload), `?textures=1/0` forces the master switch.
+
+- Every material has ONE paint entry point. CSS surfaces hook via `html.tex-<slot-id>` classes + `--tex-<slot-id>` vars; canvas/SVG painters call `textureImage()`/`textureUrl()`/`tintedSprite()` and fall back procedurally when null.
+- **New surfaces in any tool must register a slot** in `textures.js` + README and hook through this pattern — never invent parallel texture plumbing, never bake art-destined gradients inline.
+- Sprites recolored at runtime (marble, bingo ball, gacha capsule) multiply the student/team/column color over grayscale art — keep that contract.
+- As final art lands, slots flip on-by-default one at a time (per-slot defaults are the go-live mechanism).
 
 ## Aesthetic guardrails
 
@@ -68,10 +87,12 @@ Each tool has its own intentional visual character. Don't fight the impulse to m
 
 - **Homepage** — photoreal teacher's-desk diorama, time-of-day-aware *(target — today it's a placard index on the wood surface)*.
 - **Wheel of Names** — 1970s Price Is Right (mustard, burnt orange, plastic-y wheel, curtain backdrop).
+- **Marble Race** — pinball parlor at night (midnight cabinet, cream playfield, chrome + brass).
+- **Team Maker** — suite paper-on-wood shell; each reveal is its own world: parlor annex (sorter), smoky card room (draft), Japanese toy shop (gacha), 1980s mainframe CRT (terminal).
+- **Around the World** — mid-century boxing broadcast (near-black ring, corner red/blue, gold).
 - **Noise Meter** *(planned)* — three switchable styles: vintage VU meter, traffic light, NASA control panel.
 - **Timer** *(planned)* — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
 - **Who's Been Called** *(planned)* — 1970s grade book / green-bar accountant pad.
-- **Around the World** *(planned)* — boxing-match broadcast.
 - **Bingo** — church-hall / 1970s bingo night, paper-cream surfaces. See [`briefs/02-bingo.md`](briefs/02-bingo.md).
 - **Seating Chart** — existing aesthetic, no brief yet.
 
@@ -90,7 +111,7 @@ All persistent state goes through [`shared/storage.js`](shared/storage.js). **Ne
 Two cross-tool stores carry most of the suite:
 
 - **Roster store** — class periods + student names + seating chart positions. Read by the Wheel, Who's Been Called, Around the World, future pickers. Written by the Seating Chart (which currently owns the roster editor).
-- **Problem set store** — collections of question/answer pairs. Read by Bingo and Around the World. Schema and management UI are not yet specced — a separate brief is expected before deep integration.
+- **Problem set store** — collections of question/answer pairs. Read by Bingo and Around the World, which already share the loader/parser/KaTeX layer in [`shared/problem-sets.js`](shared/problem-sets.js) (each tool still keeps its own saved-sets bucket). A unified cross-tool store schema + management UI are not yet specced — a separate brief is expected before deep integration.
 
 Per-tool state lives under `tools.<toolName>` in the storage envelope.
 
@@ -108,7 +129,7 @@ Additional conventions:
 
 - **Browser Back walks levels.** Every vanilla tool wires its views through [`shared/nav-levels.js`](shared/nav-levels.js): drill-downs push a history entry, and Back/Forward, the crumb links, and Esc all route through the same `onNavigate` renderer — Back never dumps the teacher out of the tool mid-game. Bingo's card designer vetoes the navigation and shows its save-changes prompt when dirty. The seating chart uses React Router URLs and manages its own history.
 - **Static pages get the strip too.** `about.html` and every `how-to.html` carry the same breadcrumb shell (wordmark › tool link › current page) with **no icon cluster** — they're documents, not apps.
-- **Borderless fullscreen is the suite standard** (decided 2026-07-15): in fullscreen, EVERY page sheds its chrome — the topstrip collapses to zero height and only the floating minimize button survives (fixed top-right; `body.is-fullscreen` rules in `shared/desk.css`). Tools toggle `body.is-fullscreen` from their `fullscreenchange` handler. The seating chart (its own React shell) is exempt. Dark worlds recolor `#btn-fullscreen` cream; nothing else overrides.
+- **Borderless fullscreen is the suite standard** (decided 2026-07-15): in fullscreen, EVERY page sheds its chrome — the topstrip collapses to zero height and only the floating minimize button survives (fixed top-right; `body.is-fullscreen` rules in `shared/desk.css`). Tools toggle `body.is-fullscreen` from their `fullscreenchange` handler. The seating chart (its own React shell) is exempt. Dark worlds recolor `#btn-fullscreen` cream; nothing else overrides. **The top-right ~52px is the minimize button's reserved corner** — any world control that lives top-right gets a fullscreen `padding-right` so it never sits under the button (race and AtW headers do this).
 - **No cross-tool navigation — deliberately.** Tools never link to each other; the breadcrumb only walks to suite root or within the current tool. Teachers usually use one tool per visit; the desk is the switchboard.
 - **No footer, no sidebar.** Discovery happens at the desk.
 - Tool homepages still keep the same widget set as app-views — just transparent background — so the user can hit Settings or Fullscreen from any screen.
@@ -155,7 +176,10 @@ Never add any of the following without an explicit user request:
 ## Running locally
 
 ```bash
-# from the repo root — vanilla tools
+# easiest: double-click serve.bat (repo root) — serves everything at
+# http://localhost:8765/ and opens the browser; close its window to stop.
+
+# or manually, from the repo root — vanilla tools
 python -m http.server 8000        # http://localhost:8000
 
 # seating chart only (Vite dev server)
