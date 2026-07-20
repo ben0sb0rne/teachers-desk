@@ -179,6 +179,23 @@ body.rv-skin-gacha {
 .rv-skin-gacha .team-col li.is-empty { color: rgb(246 238 216 / 0.4); }
 .rv-skin-gacha .team-col li.is-new { background: rgb(240 84 28 / 0.16); }
 .rv-skin-gacha .team-col .dot { border-color: rgb(246 238 216 / 0.4); }
+/* TEXTURE SLOTS (shared/textures.js) — hand-drawn art hooks; the
+   rules above stay the fallback when a slot is off. */
+html.tex-gacha-body .rv-gacha-body {
+  background-image: var(--tex-gacha-body);
+  background-size: 100% 100%;
+  border-color: transparent;
+}
+html.tex-gacha-capsule .rv-gacha-pill,
+html.tex-gacha-capsule .rv-gacha-capsule .rv-cap-bottom {
+  /* White-bottomed capsule art multiplied by the team color set
+     inline (background-color) by the module. */
+  background-image: var(--tex-gacha-capsule);
+  background-size: 100% 200%;
+  background-blend-mode: multiply;
+}
+html.tex-gacha-capsule .rv-gacha-pill { background-size: 100% 100%; }
+html.tex-gacha-capsule .rv-gacha-capsule .rv-cap-bottom { background-position: 0 100%; }
 `;
 
 export default {
@@ -207,7 +224,9 @@ export default {
     const pills = ctx.assignments.map((a, i) => {
       const pill = document.createElement('span');
       pill.className = 'rv-gacha-pill';
-      pill.style.background = a.color;
+      // backgroundColor (not the shorthand) so the texture slot's
+      // background-image can layer over it via the stylesheet.
+      pill.style.backgroundColor = a.color;
       const ang = (i * 2.399963) % (Math.PI * 2); // golden angle scatter
       const rad = 20 + ((i * 53) % 78);
       pill.style.left = 100 + Math.cos(ang) * rad + 'px';
@@ -273,7 +292,7 @@ export default {
       capsule.className = 'rv-gacha-capsule';
       capsule.innerHTML =
         '<div class="rv-cap-top"></div>' +
-        `<div class="rv-cap-bottom" style="background:${a.color}"></div>`;
+        `<div class="rv-cap-bottom" style="background-color:${a.color}"></div>`;
       machine.appendChild(capsule);
       void capsule.getBoundingClientRect();
       capsule.style.transform = 'translateY(226px)';

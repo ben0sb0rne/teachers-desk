@@ -23,6 +23,7 @@ import { mountSettingsButton } from '../shared/settings.js';
 import { colorForStudent, initialsOf, paintMarble } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { initLevels } from '../shared/nav-levels.js';
+import { initTextures, textureImage } from '../shared/textures.js';
 
 mountSettingsButton();
 
@@ -483,6 +484,13 @@ const SINK_S = 0.45;
    stars, lane chevrons, checkered finish. A drawn playfield texture
    would replace this function wholesale. */
 function paintPlayfield() {
+  // Texture slot: race-playfield (per-track race-playfield-<id>.png
+  // wins when present). Drawn art replaces this print wholesale.
+  const art = textureImage('race-playfield-' + state.trackId) || textureImage('race-playfield');
+  if (art) {
+    ctx.drawImage(art, 0, 0, W, H);
+    return;
+  }
   ctx.fillStyle = PALETTE.cream;
   ctx.fillRect(0, 0, W, H);
 
@@ -527,6 +535,12 @@ function paintPost(p, now) {
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 4, 0, Math.PI * 2); ctx.stroke();
   }
+  // Texture slot: race-post.
+  const art = textureImage('race-post');
+  if (art) {
+    ctx.drawImage(art, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    return;
+  }
   ctx.fillStyle = PALETTE.brassDark;
   ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = flash ? PALETTE.teal : PALETTE.brass;
@@ -542,6 +556,12 @@ function paintBumper(p, now) {
     ctx.strokeStyle = `rgb(240 84 28 / ${(0.85 * (1 - t)).toFixed(2)})`;
     ctx.lineWidth = 5;
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 6, 0, Math.PI * 2); ctx.stroke();
+  }
+  // Texture slot: race-bumper.
+  const art = textureImage('race-bumper');
+  if (art) {
+    ctx.drawImage(art, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    return;
   }
   ctx.fillStyle = PALETTE.chromeDark;
   ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
@@ -782,6 +802,12 @@ const nav = initLevels({
     }
     return false;
   },
+});
+
+initTextures();
+// Repaint the static frame when texture art loads or toggles.
+window.addEventListener('textureschange', () => {
+  if (!document.getElementById('race-view').hidden && !state.running) { draw(); }
 });
 
 showClassSelect();

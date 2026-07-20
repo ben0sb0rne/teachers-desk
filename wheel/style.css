@@ -661,3 +661,23 @@ body.view-spin.is-fullscreen .wheel-side { margin-top: 34px; }
   .wheel-reveal-card { animation: none; }
   .confetti-piece { display: none; }
 }
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js) — see assets/textures/README.md
+   ============================================================= */
+html.tex-wheel-curtain body.is-wheel-stage {
+  /* The painted curtain replaces the CSS folds; the spotlight stays —
+     it's lighting, not material. */
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% 30%,
+      rgb(var(--wheel-curtain-light) / 0.55) 0%,
+      rgb(var(--wheel-curtain-light) / 0.0) 65%),
+    var(--tex-wheel-curtain);
+  background-size: auto, 512px 512px;
+  background-repeat: no-repeat, repeat;
+}
+html.tex-wheel-scorecard .wheel-side {
+  background-image: var(--tex-wheel-scorecard);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}

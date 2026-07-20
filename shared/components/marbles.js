@@ -11,6 +11,8 @@
 // here and every tool updates at once.
 // =============================================================
 
+import { tintedSprite } from '../textures.js';
+
 /** Distinct stable colors — golden-angle hue walk over the roster.
  *  (Mirrored in seating-chart/src/lib/marble-color.ts — change both.) */
 export function marbleColor(i) {
@@ -57,19 +59,29 @@ function glossFor(ctx, r) {
  * @param {number} r marble radius in current canvas units
  */
 export function paintMarble(ctx, m, r) {
-  ctx.fillStyle = m.color;
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-  // Internal glass swirl — rotates with the roll (m.rot), under the
-  // gloss; the initials decal stays upright for readability.
-  ctx.save();
-  ctx.rotate(m.rot ?? 0);
-  ctx.strokeStyle = 'rgb(255 255 255 / 0.3)';
-  ctx.lineWidth = Math.max(1.5, r * 0.21);
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.52, 0.3, 1.8); ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.52, Math.PI + 0.3, Math.PI + 1.8); ctx.stroke();
-  ctx.restore();
-  ctx.fillStyle = glossFor(ctx, r);
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  // Texture slot: race-marble — a white/grayscale glass-ball sprite
+  // recolored per student. Falls through to the procedural body.
+  const sprite = tintedSprite('race-marble', m.color, 128);
+  if (sprite) {
+    ctx.save();
+    ctx.rotate(m.rot ?? 0);
+    ctx.drawImage(sprite, -r, -r, r * 2, r * 2);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = m.color;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    // Internal glass swirl — rotates with the roll (m.rot), under the
+    // gloss; the initials decal stays upright for readability.
+    ctx.save();
+    ctx.rotate(m.rot ?? 0);
+    ctx.strokeStyle = 'rgb(255 255 255 / 0.3)';
+    ctx.lineWidth = Math.max(1.5, r * 0.21);
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.52, 0.3, 1.8); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.52, Math.PI + 0.3, Math.PI + 1.8); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = glossFor(ctx, r);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.font = `800 ${Math.round(r * 0.95)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

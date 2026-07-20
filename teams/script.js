@@ -20,6 +20,7 @@ import { colorForStudent, initialsOf } from '../shared/components/marbles.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { displayName, collisionFirstNames } from '../shared/display-name.js';
 import { initLevels } from '../shared/nav-levels.js';
+import { initTextures } from '../shared/textures.js';
 import marbleSorter from '../shared/reveals/marble-sorter.js';
 import draftCards from '../shared/reveals/draft-cards.js';
 import gachaCapsules from '../shared/reveals/gacha-capsules.js';
@@ -516,5 +517,6 @@ const nav = initLevels({
   },
 });
 
+initTextures();
 showClassSelect();
 nav.setRoot('select');

@@ -30,6 +30,7 @@ import { mountSettingsButton } from '../shared/settings.js';
 import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { loadProblemRows, fetchSetText, parseCSVText, renderMathInto, warmMath } from '../shared/problem-sets.js';
 import { initLevels } from '../shared/nav-levels.js';
+import { initTextures, textureUrl } from '../shared/textures.js';
 
 mountSettingsButton();
 
@@ -592,7 +593,12 @@ function renderOrderCards() {
 /* ── Ring backdrop ──────────────────────────────────────────── */
 function renderBackdropCards() {
   const current = getPreference('atw.backdrop', 'classic');
-  document.getElementById('backdrop-cards').innerHTML = BACKDROPS.map((b) => `
+  // Texture slot: atw-backdrop-custom — when the classroom-photo JPG
+  // is enabled, it joins the swatch row as its own backdrop.
+  const backdrops = textureUrl('atw-backdrop-custom')
+    ? [...BACKDROPS, { id: 'custom', label: 'Classroom' }]
+    : BACKDROPS;
+  document.getElementById('backdrop-cards').innerHTML = backdrops.map((b) => `
     <button type="button" class="backdrop-card${b.id === current ? ' is-active' : ''}"
       data-id="${b.id}" data-label="${b.label}" aria-label="${b.label} backdrop"></button>`).join('');
   document.body.setAttribute('data-ring-backdrop', current);
@@ -1041,5 +1047,10 @@ const nav = initLevels({
   },
 });
 
+initTextures();
+// The classroom-photo swatch appears/disappears with its slot.
+window.addEventListener('textureschange', () => {
+  if (!document.getElementById('setup-view').hidden) renderBackdropCards();
+});
 showClassSelect();
 nav.setRoot('select');

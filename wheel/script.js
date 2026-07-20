@@ -33,6 +33,7 @@ import { mountClassCardGrid } from '../shared/components/class-card-grid.js';
 import { openOverlay } from '../shared/components/overlay.js';
 import { mountPasteBulk } from '../shared/components/paste-bulk.js';
 import { initLevels } from '../shared/nav-levels.js';
+import { initTextures, textureUrl } from '../shared/textures.js';
 import * as audio from './audio.js';
 
 // Pre-decode the wheel SFX in the background. The AudioContext is
@@ -486,6 +487,10 @@ function renderWheel() {
     grad.appendChild(createSvgEl('stop', { offset, 'stop-color': color }));
   });
   defs.appendChild(grad);
+  // Circular clip for the wheel-face texture overlay.
+  const faceClip = createSvgEl('clipPath', { id: 'wheel-face-clip' });
+  faceClip.appendChild(createSvgEl('circle', { cx: 0, cy: 0, r: RIM_R }));
+  defs.appendChild(faceClip);
   wheelSvg.appendChild(defs);
 
   // Outer disk — cream base, in case any sector calculation leaves a sliver.
@@ -577,6 +582,18 @@ function renderWheel() {
     fitLabel(txt, label, outerR - innerR, baseFontSize);
   }
 
+  // Texture slot: wheel-face — a mostly-transparent sheen ring drawn
+  // over the wedges (keep the art subtle; labels sit beneath it).
+  const faceUrl = textureUrl('wheel-face');
+  if (faceUrl) {
+    const face = appendSvg('image', {
+      x: -RIM_R, y: -RIM_R, width: RIM_R * 2, height: RIM_R * 2,
+      'clip-path': 'url(#wheel-face-clip)',
+      preserveAspectRatio: 'xMidYMid slice',
+    });
+    face.setAttribute('href', faceUrl);
+  }
+
   // Pegs around the rim — one per sector boundary, brass.
   const pegRadius = RIM_R - 2.2;
   for (let i = 0; i < n; i++) {
@@ -614,6 +631,17 @@ function renderWheel() {
     stroke: 'rgb(var(--wheel-brass) / 0.7)',
     'stroke-width': 0.5,
   });
+
+  // Texture slot: wheel-hub — full brass-hub art (incl. its screw)
+  // drawn over the procedural hub.
+  const hubUrl = textureUrl('wheel-hub');
+  if (hubUrl) {
+    const hub = appendSvg('image', {
+      x: -HUB_R, y: -HUB_R, width: HUB_R * 2, height: HUB_R * 2,
+      preserveAspectRatio: 'xMidYMid slice',
+    });
+    hub.setAttribute('href', hubUrl);
+  }
 }
 
 /**
@@ -1179,6 +1207,11 @@ const nav = initLevels({
 // -------------------------------------------------------------
 // Boot
 // -------------------------------------------------------------
+initTextures();
+// Re-render the wheel when texture art loads or toggles.
+window.addEventListener('textureschange', () => {
+  if (!document.getElementById('wheel-view').hidden) renderWheel();
+});
 mountClassSelect();
 showView('classSelect');
 nav.setRoot('select');

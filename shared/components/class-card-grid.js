@@ -137,12 +137,15 @@ export function mountClassCardGrid(host, opts = {}) {
 
   const offClasses = bridge.onClassesChange(render);
   const offRoster = bridge.onRosterChange(null, render);
+  // Marble pools repaint when the shared marble texture loads/toggles.
+  window.addEventListener('textureschange', render);
 
   return {
     refresh: render,
     destroy() {
       offClasses();
       offRoster();
+      window.removeEventListener('textureschange', render);
       grid.remove();
     },
   };

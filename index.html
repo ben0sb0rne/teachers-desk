@@ -143,7 +143,10 @@
   <script type="module">
     // Mounts the floating gear button + binds 'S' to open the settings dialog.
     import { mountSettingsButton } from './shared/settings.js';
+    // Texture system (assets/textures/) — off by default; Ctrl+Shift+T panel.
+    import { initTextures } from './shared/textures.js';
     mountSettingsButton();
+    initTextures();
   </script>
 </body>
 </html>

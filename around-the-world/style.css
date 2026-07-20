@@ -614,3 +614,52 @@ body.is-ring.is-fullscreen #btn-fullscreen { color: rgb(246 238 216); }
   .flash-card-inner { transition: none; }
   .flash-card.is-dealt, .fighter-plate.is-in { animation: none; }
 }
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js) — see assets/textures/README.md
+   ============================================================= */
+html.tex-atw-ring-canvas body.is-ring[data-ring-backdrop="classic"] {
+  /* Canvas weave under the spotlight; color variants keep their flats. */
+  background-image:
+    radial-gradient(ellipse 90% 62% at 50% 18%,
+      rgb(66 56 44 / 0.55), rgb(13 10 15 / 0) 68%),
+    var(--tex-atw-ring-canvas);
+  background-size: auto, 512px 512px;
+  background-repeat: no-repeat, repeat;
+}
+html.tex-atw-backdrop-custom body.is-ring[data-ring-backdrop="custom"] {
+  /* The teacher's own classroom as the arena. */
+  background-color: rgb(13 10 15);
+  background-image:
+    radial-gradient(ellipse 120% 90% at 50% 30%,
+      rgb(0 0 0 / 0) 40%, rgb(0 0 0 / 0.6) 100%),
+    var(--tex-atw-backdrop-custom);
+  background-size: auto, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+html.tex-atw-corner-plate-red .fighter-plate.is-red {
+  background-image: var(--tex-atw-corner-plate-red);
+  background-size: cover;
+  background-position: center;
+}
+html.tex-atw-corner-plate-blue .fighter-plate.is-blue {
+  background-image: var(--tex-atw-corner-plate-blue);
+  background-size: cover;
+  background-position: center;
+}
+html.tex-atw-flashcard .flash-face {
+  background-image: var(--tex-atw-flashcard);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}
+html.tex-atw-title-card .title-card {
+  background-image: var(--tex-atw-title-card);
+  background-size: cover;
+  background-position: center;
+}
+html.tex-atw-backdrop-custom .backdrop-card[data-id="custom"] {
+  background-image: var(--tex-atw-backdrop-custom);
+  background-size: cover;
+  background-position: center;
+}

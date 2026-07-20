@@ -144,6 +144,22 @@ body.rv-skin-draft {
 .rv-skin-draft .team-col li.is-empty { color: rgb(246 238 216 / 0.4); }
 .rv-skin-draft .team-col li.is-new { background: rgb(246 238 216 / 0.12); }
 .rv-skin-draft .team-col .dot { border-color: rgb(246 238 216 / 0.4); }
+/* TEXTURE SLOTS (shared/textures.js) — hand-drawn art hooks; the
+   rules above stay the fallback when a slot is off. */
+html.tex-draft-felt body.rv-skin-draft,
+html.tex-draft-felt .rv-draft {
+  background-image: var(--tex-draft-felt);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}
+html.tex-draft-card-back .rv-card-back {
+  background-image: var(--tex-draft-card-back);
+  background-size: 100% 100%;
+}
+html.tex-draft-card-face .rv-card-front {
+  background-image: var(--tex-draft-card-face);
+  background-size: 100% 100%;
+}
 `;
 
 // Card front content width: card minus border (2×2) minus padding (2×6).

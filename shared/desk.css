@@ -1059,3 +1059,23 @@ body.is-fullscreen .suite-topstrip-actions {
 @media (prefers-reduced-motion: reduce) {
   .placard, .desk-button { transition: none; }
 }
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js + assets/textures/)
+   When a slot is enabled the <html> element carries .tex-<slot-id>
+   and the CSS var --tex-<slot-id>. These rules layer the hand-drawn
+   art over the procedural look above; with the slot off the class is
+   absent and nothing here applies. Manifest: assets/textures/README.md
+   ============================================================= */
+html.tex-home-desk-wood .wood-bg {
+  /* 1024² tile drawn @2x → displayed at 512px. */
+  background-image: var(--tex-home-desk-wood);
+  background-size: 512px 512px;
+  background-repeat: repeat;
+  background-blend-mode: normal;
+}
+html.tex-home-placard-paper .placard {
+  background-image: var(--tex-home-placard-paper);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}

@@ -2307,3 +2307,25 @@ kbd {
   #ca-quick-checker { gap: 5px; }
   .ca-col-btn { font-size: 1rem; }
 }
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js) — see assets/textures/README.md
+   ============================================================= */
+html.tex-bingo-caller-surface body.view-caller {
+  background-image: var(--tex-bingo-caller-surface);
+  background-size: 512px 512px;
+  background-repeat: repeat;
+}
+html.tex-bingo-card-stock #pv-preview {
+  background-image: var(--tex-bingo-card-stock);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}
+html.tex-bingo-ball body.is-bingo.has-photoreal-balls #col-ball .ball-body {
+  /* Grayscale ball art multiplied by the column color; the inset
+     box-shadow shading above still shapes the sphere. */
+  background-image: var(--tex-bingo-ball);
+  background-color: var(--c);
+  background-size: 100% 100%;
+  background-blend-mode: multiply;
+}

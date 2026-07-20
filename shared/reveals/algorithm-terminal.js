@@ -166,6 +166,16 @@ body.rv-skin-terminal {
 .rv-skin-terminal .reveal-controls button:hover { background: rgb(112 232 120 / 0.12); }
 .rv-skin-terminal .reveal-controls button[disabled] { opacity: 0.4; }
 .rv-skin-terminal .reveal-stage { border-color: rgb(112 232 120 / 0.4); }
+/* TEXTURE SLOTS (shared/textures.js) — optional CRT glass smudge
+   above the scanline/vignette pseudo-elements. */
+.rv-term-glass { position: absolute; inset: 0; z-index: 42; pointer-events: none; display: none; }
+html.tex-terminal-glass .rv-term-glass {
+  display: block;
+  background-image: var(--tex-terminal-glass);
+  background-size: cover;
+  mix-blend-mode: screen;
+  opacity: 0.4;
+}
 `;
 
 /* ── Synth — everything is oscillators; no assets ───────────── */
@@ -575,7 +585,8 @@ export default {
         <div class="rv-term-side" data-col="0"></div>
         <div class="rv-term-side" data-col="1"></div>
       </div>
-      <div class="rv-crt-roll"></div>`;
+      <div class="rv-crt-roll"></div>
+      <div class="rv-term-glass"></div>`;
     host.appendChild(wrap);
 
     const scroll = wrap.querySelector('.rv-term-log');

@@ -287,3 +287,13 @@ body.is-parlor.is-fullscreen #btn-fullscreen { color: rgb(var(--pin-cream)); }
   color: rgb(var(--pin-orange));
 }
 #race-results li.is-winner::before { color: rgb(var(--pin-orange)); }
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js) — see assets/textures/README.md
+   ============================================================= */
+html.tex-race-cabinet #race-canvas {
+  /* The drawn cabinet replaces the flat bezel rings wholesale. */
+  border: 12px solid transparent;
+  border-image: var(--tex-race-cabinet) 170 / 12px round;
+  box-shadow: none;
+}

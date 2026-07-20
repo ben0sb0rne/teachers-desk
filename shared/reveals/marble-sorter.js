@@ -12,6 +12,7 @@
 // =============================================================
 
 import { paintMarble } from '../components/marbles.js';
+import { textureImage } from '../textures.js';
 import { ensureStyles, makeTimers, assignAllInstantly } from './util.js';
 
 const W = 1200;
@@ -264,18 +265,35 @@ export default {
       const s = Math.min(cw / W, ch / H);
       g.setTransform(s, 0, 0, s, (cw - W * s) / 2, (ch - H * s) / 2);
 
-      // Field.
-      g.fillStyle = 'rgb(24 27 44)';
-      g.fillRect(0, 0, W, H);
+      // Field (texture slot: sorter-field — full print incl. bins).
+      const fieldArt = textureImage('sorter-field');
+      if (fieldArt) {
+        g.drawImage(fieldArt, 0, 0, W, H);
+      } else {
+        g.fillStyle = 'rgb(24 27 44)';
+        g.fillRect(0, 0, W, H);
+      }
       g.lineCap = 'round';
       g.strokeStyle = 'rgb(205 211 222 / 0.8)';
-      // Peg field — brass posts; lit teal for a beat after a hit.
+      // Peg field — brass posts (texture slot: race-post, shared with
+      // the race); lit teal for a beat after a hit.
+      const pegArt = textureImage('race-post');
       for (const p of pegs) {
         const flash = simT - (p.hitT ?? -9) < 0.18;
-        g.fillStyle = 'rgb(140 104 36)';
-        g.beginPath(); g.arc(p.x, p.y, PEG_R, 0, Math.PI * 2); g.fill();
-        g.fillStyle = flash ? 'rgb(28 168 172)' : 'rgb(214 168 74)';
-        g.beginPath(); g.arc(p.x, p.y, PEG_R - 2, 0, Math.PI * 2); g.fill();
+        if (pegArt) {
+          g.drawImage(pegArt, p.x - PEG_R, p.y - PEG_R, PEG_R * 2, PEG_R * 2);
+          if (flash) {
+            g.strokeStyle = 'rgb(28 168 172 / 0.9)';
+            g.lineWidth = 2.5;
+            g.beginPath(); g.arc(p.x, p.y, PEG_R + 2.5, 0, Math.PI * 2); g.stroke();
+            g.strokeStyle = 'rgb(205 211 222 / 0.8)';
+          }
+        } else {
+          g.fillStyle = 'rgb(140 104 36)';
+          g.beginPath(); g.arc(p.x, p.y, PEG_R, 0, Math.PI * 2); g.fill();
+          g.fillStyle = flash ? 'rgb(28 168 172)' : 'rgb(214 168 74)';
+          g.beginPath(); g.arc(p.x, p.y, PEG_R - 2, 0, Math.PI * 2); g.fill();
+        }
       }
       // Bins: dividers + floor + labels.
       g.lineWidth = 5;
@@ -318,6 +336,8 @@ export default {
     draw();
     const onResize = () => { fitCanvas(); draw(); };
     window.addEventListener('resize', onResize);
+    // Repaint the settled frame when texture art loads or toggles.
+    window.addEventListener('textureschange', draw);
 
     return {
       start() {
@@ -330,6 +350,7 @@ export default {
         cancelAnimationFrame(rafId);
         timers.clear();
         window.removeEventListener('resize', onResize);
+        window.removeEventListener('textureschange', draw);
         wrap.remove();
       },
     };

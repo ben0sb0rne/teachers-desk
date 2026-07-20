@@ -7,6 +7,7 @@ import {
   warmMath, clearMathCache,
 } from '../shared/problem-sets.js';
 import { initLevels } from '../shared/nav-levels.js';
+import { initTextures } from '../shared/textures.js';
 
 /* ============================================================
    DEFAULT PROBLEMS (80 integer addition/subtraction problems)
@@ -4401,6 +4402,7 @@ const nav = initLevels({
    INIT
    ============================================================ */
 function init() {
+  initTextures();
   wireEvents();
   applyCardColors();
   applyFont();
