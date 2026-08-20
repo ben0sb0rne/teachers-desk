@@ -116,25 +116,6 @@
         <label class="pv-opt-label">Number of cards</label>
         <input id="pv-count" type="number" min="1" max="200" value="30">
       </div>
-      <div class="pv-opt-group" id="pv-pacing-group">
-        <label class="pv-opt-label">Game pacing</label>
-        <div class="pv-pace-grid">
-          <label for="pv-pool">Numbers in play</label>
-          <select id="pv-pool"></select>
-          <label for="pv-pattern">Win pattern</label>
-          <select id="pv-pattern"></select>
-          <label for="pv-classsize">Students</label>
-          <input id="pv-classsize" type="number" min="2" max="60" step="1" value="24">
-          <label for="pv-pace-speed">Student pace</label>
-          <select id="pv-pace-speed">
-            <option value="10">Fast (~10s/problem)</option>
-            <option value="20" selected>Medium (~20s/problem)</option>
-            <option value="35">Slow (~35s/problem)</option>
-          </select>
-        </div>
-        <div id="pv-pace-readout" aria-live="polite"></div>
-        <p id="pv-pace-nudge" class="pv-pace-hint" hidden></p>
-      </div>
       <div class="pv-opt-group">
         <label class="pv-opt-label">Card style</label>
         <div id="pv-style-picker">
@@ -242,8 +223,27 @@
           </div>
         </div>
       </div>
-      <details id="pv-advanced">
-        <summary class="pv-opt-label pv-advanced-summary">Advanced Options <svg class="icon pv-adv-arrow" aria-hidden="true"><use href="#icon-chevron-right"/></svg></summary>
+      <details id="pv-pacing" class="pv-disclosure">
+        <summary class="pv-opt-label">Game pacing <svg class="icon pv-adv-arrow" aria-hidden="true"><use href="#icon-chevron-right"/></svg></summary>
+        <div class="pv-pace-grid">
+          <label for="pv-pool">Numbers in play</label>
+          <select id="pv-pool"></select>
+          <label for="pv-pattern">Win pattern</label>
+          <select id="pv-pattern"></select>
+          <label for="pv-classsize">Students</label>
+          <input id="pv-classsize" type="number" min="2" max="60" step="1" value="24">
+          <label for="pv-pace-speed">Student pace</label>
+          <select id="pv-pace-speed">
+            <option value="10">Fast (~10s/problem)</option>
+            <option value="20" selected>Medium (~20s/problem)</option>
+            <option value="35">Slow (~35s/problem)</option>
+          </select>
+        </div>
+        <div id="pv-pace-readout" aria-live="polite"></div>
+        <p id="pv-pace-nudge" class="pv-pace-hint" hidden></p>
+      </details>
+      <details id="pv-advanced" class="pv-disclosure">
+        <summary class="pv-opt-label">Advanced Options <svg class="icon pv-adv-arrow" aria-hidden="true"><use href="#icon-chevron-right"/></svg></summary>
         <div class="pv-advanced-body">
           <div>
             <label class="pv-adv-sublabel">Card label</label>
@@ -377,11 +377,13 @@
 
 <!-- Check Answers overlay -->
 <div class="overlay" id="check-answers-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="check-answers-title">
+  <!-- Full-screen by design: the class watches this, so the verdict is
+       the biggest thing on the projector. Heading stays for the dialog's
+       accessible name; the controls that aren't the reveal sit quietly
+       at the bottom. -->
   <div class="panel">
-    <div class="panel-header">
-      <h2 id="check-answers-title">Check Answers</h2>
-      <button class="close-btn" id="btn-close-check-answers" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
-    </div>
+    <h2 id="check-answers-title" class="sr-only">Check Answers</h2>
+    <button class="close-btn" id="btn-close-check-answers" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#icon-x"/></svg></button>
     <div class="panel-body">
       <!-- Quick checker -->
       <div id="ca-quick-checker">
@@ -392,21 +394,22 @@
           <button class="ca-col-btn" data-col="G">G</button>
           <button class="ca-col-btn" data-col="O">O</button>
         </div>
-        <div id="ca-input-row">
-          <input id="ca-answer-input" type="text" placeholder="Enter answer (e.g. 5 or 1/2)…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <input id="ca-answer-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Answer to check">
+        <div id="ca-reveal" aria-live="polite">
           <span id="ca-status"></span>
-        </div>
-        <div id="ca-btn-row">
-          <button id="ca-toggle-full-btn">
-            <span>Show full call sheet</span>
-            <span class="ca-toggle-arrow"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"/></svg></span>
-          </button>
-          <button id="btn-bingo">Bingo!</button>
+          <div id="ca-match"></div>
         </div>
       </div>
       <!-- Collapsible full call sheet -->
       <div id="ca-full-sheet" hidden>
         <div id="ca-columns"></div>
+      </div>
+      <div id="ca-btn-row">
+        <button id="ca-toggle-full-btn">
+          <span>Show full call sheet</span>
+          <span class="ca-toggle-arrow"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-down"/></svg></span>
+        </button>
+        <button id="btn-bingo">Bingo!</button>
       </div>
     </div>
   </div>

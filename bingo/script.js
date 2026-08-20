@@ -686,12 +686,23 @@ const audio = (() => {
     });
   }
 
+  // Browsers only allow audio after a user gesture, so we prime each
+  // clip on the first click anywhere. That priming must be SILENT: the
+  // gesture is usually a click on the homepage (a topic tile, a set
+  // card), and `play()` resolves only after playback has begun — so
+  // priming at volume made every clip audibly start before the pause.
   function unlock() {
     if (unlocked) return;
-    Object.values(cache).forEach(a => {
-      a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+    unlocked = true; // synchronous, so a second gesture can't re-prime
+    Object.values(cache).forEach((a) => {
+      const restore = () => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = false;
+      };
+      a.muted = true;
+      a.play().then(restore).catch(restore);
     });
-    unlocked = true;
   }
 
   function applyVolumeToAll() {
@@ -2748,7 +2759,10 @@ function renderProblem() {
         triggerBallAnimation(chip, problemTextEl, variant);
       }
     }
-    audio.play('ballDrop');
+    // Caller view only. The settings dialog is reachable from every
+    // view and its ball-style buttons re-render the problem, which
+    // would otherwise drop a ball on the homepage.
+    if (state.currentView === 'caller') audio.play('ballDrop');
     _lastAnimatedKey = animKey;
   }
 
@@ -3315,6 +3329,8 @@ function renderCheckAnswers() {
   if (input) { input.value = ''; }
   const statusEl = document.getElementById('ca-status');
   if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; }
+  const matchEl = document.getElementById('ca-match');
+  if (matchEl) matchEl.innerHTML = '';
 
   // Collapse the full sheet
   const fullSheet = document.getElementById('ca-full-sheet');
@@ -3357,6 +3373,15 @@ function renderCaFullSheet() {
   }).join('');
 }
 
+// Unicode vulgar fractions → `a/b`, so a typed ½ lands on the same
+// canonical form as `1/2` and `\frac{1}{2}`.
+const VULGAR_FRACTIONS = {
+  '½': '1/2', '⅓': '1/3', '⅔': '2/3', '¼': '1/4', '¾': '3/4',
+  '⅕': '1/5', '⅖': '2/5', '⅗': '3/5', '⅘': '4/5',
+  '⅙': '1/6', '⅚': '5/6', '⅐': '1/7', '⅛': '1/8', '⅜': '3/8',
+  '⅝': '5/8', '⅞': '7/8', '⅑': '1/9', '⅒': '1/10',
+};
+
 // Canonical form for the Check Answers comparison. Maps both stored
 // LaTeX answers (e.g. `\frac{1}{2}`) and user-typed shorthand (e.g.
 // `1/2`, `1 1/2`) onto the same string so they compare equal — without
@@ -3380,34 +3405,54 @@ function normalizeAnswerForCheck(s) {
   t = t.replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, '$1/$2');
   // Drop `\left` / `\right` decorations if they ever appear.
   t = t.replace(/\\left|\\right/g, '');
+  t = t.replace(/[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅐⅛⅜⅝⅞⅑⅒]/g, (c) => VULGAR_FRACTIONS[c]);
+  // Solved-for-a-variable answers: a set may store `x = 25` while the
+  // student writes (and the teacher types) plain `25`. Both are the same
+  // answer, so drop one leading `variable =` from either side. Only a
+  // short identifier qualifies, and only when a value survives it.
+  t = t.replace(/^[a-z][a-z0-9_]{0,2}\s*=\s*(?=\S)/i, '');
   // Collapse whitespace touching the slash so "1 / 2" === "1/2".
   t = t.replace(/\s*\/\s*/g, '/');
   // Collapse internal whitespace runs (e.g. mixed "1   1/2" → "1 1/2").
   t = t.replace(/\s+/g, ' ').trim();
-  return t;
+  // Case never decides whether a child's answer counts.
+  return t.toLowerCase();
+}
+
+// The problems actually called so far in a column. Reads the same
+// history slice the call sheet renders, so the two can't disagree —
+// `state.calledAnswers` keeps every answer ever drawn, which reported a
+// rewound problem as called after the teacher pressed Back.
+function calledProblemsInColumn(col) {
+  if (state.currentIndex < 0) return [];
+  return state.history
+    .slice(0, state.currentIndex + 1)
+    .filter((p) => p.column === col);
 }
 
 function updateCaStatus() {
   const input   = document.getElementById('ca-answer-input');
   const statusEl = document.getElementById('ca-status');
+  const matchEl = document.getElementById('ca-match');
   if (!input || !statusEl) return;
 
   const needle = normalizeAnswerForCheck(input.value);
   if (!needle) {
     statusEl.textContent = '';
     statusEl.className   = '';
+    if (matchEl) matchEl.innerHTML = '';
     return;
   }
 
   const col = document.querySelector('.ca-col-btn.is-active')?.dataset.col || 'B';
-  const calledSet = state.calledAnswers[col] || new Set();
-  let isCalled = false;
-  for (const a of calledSet) {
-    if (normalizeAnswerForCheck(a) === needle) { isCalled = true; break; }
-  }
+  const hit = calledProblemsInColumn(col)
+    .find((p) => normalizeAnswerForCheck(p.answer) === needle);
 
-  statusEl.textContent = isCalled ? '✓ Called' : '✗ Not called';
-  statusEl.className   = isCalled ? 'ca-called' : 'ca-not-called';
+  statusEl.textContent = hit ? '✓ Called' : '✗ Not called';
+  statusEl.className   = hit ? 'ca-called' : 'ca-not-called';
+  // Show the problem it came from — the class sees the proof, not just
+  // the ruling.
+  if (matchEl) matchEl.innerHTML = hit ? renderMathHtml(hit.problem) : '';
 }
 
 function hexToRgb(hex) {
@@ -3936,7 +3981,26 @@ function updateBeforeUnload() {
 /* ============================================================
    KEYBOARD SHORTCUTS
    ============================================================ */
+// Keys that drive the game itself. Settings (S), fullscreen (F), mute
+// (M) and help (?) stay global; these do not — buttons aren't skipped
+// as key targets, so Space on a homepage tile used to advance the deck
+// (and drop a ball) while the teacher was still picking a set.
+const CALLER_ONLY_KEYS = new Set([
+  ' ', 'ArrowRight', 'ArrowLeft', 'ArrowUp',
+  'p', 'P', 'r', 'R', 'b', 'B', 'k', 'K',
+]);
+
 document.addEventListener('keydown', e => {
+  // Esc closes an open overlay even from a text field. The checker
+  // focuses its answer input on open, so without this the suite's
+  // close-the-modal key does nothing exactly when it's needed. Gated on
+  // an overlay being open, so Esc still cancels the inline set-rename
+  // input on the homepage.
+  if (e.key === 'Escape' && anyOverlayOpen()) {
+    e.preventDefault();
+    closeAllOverlays();
+    return;
+  }
   // Don't intercept when typing in inputs/selects
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -3955,6 +4019,8 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeAllOverlays(); e.preventDefault(); }
     return;
   }
+
+  if (state.currentView !== 'caller' && CALLER_ONLY_KEYS.has(e.key)) return;
 
   switch (e.key) {
     case ' ':
