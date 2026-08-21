@@ -701,6 +701,7 @@ const RoomStage = forwardRef<Konva.Stage, Props>(function RoomStage(
               onDragEnd={handleItemDragEnd}
               onRequestRename={interactive ? onRequestFurnitureRename : undefined}
               roomId={roomId}
+              viewRotation={viewRotation}
             />
           ))}
 

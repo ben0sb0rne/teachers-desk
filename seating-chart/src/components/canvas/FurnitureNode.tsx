@@ -22,6 +22,9 @@ interface Props {
   roomId: RoomId;
   draggable: boolean;
   registerNode: (id: string, node: Konva.Group | null) => void;
+  /** Rotation applied to the whole view (export only). Labels cancel this
+   *  along with the furniture's own rotation so they read upright. */
+  viewRotation?: number;
 }
 
 // accent-blue stays the same in light + dark modes, so a static reference is fine.
@@ -43,6 +46,7 @@ export default function FurnitureNode({
   roomId,
   draggable,
   registerNode,
+  viewRotation = 0,
 }: Props) {
   const groupRef = useRef<Konva.Group>(null);
   const updateFurniture = useAppStore((s) => s.updateFurniture);
@@ -192,9 +196,18 @@ export default function FurnitureNode({
         stroke={stroke}
         strokeWidth={strokeWidth}
         textColor={textColor}
+        viewRotation={viewRotation}
       />
     </Group>
   );
+}
+
+/** The box an upright label should occupy on a rotated shape. Past ~45deg
+ *  of turn the footprint reads as swapped on screen, so the box swaps with
+ *  it and the (still upright) text keeps fitting inside the shape. */
+function uprightLabelBox(w: number, h: number, screenRotation: number) {
+  const t = ((screenRotation % 180) + 180) % 180;
+  return t > 45 && t < 135 ? { w: h, h: w } : { w, h };
 }
 
 function FurnitureShape({
@@ -203,6 +216,7 @@ function FurnitureShape({
   stroke,
   strokeWidth,
   textColor,
+  viewRotation,
 }: {
   furniture: Furniture;
   fill: string;
@@ -211,9 +225,16 @@ function FurnitureShape({
   /** Auto-derived text color used by labelled kinds (teacher-desk / box /
    *  circle). Comes from the shape's effective fill via lib/color.ts. */
   textColor: string;
+  /** View rotation, so labels can cancel it along with the furniture's. */
+  viewRotation: number;
 }) {
   const w = furniture.width;
   const h = furniture.height;
+  // Labels read upright however the piece is turned — a rotated "TEACHER"
+  // or table name is as unreadable as a rotated student name.
+  const screenRotation = viewRotation + furniture.rotation;
+  const upright = -screenRotation;
+  const labelBox = uprightLabelBox(w, h, screenRotation);
   switch (furniture.kind) {
     case "teacher-desk":
       return (
@@ -230,10 +251,24 @@ function FurnitureShape({
           />
           <Text
             text="TEACHER"
-            x={0}
-            y={h / 2 - 7}
-            width={w}
+            x={w / 2}
+            y={h / 2}
+            /* Width comes from the LONGER side, not the upright box: the
+               word has to fit whichever way the desk is turned, and Konva
+               truncates to `width` once wrapping is off. It stays centred
+               on the desk, so a turned desk just gets a little overhang. */
+            width={Math.max(w, h)}
+            height={labelBox.h}
+            offsetX={Math.max(w, h) / 2}
+            offsetY={labelBox.h / 2}
             align="center"
+            verticalAlign="middle"
+            rotation={upright}
+            /* One fixed word — never break it across lines. On a turned
+               desk the upright box is the narrow dimension, which would
+               otherwise render "TEACHE / R"; a few px of overhang reads
+               far better than a split word. */
+            wrap="none"
             fontSize={13}
             fontStyle="bold"
             fill={textColor}
@@ -420,10 +455,13 @@ function FurnitureShape({
           {furniture.label ? (
             <Text
               text={furniture.label}
-              x={0}
-              y={0}
-              width={w}
-              height={h}
+              x={w / 2}
+              y={h / 2}
+              width={labelBox.w}
+              height={labelBox.h}
+              offsetX={labelBox.w / 2}
+              offsetY={labelBox.h / 2}
+              rotation={upright}
               align="center"
               verticalAlign="middle"
               fontSize={Math.max(11, Math.min(20, Math.min(w, h) * 0.18))}
@@ -452,10 +490,13 @@ function FurnitureShape({
           {furniture.label ? (
             <Text
               text={furniture.label}
-              x={0}
-              y={0}
-              width={w}
-              height={h}
+              x={w / 2}
+              y={h / 2}
+              width={labelBox.w}
+              height={labelBox.h}
+              offsetX={labelBox.w / 2}
+              offsetY={labelBox.h / 2}
+              rotation={upright}
               align="center"
               verticalAlign="middle"
               fontSize={Math.max(11, Math.min(20, radius * 0.32))}

@@ -50,8 +50,9 @@ interface Props {
   /** Editor only: open the desk context menu (front row / don't seat here) at
    *  the given screen coords. */
   onDeskContextMenu?: (deskId: string, clientX: number, clientY: number) => void;
-  /** Counter-rotate seat-name labels by -viewRotation so names stay upright
-   *  when the export view is rotated. Default 0. */
+  /** Rotation applied to the whole view (export only). Seat-name labels
+   *  cancel this along with the desk's own rotation so names always read
+   *  upright. Default 0. */
   viewRotation?: number;
 }
 
@@ -328,6 +329,13 @@ export default function DeskNode({
           seatGroup.scaleX(inverseX);
           seatGroup.scaleY(inverseY);
         }
+        // Same for the rotate handle: desk.rotation only reaches state on
+        // transform end, so without this the names spin with the desk and
+        // snap upright on release.
+        const upright = -(viewRotation + node.rotation());
+        for (const label of node.find(".seat-name-label")) {
+          label.rotation(upright);
+        }
         // Keep outline strokes at their natural width during the drag.
         compensateStrokes(node);
       }}
@@ -422,7 +430,13 @@ export default function DeskNode({
                 y={labelShift.y}
                 offsetX={nameW / 2}
                 offsetY={NAME_BOX_HEIGHT / 2}
-                rotation={-viewRotation}
+                /* Names stay upright no matter how the desk is turned.
+                   The label still travels with its seat (x/y above are in
+                   the desk's local frame) — only its orientation is
+                   cancelled, undoing the desk's rotation and the export
+                   view's. A room whose desks face four directions has to
+                   stay readable. */
+                rotation={-(viewRotation + desk.rotation)}
                 wrap="word"
                 ellipsis
                 listening
