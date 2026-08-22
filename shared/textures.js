@@ -72,6 +72,10 @@ export const SLOTS = [
   { id: 'atw-flashcard',         file: 'atw-flashcard.png',         world: 'AtW', label: 'Flashcard stock' },
   { id: 'atw-title-card',        file: 'atw-title-card.png',        world: 'AtW', label: 'Championship title card' },
   { id: 'atw-backdrop-custom',   file: 'atw-backdrop-custom.jpg',   world: 'AtW', label: 'Classroom photo backdrop' },
+  // Contact Log
+  { id: 'log-slip-stock', file: 'log-slip-stock.png', world: 'Contact Log', label: 'Message-slip stock' },
+  { id: 'log-pad-board',  file: 'log-pad-board.png',  world: 'Contact Log', label: 'Pad backing board' },
+  { id: 'log-card-tab',   file: 'log-card-tab.png',   world: 'Contact Log', label: 'Index-card stock' },
 ];
 
 // Per-track playfield variants win over the generic print when the

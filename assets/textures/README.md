@@ -81,6 +81,13 @@ press Ctrl+Shift+T in the app, hit "Reload textures" — done.** No code edits.
 | `atw-title-card.png` | 1200×800 | COVER | End-of-match championship card (gold text prints over it — keep the center dark) |
 | `atw-backdrop-custom.jpg` | 1920×1080 | COVER | **Your classroom photo.** While this slot is on, a "Classroom" swatch appears in AtW setup. JPG is fine here |
 
+### Contact Log
+| File | Size | Fit | Covers |
+|---|---|---|---|
+| `log-slip-stock.png` | 320² | TILE | Carbon-copy rose message-slip paper. Keep it quiet — printed form text and the handwritten message sit on top |
+| `log-pad-board.png` | 512² | TILE | The pad's backing board behind the slip stack |
+| `log-card-tab.png` | 256² | TILE | Index-card stock for the class card file (the colored tab edge stays CSS) |
+
 ## Regenerating placeholders
 
 `node audit/gen-textures.mjs` (repo-local rig) rewrites every placeholder —

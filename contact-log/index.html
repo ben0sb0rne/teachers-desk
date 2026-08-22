@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Apply theme synchronously before any styles paint, to avoid a light->dark flash. -->
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('teachersdesk:v1');
+        if (!raw) return;
+        var t = JSON.parse(raw);
+        t = t && t.preferences && t.preferences.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Contact Log · The Teacher's Desk</title>
+  <meta name="description" content="Contact Log — a quick record of every parent and guardian contact, one message slip at a time. Print a student's contact record when someone asks. Part of The Teacher's Desk." />
+  <link rel="stylesheet" href="../shared/desk.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="script.js"></script>
+</head>
+<body class="wood-bg">
+
+  <div class="suite-topstrip">
+    <nav class="suite-breadcrumb" aria-label="Breadcrumb">
+      <a href="../" class="crumb-home" title="Back to The Teacher's Desk">
+        <span>The Teacher's Desk</span>
+      </a>
+      <a href="#" id="crumb-tool" hidden>Contact Log</a>
+      <a href="#" id="crumb-context" class="is-current" hidden></a>
+    </nav>
+    <div class="suite-topstrip-actions">
+      <!-- Privacy first: this is the one tool that holds notes about
+           families, so the hide control leads the cluster and never moves. -->
+      <button type="button" id="btn-hide" aria-label="Hide the log" title="Hide the log (Esc)">
+        <svg class="icon" aria-hidden="true"><use href="#icon-eye-off"/></svg>
+      </button>
+      <button type="button" class="settings-button" id="btn-settings-topstrip"
+              aria-label="Settings" title="Settings (S)"></button>
+      <button type="button" id="btn-fullscreen"
+              title="Fullscreen (F)" aria-label="Enter fullscreen">
+        <svg class="icon" aria-hidden="true"><use href="#icon-fullscreen"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- SVG icon sprite (suite-standard glyphs + this tool's own). -->
+  <svg xmlns="http://www.w3.org/2000/svg" hidden aria-hidden="true" style="display:none">
+    <symbol id="icon-fullscreen"      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="icon-fullscreen-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <!-- Hide-the-log control. -->
+    <symbol id="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
+    <symbol id="icon-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  </svg>
+
+  <main class="log-main">
+
+    <!-- ═════════════════════════════════════════
+         CLASS SELECT
+         ═════════════════════════════════════════ -->
+    <section id="class-select-view" class="view">
+      <header class="view-header">
+        <h1>Contact Log</h1>
+        <p class="muted">A quick slip for every call, email, and doorway conversation. Pick a class.</p>
+      </header>
+      <div id="class-grid" aria-live="polite"></div>
+      <p id="privacy-note" class="privacy-note">
+        Stays in this browser. No accounts, no server, nothing sent anywhere &mdash;
+        export a backup from Settings to keep a copy.
+      </p>
+    </section>
+
+    <!-- ═════════════════════════════════════════
+         CARD FILE — one card per student, coldest first
+         ═════════════════════════════════════════ -->
+    <section id="class-view" class="view" hidden>
+      <header class="view-header file-header">
+        <div>
+          <h1 id="class-name">Class</h1>
+          <p class="muted" id="class-summary"></p>
+        </div>
+        <div class="file-actions">
+          <button type="button" class="desk-button is-ghost" id="btn-print-class">
+            <svg class="icon" aria-hidden="true"><use href="#icon-printer"/></svg> Print class log
+          </button>
+          <button type="button" class="desk-button is-ghost" id="btn-csv-class">
+            <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg> CSV
+          </button>
+        </div>
+      </header>
+
+      <div class="file-filters" role="tablist" aria-label="Filter students">
+        <button type="button" class="filter-chip is-active" data-filter="all" role="tab" aria-selected="true">All</button>
+        <button type="button" class="filter-chip" data-filter="never" role="tab" aria-selected="false">Never contacted</button>
+        <button type="button" class="filter-chip" data-filter="owed" role="tab" aria-selected="false">Follow-ups owed</button>
+      </div>
+
+      <div id="student-cards" class="student-cards" aria-live="polite"></div>
+
+      <!-- Records whose student no longer matches a roster name. Never deleted;
+           the teacher re-links them here. -->
+      <section id="unmatched-section" hidden>
+        <h2 class="unmatched-heading">Not on the current roster</h2>
+        <p class="muted unmatched-hint">
+          These records don't match a name in this class any more &mdash; usually a
+          renamed student, sometimes one who moved on. Nothing has been deleted.
+        </p>
+        <div id="unmatched-cards" class="student-cards"></div>
+      </section>
+    </section>
+
+    <!-- ═════════════════════════════════════════
+         SLIP STACK — one student's contact record
+         ═════════════════════════════════════════ -->
+    <section id="student-view" class="view" hidden>
+      <header class="view-header file-header">
+        <div>
+          <h1 id="student-name">Student</h1>
+          <p class="muted" id="student-summary"></p>
+        </div>
+        <div class="file-actions">
+          <button type="button" class="desk-button is-ghost" id="btn-print-student">
+            <svg class="icon" aria-hidden="true"><use href="#icon-printer"/></svg> Print record
+          </button>
+        </div>
+      </header>
+
+      <!-- The blank slip. Mirrors a real "While You Were Out" pad: the printed
+           form furniture IS the data model. -->
+      <form class="slip slip-new" id="new-slip" autocomplete="off">
+        <div class="slip-head">
+          <span class="slip-title">While You Were Out</span>
+          <span class="slip-date">
+            <label for="slip-date" class="slip-mini">Date</label>
+            <input type="date" id="slip-date" required>
+          </span>
+        </div>
+
+        <div class="slip-row slip-m">
+          <label for="slip-who" class="slip-m-prefix">M</label>
+          <input type="text" id="slip-who" placeholder="who you spoke with (optional)" maxlength="80">
+        </div>
+
+        <fieldset class="slip-boxes">
+          <legend class="slip-mini">How</legend>
+          <label><input type="radio" name="kind" value="phone" checked> Telephoned</label>
+          <label><input type="radio" name="kind" value="email"> Emailed</label>
+          <label><input type="radio" name="kind" value="inperson"> Came to see you</label>
+          <label><input type="radio" name="kind" value="note"> Note home</label>
+        </fieldset>
+
+        <fieldset class="slip-boxes">
+          <legend class="slip-mini">Result</legend>
+          <label><input type="radio" name="outcome" value="reached" checked> Reached them</label>
+          <label><input type="radio" name="outcome" value="message"> Left message</label>
+          <label><input type="radio" name="outcome" value="noanswer"> No answer</label>
+        </fieldset>
+
+        <label class="slip-followup">
+          <input type="checkbox" id="slip-followup"> Please follow up
+        </label>
+
+        <div class="slip-message">
+          <label for="slip-note" class="slip-mini">Message</label>
+          <textarea id="slip-note" rows="4" maxlength="4000"
+                    placeholder="What was said, in as few words as you like."></textarea>
+        </div>
+
+        <div class="slip-actions">
+          <span class="muted slip-hint">Ctrl+Enter saves</span>
+          <button type="submit" class="desk-button" id="btn-save-slip">Add to record</button>
+        </div>
+        <p class="error-msg" id="slip-error" hidden></p>
+      </form>
+
+      <div id="slip-stack" class="slip-stack" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <!-- Panic-hide curtain. Deliberately says nothing about anyone. -->
+  <div id="privacy-curtain" hidden>
+    <div class="curtain-card">
+      <p class="curtain-title">Contact Log</p>
+      <p class="curtain-sub">Hidden.</p>
+      <button type="button" class="desk-button" id="btn-unhide">Show the log</button>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,434 @@
+/* =============================================================
+   contact-log/style.css — the message pad.
+
+   Teacher chrome (class select, card file) sits on the suite wood
+   desk with paper panels. The SLIP is its own world: carbon-copy
+   rose stock, printed form furniture in condensed caps, a red rule
+   under the header and blue ruled lines in the message area. Office
+   supply, not app. The slip does NOT theme.
+
+   On the rose: the authentic pad is pale pink, which the suite's
+   no-pastels rule rightly forbids. This is a deeper carbon-copy rose
+   — saturated enough to sit beside the burnt orange and mustard of
+   the other worlds while still reading unmistakably as a message
+   slip. Decided with the user 2026-08-22.
+
+   TEXTURE-READY: each material has one styling entry point —
+   slip stock (.slip), pad backing (body.is-pad), card-file tab
+   (.student-card).
+   ============================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+body {
+  /* Pad palette (channel-form RGB so opacity modifiers compose like
+     suite tokens). Fixed values — the slip doesn't theme. */
+  --slip-rose:        226 158 152;   /* #E29E98  carbon-copy stock */
+  --slip-rose-deep:   198 118 112;   /* #C67670  rule + edge */
+  --slip-rose-pale:   240 198 192;   /* #F0C6C0  message field */
+  --slip-ink:          46  32  30;   /* #2E201E  printed ink */
+  --slip-red:        168  38  38;    /* #A82626  the red rule */
+  --pad-board:        104  70  56;   /* #684638  the pad's backing board */
+}
+
+.log-main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.view-header { margin-bottom: var(--space-4); }
+.view-header h1 {
+  color: rgb(var(--paper-on-wood));
+  margin: 0 0 var(--space-1);
+}
+.view-header .muted { color: rgb(var(--paper-on-wood) / 0.75); margin: 0; }
+
+body.app-view .view-header h1 { color: rgb(var(--paper-on-wood)); }
+
+.file-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.file-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+.file-actions .icon { width: 15px; height: 15px; vertical-align: -2px; }
+
+/* The privacy posture, stated plainly — the noise meter brief's
+   instinct: say it in the UI rather than in a policy nobody reads. */
+.privacy-note {
+  margin: var(--space-5) 0 0;
+  color: rgb(var(--paper-on-wood) / 0.7);
+  font-size: var(--type-13);
+  max-width: 62ch;
+}
+
+/* ── Filters ─────────────────────────────────────────────────── */
+.file-filters {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgb(var(--paper-on-wood) / 0.3);
+  background: transparent;
+  color: rgb(var(--paper-on-wood) / 0.85);
+  font-family: var(--font-slab);
+  font-size: var(--type-13);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s ease-out, border-color .12s ease-out;
+}
+.filter-chip:hover { background: rgb(var(--paper-on-wood) / 0.1); }
+.filter-chip.is-active {
+  background: rgb(var(--paper-cream));
+  border-color: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+}
+
+/* ── The card file ───────────────────────────────────────────── */
+.student-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+/* MATERIAL: index-card tab. */
+.student-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: rgb(var(--paper-cream));
+  color: rgb(var(--paper-edge));
+  border: 1px solid rgb(var(--paper-edge) / 0.2);
+  /* The tab: a colored edge along the top, like a card index divider. */
+  border-top: 4px solid rgb(var(--paper-edge) / 0.35);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  cursor: pointer;
+  font: inherit;
+  transition: transform .1s ease-out, box-shadow .1s ease-out;
+}
+.student-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.student-card:focus-visible { outline: 2px solid rgb(var(--accent-blue)); outline-offset: 2px; }
+/* Never contacted — the ones the file exists to surface. */
+.student-card.is-cold { border-top-color: rgb(var(--slip-red)); }
+.student-card.is-unmatched { cursor: default; border-top-color: rgb(var(--ink-muted)); }
+.student-card.is-unmatched:hover { transform: none; box-shadow: var(--shadow-paper); }
+
+.card-name {
+  font-family: var(--font-slab);
+  font-size: var(--type-17);
+  font-weight: 700;
+}
+.card-since {
+  font-size: var(--type-13);
+  color: rgb(var(--paper-edge) / 0.8);
+}
+.is-cold .card-since { color: rgb(var(--slip-red)); font-weight: 700; }
+.card-meta {
+  font-size: var(--type-11);
+  color: rgb(var(--paper-edge) / 0.65);
+  margin-top: 2px;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.card-owed { color: rgb(var(--slip-red)); font-weight: 700; }
+
+.empty-note { color: rgb(var(--paper-on-wood) / 0.75); }
+
+.unmatched-heading {
+  margin: var(--space-6) 0 var(--space-1);
+  color: rgb(var(--paper-on-wood));
+  font-size: var(--type-17);
+}
+.unmatched-hint {
+  color: rgb(var(--paper-on-wood) / 0.7);
+  font-size: var(--type-13);
+  margin: 0 0 var(--space-3);
+  max-width: 62ch;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--type-11);
+  color: rgb(var(--accent-blue));
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn.is-danger { color: rgb(var(--slip-red)); }
+.link-btn .icon { width: 12px; height: 12px; vertical-align: -2px; }
+
+/* ── The pad ─────────────────────────────────────────────────
+   MATERIAL: pad backing board — the slip stack sits on it, so the
+   slips read as paper on a board rather than floating on the desk. */
+body.is-pad .log-main {
+  max-width: 780px;
+  background: rgb(var(--pad-board));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-paper);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+body.is-pad .view-header h1,
+body.is-pad .view-header .muted { color: rgb(var(--paper-on-wood)); }
+
+/* MATERIAL: slip stock. Everything below is the printed form. */
+.slip {
+  background: rgb(var(--slip-rose));
+  color: rgb(var(--slip-ink));
+  border: 1px solid rgb(var(--slip-rose-deep));
+  border-radius: var(--radius-tight, 3px);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-paper);
+  font-family: var(--font-sans);
+}
+.slip + .slip { margin-top: var(--space-3); }
+.slip-new { margin-bottom: var(--space-5); }
+
+.slip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 2px solid rgb(var(--slip-red));
+  padding-bottom: 5px;
+  margin-bottom: var(--space-3);
+}
+.slip-title {
+  font-family: var(--font-slab);
+  font-size: var(--type-17);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.slip-date { display: flex; align-items: center; gap: 6px; }
+.slip-filed-date {
+  font-size: var(--type-13);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.slip-mini {
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--slip-ink) / 0.7);
+}
+
+.slip-row { margin: 0 0 var(--space-3); }
+.slip-m { display: flex; align-items: center; gap: 8px; }
+.slip-m-prefix {
+  font-family: var(--font-slab);
+  font-weight: 800;
+  font-size: var(--type-17);
+}
+
+.slip input[type="text"],
+.slip input[type="date"],
+.slip textarea {
+  font: inherit;
+  color: rgb(var(--slip-ink));
+  background: rgb(var(--slip-rose-pale));
+  border: none;
+  border-bottom: 1px solid rgb(var(--slip-ink) / 0.5);
+  border-radius: 0;
+  padding: 4px 6px;
+}
+.slip input[type="text"] { flex: 1; min-width: 0; }
+.slip input:focus, .slip textarea:focus {
+  outline: 2px solid rgb(var(--slip-red) / 0.6);
+  outline-offset: 1px;
+}
+
+.slip-boxes {
+  border: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-4);
+  align-items: center;
+}
+.slip-boxes legend { float: left; width: 100%; margin-bottom: 3px; }
+.slip-boxes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--type-13);
+  cursor: pointer;
+}
+.slip-followup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+  font-family: var(--font-slab);
+  font-weight: 700;
+  font-size: var(--type-13);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+/* The ruled message field — the star of the form. */
+.slip-message { margin-bottom: var(--space-3); }
+.slip-message textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  resize: vertical;
+  line-height: 26px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgb(var(--slip-rose-pale)) 0px,
+      rgb(var(--slip-rose-pale)) 25px,
+      rgb(var(--slip-ink) / 0.22) 25px,
+      rgb(var(--slip-ink) / 0.22) 26px
+    );
+  border-bottom: none;
+}
+
+.slip-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.slip-hint { font-size: var(--type-11); color: rgb(var(--slip-ink) / 0.7); }
+/* The suite's blue primary is app chrome and fights the rose stock.
+   Inside the slip the button is stamped ink, like the rest of the form. */
+.slip .desk-button {
+  background: rgb(var(--slip-ink));
+  color: rgb(var(--slip-rose-pale));
+  border-color: rgb(var(--slip-ink));
+  font-family: var(--font-slab);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.slip .desk-button:hover { background: rgb(var(--slip-red)); border-color: rgb(var(--slip-red)); }
+.slip .error-msg { margin: var(--space-2) 0 0; color: rgb(var(--slip-red)); font-weight: 700; }
+
+/* ── Filed slips ─────────────────────────────────────────────── */
+.slip-stack { display: flex; flex-direction: column; }
+.slip-filed.is-owed { border-left: 4px solid rgb(var(--slip-red)); }
+
+.slip-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 var(--space-2);
+}
+/* The checked box on a real slip, rendered as a stamped mark. */
+.stamp {
+  font-family: var(--font-slab);
+  font-size: var(--type-11);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid rgb(var(--slip-ink) / 0.55);
+  border-radius: var(--radius-tight, 3px);
+}
+.stamp-outcome { background: rgb(var(--slip-ink) / 0.1); }
+.stamp-owed {
+  border-color: rgb(var(--slip-red));
+  color: rgb(var(--slip-red));
+  font-weight: 800;
+}
+.slip-note {
+  margin: 0 0 var(--space-2);
+  white-space: pre-wrap;
+  font-size: var(--type-13);
+  line-height: 1.5;
+}
+.slip-filed-actions {
+  margin: 0;
+  display: flex;
+  gap: var(--space-3);
+}
+.slip-filed .link-btn { color: rgb(var(--slip-ink) / 0.75); }
+.slip-filed .link-btn.is-danger { color: rgb(var(--slip-red)); }
+
+/* ── Panic-hide curtain ──────────────────────────────────────
+   Deliberately blank: no names, no counts, nothing that says
+   anything about anybody. */
+/* Take the content out of the page entirely rather than covering it —
+   an opaque overlay still leaves names rendered underneath. */
+body.is-hidden-log .log-main,
+body.is-hidden-log .suite-breadcrumb { display: none; }
+
+#privacy-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--desk-wood));
+}
+.curtain-card {
+  text-align: center;
+  color: rgb(var(--paper-on-wood));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.curtain-title {
+  font-family: var(--font-slab);
+  font-size: var(--type-34);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+.curtain-sub { margin: 0; color: rgb(var(--paper-on-wood) / 0.6); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .file-header { align-items: flex-start; }
+  .student-cards { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .slip-boxes { gap: 4px var(--space-3); }
+}
+
+/* =============================================================
+   TEXTURE SLOTS (shared/textures.js) — see assets/textures/README.md
+   ============================================================= */
+html.tex-log-slip-stock .slip {
+  background-image: var(--tex-log-slip-stock);
+  background-size: 320px 320px;
+  background-repeat: repeat;
+}
+html.tex-log-pad-board body.is-pad {
+  background-image: var(--tex-log-pad-board);
+  background-size: 512px 512px;
+  background-repeat: repeat;
+}
+html.tex-log-card-tab .student-card {
+  background-image: var(--tex-log-card-tab);
+  background-size: 256px 256px;
+  background-repeat: repeat;
+}

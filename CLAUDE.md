@@ -2,7 +2,7 @@
 
 A static suite of free classroom tools for K–12 teachers, made by Mr. Osborne. Each tool has its own world (homepage diorama, wheel game-show, noise meter VU/traffic-light/control-panel, timer in four flavors, grade-book call tracker, boxing-match review game), but they all read and write through one shared data layer and share the same type system, interaction grammar, and engineering tokens. Everything is static + localStorage — no backend, no accounts, no analytics.
 
-**Shipped today:** homepage, Math Bingo, Wheel of Names, Marble Race, Team Maker (four reveal ceremonies), Around the World, Seating Chart (which owns the roster editor). The noise meter, timer, and Who's Been Called are planned — their briefs live in the `.docx` until each gets a per-tool `.md`.
+**Shipped today:** homepage, Math Bingo, Wheel of Names, Marble Race, Team Maker (four reveal ceremonies), Around the World, Contact Log, Seating Chart (which owns the roster editor). The noise meter, timer, and Who's Been Called are planned — their briefs live in the `.docx` until each gets a per-tool `.md`.
 
 ## Source of truth
 
@@ -40,6 +40,7 @@ Briefs live in `briefs/`. The original consolidated Word document is at `briefs/
 ├── race/                       ← Marble Race (vanilla)
 ├── teams/                      ← Team Maker (vanilla; reveals live in shared/reveals/)
 ├── around-the-world/           ← Around the World (vanilla)
+├── contact-log/                ← Contact Log (vanilla; parent/guardian contact records)
 ├── picker/                     ← stub redirect to wheel/ (kept for old bookmarks)
 ├── rosters/                    ← stub redirect to seating-chart/
 ├── seating-chart/              ← React + TypeScript + Vite + Tailwind + Konva + Zustand + Radix
@@ -90,6 +91,7 @@ Each tool has its own intentional visual character. Don't fight the impulse to m
 - **Marble Race** — pinball parlor at night (midnight cabinet, cream playfield, chrome + brass).
 - **Team Maker** — suite paper-on-wood shell; each reveal is its own world: parlor annex (sorter), smoky card room (draft), Japanese toy shop (gacha), 1980s mainframe CRT (terminal).
 - **Around the World** — mid-century boxing broadcast (near-black ring, corner red/blue, gold).
+- **Contact Log** — a "While You Were Out" message pad: carbon-copy rose slips, printed form furniture in condensed caps, red rule. The deeper rose is a deliberate reading of the no-pastels rule (decided 2026-08-22) — saturated enough to sit beside the mustard and burnt orange.
 - **Noise Meter** *(planned)* — three switchable styles: vintage VU meter, traffic light, NASA control panel.
 - **Timer** *(planned)* — four switchable styles: split-flap board, wind-up kitchen timer, vintage stopwatch, Nixie tubes.
 - **Who's Been Called** *(planned)* — 1970s grade book / green-bar accountant pad.
@@ -115,6 +117,8 @@ Two cross-tool stores carry most of the suite:
 
 Per-tool state lives under `tools.<toolName>` in the storage envelope.
 
+**Never key durable per-student records to a name via `setToolMeta`.** The API exists (`tools.<tool>.students[classId][name]`) but the roster editor writes on every keystroke, and `setRoster` treats a rename as remove-plus-add and **auto-deletes the departed name's metadata** — so fixing one typo destroys the record. `renameStudent` would migrate it correctly but has no call sites. Tools that keep records a teacher would miss (the Contact Log is the first) must own their own store outside the reserved `students` key, key it to a tool-minted id, and reconcile against the roster: auto-relink a clean 1-for-1 name swap, park anything ambiguous for a manual re-link, and **never delete a record because a roster changed.** See `contact-log/script.js`.
+
 **`incrementCallCount(classId, name)`** (in `shared/storage.js`, re-exported by the roster bridge) is shared infrastructure: any tool that picks or calls on a student should invoke it, so participation data is consistent regardless of which tool selected the student. The Wheel calls it on each spin. Around the World should call it on each round when built. Future pickers should too.
 
 ## Tool navigation — the topstrip pattern
@@ -130,6 +134,7 @@ Additional conventions:
 - **Browser Back walks levels.** Every vanilla tool wires its views through [`shared/nav-levels.js`](shared/nav-levels.js): drill-downs push a history entry, and Back/Forward, the crumb links, and Esc all route through the same `onNavigate` renderer — Back never dumps the teacher out of the tool mid-game. Bingo's card designer vetoes the navigation and shows its save-changes prompt when dirty. The seating chart uses React Router URLs and manages its own history.
 - **Static pages get the strip too.** `about.html` and every `how-to.html` carry the same breadcrumb shell (wordmark › tool link › current page) with **no icon cluster** — they're documents, not apps.
 - **Borderless fullscreen is the suite standard** (decided 2026-07-15): in fullscreen, EVERY page sheds its chrome — the topstrip collapses to zero height and only the floating minimize button survives (fixed top-right; `body.is-fullscreen` rules in `shared/desk.css`). Tools toggle `body.is-fullscreen` from their `fullscreenchange` handler. The seating chart (its own React shell) is exempt. Dark worlds recolor `#btn-fullscreen` cream; nothing else overrides. **The top-right ~52px is the minimize button's reserved corner** — any world control that lives top-right gets a fullscreen `padding-right` so it never sits under the button (race and AtW headers do this).
+- **The Contact Log deviates on Esc, deliberately.** It's the one tool holding notes about families, and the realistic threat is a student arriving at the desk mid-sentence — so there Esc *hides* the log first (and works while typing, unlike every other key), and a second Esc walks up a level. Nowhere else overrides Esc.
 - **No cross-tool navigation — deliberately.** Tools never link to each other; the breadcrumb only walks to suite root or within the current tool. Teachers usually use one tool per visit; the desk is the switchboard.
 - **No footer, no sidebar.** Discovery happens at the desk.
 - Tool homepages still keep the same widget set as app-views — just transparent background — so the user can hit Settings or Fullscreen from any screen.
